@@ -256,3 +256,39 @@ These are the commands that actually saved me time on the exam. The `$do` patter
 - `k delete pod <name> $now` — instant delete (no grace period)
 - `k run tmp --image=busybox:1.36 --rm -it -- sh` — throwaway debug pod
 - Copy from docs: kubernetes.io/docs/tasks/ has step-by-step for etcd, kubeadm, RBAC
+
+---
+
+## Patch Objects Fast (Without Rewriting YAML)
+
+When a question asks you to change one field, patching is usually faster and safer than opening a full manifest in vim or nano.
+
+Why patch is useful in exam conditions:
+- Updates only the field you target (lower chance of accidental YAML damage)
+- Faster than editing a long manifest
+- Easy to verify immediately with `jsonpath` or `describe`
+
+Official doc:
+- https://kubernetes.io/docs/tasks/manage-kubernetes-objects/update-api-object-kubectl-patch/
+
+I usually copy an example from the official doc first, then change only the field I need (for example, `priorityClassName`). This saves time and avoids patch JSON syntax mistakes.
+
+For image-only updates, `k set image` is usually safer than patching the entire `containers` list.
+
+```bash
+# Patch from file (good when patch is reused)
+kubectl patch deployment patch-demo --patch-file patch-file.json
+
+# Inline patch (good for one-off changes)
+kubectl patch deployment patch-demo --patch '{"spec":{"template":{"spec":{"containers":[{"name":"patch-demo-ctr-2","image":"redis"}]}}}}'
+
+# PriorityClass example
+# Create PriorityClass with a practical app value
+k create priorityclass high-priority --value=1000 --description="high priority"
+
+# Patch deployment pod template to use it
+k patch deployment busybox-logger -n priority -p '{"spec":{"template":{"spec":{"priorityClassName":"high-priority"}}}}'
+
+# Verify quickly
+k get deploy busybox-logger -n priority -o jsonpath='{.spec.template.spec.priorityClassName}{"\n"}'
+k describe deployment busybox-logger -n priority | grep -i "Priority Class"
