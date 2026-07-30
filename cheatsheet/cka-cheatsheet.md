@@ -44,8 +44,8 @@ k config current-context           # Verify
 k run pod1 --image=nginx:1.27 $do > pod.yaml
 k create deployment dep1 --image=nginx:1.27 --replicas=3 $do > dep.yaml
 k expose deployment dep1 --port=80 --target-port=80 $do > svc.yaml
-k create job job1 --image=busybox:1.36 -- sh -c "echo done" $do > job.yaml
-k create cronjob cron1 --image=busybox:1.36 --schedule="*/5 * * * *" -- date $do > cron.yaml
+k create job job1 --image=busybox:1.36 $do -- sh -c "echo done" > job.yaml
+k create cronjob cron1 --image=busybox:1.36 --schedule="*/5 * * * *"  $do -- date > cron.yaml
 k create cm my-cm --from-literal=KEY=value
 k create secret generic my-sec --from-literal=PASS=secret
 k create sa my-sa -n <ns>
