@@ -109,6 +109,20 @@ Create PersistentVolumes, PersistentVolumeClaims, and mount them into pods. This
 >
 > Created PV with `hostPath: /data/exercise-12` but forgot to `mkdir -p /data/exercise-12` on the node. Pod stayed Pending. The node has to have the backing directory, and if running on a multi-node cluster, the Pod might land on a node that doesn't have it. Consider this when designing storage tests.
 
+> **Real cluster behavior + common failure causes**
+>
+> `PVC Bound` only proves the bind succeeded. It does not prove the storage is usable. The real proof is a Pod in `Running` state and a successful write/read from the mounted volume.
+>
+> Common causes of failure:
+> - PV and PVC `accessModes` do not match exactly
+> - `storageClassName` values differ (`manual` vs `standard`)
+> - PVC and Pod are in different namespaces
+> - the hostPath directory does not exist on the node
+> - the Pod is scheduled to a node without the backing directory
+> - events show a mount or scheduling issue even when the YAML looks correct
+>
+> Always validate with `k get pv`, `k get pvc`, `k get pod`, and `k get events` before concluding the storage setup is healthy.
+
 ## Verify + Cleanup
 
 ```bash

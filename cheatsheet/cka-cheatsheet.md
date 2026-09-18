@@ -318,3 +318,5 @@ k patch deployment busybox-logger -n priority -p '{"spec":{"template":{"spec":{"
 k get deploy busybox-logger -n priority -o jsonpath='{.spec.template.spec.priorityClassName}{"\n"}'
 k describe deployment busybox-logger -n priority | grep -i "Priority Class"
 ```
+
+Real cluster behavior: status alone is not proof. Check `k get events`, `k describe`, and actual pod readiness before trusting the config.

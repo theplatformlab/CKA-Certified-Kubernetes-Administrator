@@ -2233,7 +2233,7 @@ k get nodes
 
 ### Scenario 4: kubeadm Upgrade
 
-**Task:** Upgrade the control plane from v1.34.x to v1.35.0.
+**Task:** Upgrade the control plane from Kubernetes v1.34.x to v1.35.0.
 
 <details>
 <summary>Solution</summary>
