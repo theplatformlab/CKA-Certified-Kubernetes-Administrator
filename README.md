@@ -2158,9 +2158,12 @@ ETCDCTL_API=3 etcdctl snapshot restore /opt/etcd-backup.db \
   --data-dir=/var/lib/etcd-restored
 
 # Update etcd manifest
-sudo sed -i 's|/var/lib/etcd|/var/lib/etcd-restored|g' /etc/kubernetes/manifests/etcd.yaml
+sudo vi /etc/kubernetes/manifests/etcd.yaml
+# Change --data-dir=/var/lib/etcd → --data-dir=/var/lib/etcd-restored
+# Change hostPath path: /var/lib/etcd → /var/lib/etcd-restored
 
 # Wait for etcd to restart
+# kubectl may hang for 30-60s — that's normal
 sleep 30
 k get nodes
 ```
@@ -2317,6 +2320,7 @@ spec:
       role: db
   policyTypes:
   - Ingress
+  - Egress
   ingress:
   - from:
     - podSelector:
@@ -2696,21 +2700,22 @@ Service `frontend-svc` in namespace `web` has no endpoints. Pods with label `app
 <summary>Solution</summary>
 
 ```bash
-# Check service
+# 1. Check service
 k describe svc frontend-svc -n web | grep Selector
 # e.g., Selector: app=front (typo)
 
-# Check pod labels
+# 2. Check pod labels
 k get pods -n web --show-labels
 # Labels show: app=frontend
 
-# Fix: edit service selector
-k edit svc frontend-svc -n web
-# Change selector from app=front to app=frontend
-# Or:
-k patch svc frontend-svc -n web -p '{"spec":{"selector":{"app":"frontend"}}}'
+# 5. Fix pod labels
+k label pod <backend-pod> app=backend --overwrite
 
-# Verify
+# 6. Or fix service selector
+k edit svc frontend-svc
+# Change selector to match actual pod labels
+
+# 7. Verify
 k get endpoints frontend-svc -n web
 ```
 
@@ -3235,7 +3240,7 @@ If you score 60%+ on killer.sh, you'll likely pass the real exam. Note: killer.s
 
 - [ ] Clear your desk completely — nothing on it except laptop, keyboard, mouse. I had to remove a sticky note from my monitor.
 - [ ] Remove second monitors, disconnect external screens
-- [ ] Switch to wired ethernet if possible — WiFi dropped during my killer.sh practice and I lost 2 minutes
+- [ ] Switch to wired ethernet if possible — WiFi dropped during my killer.sh practice and I lost 2 minutes reconnecting. I switched to ethernet for the real thing.
 - [ ] Run through the [first 60 seconds setup](#first-60-seconds--aliases-vim-bash) from memory one last time
 - [ ] Read the [exam day strategy](#exam-day-strategy--time-allocation) but don't cram new content — it won't stick
 - [ ] Sleep. Seriously. I went to bed early and it helped more than any last-minute studying.
@@ -3946,5 +3951,5 @@ Every star and issue makes this repo more visible to the next person Googling "C
 
 ### Topics
 
-`cka` `cka-exam` `cka-certification` `cka-study-guide` `cka-practice-questions` `cka-cheat-sheet` `certified-kubernetes-administrator` `kubernetes` `kubernetes-certification` `kubernetes-exam` `cka-2026` `kubectl` `kubeadm` `etcd-backup` `kubernetes-troubleshooting` `cka-tips` `killer-sh` `kubernetes-rbac` `gateway-api` `helm` `kubernetes-v1.35` `cka-mock-exam` `kubectl-cheatsheet`
+`cka` `cka-exam` `cka-certification` `cka-study-guide` `cka-practice-questions` `cka-cheatsheet` `certified-kubernetes-administrator` `kubernetes` `kubernetes-certification` `kubernetes-exam` `cka-2026` `kubectl` `kubeadm` `etcd-backup` `kubernetes-troubleshooting` `cka-tips` `killer-sh` `kubernetes-rbac` `gateway-api` `helm` `kubernetes-v1.35` `cka-mock-exam` `kubectl-cheatsheet`
 

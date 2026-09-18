@@ -85,11 +85,13 @@ Create PersistentVolumes, PersistentVolumeClaims, and mount them into pods. This
 
 **Access Modes Explained (Reddit: Candidates mix these up)**
 - `ReadWriteOnce (RWO)`: A volume can be mounted as read-write by a single node at a time. Multiple pods on the same node may share the same volume read-write, but it cannot be mounted read-write on two different nodes at the same time.
-- `ReadWriteOncePod (RWOP)`: The volume can be mounted as read-write by only one pod, regardless of node. This is the true pod-scoped exclusivity mode.
+- `ReadWriteOncePod (RWOP)`: The volume can be mounted as read-write by only one pod, regardless of node. This is the pod-scoped exclusivity mode.
 - `ReadOnlyMany (ROX)`: Multiple Pods can mount (read-only).
 - `ReadWriteMany (RWX)`: Multiple Pods can mount (read+write). Requires network storage (NFS, etc).
 - **Common exam mistake:** Confusing `ReadWriteOnce` with `ReadWriteOncePod`. `RWO` is node-scoped, not pod-scoped. `RWOP` is the mode that restricts access to a single pod.
 - **Test this:** On the same node, two Pods can often read/write the same `ReadWriteOnce` PVC. If you need strict single-pod write access, use `ReadWriteOncePod` instead.
+
+> **CKA note:** For Kubernetes 1.36+, the exam-safe wording is: `RWO` = one node, `RWOP` = one pod.
 
 > **Storage Binding Requires Name Exactness**
 > 
