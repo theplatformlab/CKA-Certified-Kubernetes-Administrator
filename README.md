@@ -22,8 +22,6 @@ I took the CKA in March 2026 and scored 89%. Writing this while it's fresh — p
 
 The [CKA](https://www.cncf.io/certification/cka/) is a hands-on, terminal-based exam. 2 hours, roughly 17-25 tasks, no multiple choice. I prepped for about 4 weeks. This repo has my notes, the commands I actually used, YAML I wrote from memory, and the mistakes I made along the way.
 
-> Blog version of these notes: [Pass the CKA Certification Exam](https://techwithmohamed.com/blog/cka-exam-study-guide/)
-
 If this was useful, a star helps others find it.
 
 ---
@@ -3943,15 +3941,4 @@ Every star and issue makes this repo more visible to the next person Googling "C
     <img src="https://img.shields.io/github/stars/theplatformlab/CKA-Certified-Kubernetes-Administrator?style=for-the-badge&logo=github" alt="GitHub Stars">
   </a>
 </p>
-
-<p align="center">
-  <a href="https://techwithmohamed.com">techwithmohamed.com</a> · 
-  <a href="https://techwithmohamed.com/blog/cka-exam-study-guide/">Blog Post</a>
-</p>
-
----
-
-### Topics
-
-`cka` `cka-exam` `cka-certification` `cka-study-guide` `cka-practice-questions` `cka-cheatsheet` `certified-kubernetes-administrator` `kubernetes` `kubernetes-certification` `kubernetes-exam` `cka-2026` `kubectl` `kubeadm` `etcd-backup` `kubernetes-troubleshooting` `cka-tips` `killer-sh` `kubernetes-rbac` `gateway-api` `helm` `kubernetes-v1.35` `cka-mock-exam` `kubectl-cheatsheet`
 
