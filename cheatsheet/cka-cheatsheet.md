@@ -146,6 +146,8 @@ Worker: drain first, `kubeadm upgrade node` (not apply), uncordon after.
 
 Access modes: `ReadWriteOnce (RWO)` | `ReadOnlyMany (ROX)` | `ReadWriteMany (RWX)` | `ReadWriteOncePod (RWOP)`
 
+`RWO` = one node can mount read-write. `RWOP` = only one pod can mount read-write. Do not confuse the two.
+
 Reclaim: `Retain` (keep data) | `Delete` (remove PV)
 
 ---
@@ -315,3 +317,4 @@ k patch deployment busybox-logger -n priority -p '{"spec":{"template":{"spec":{"
 # Verify quickly
 k get deploy busybox-logger -n priority -o jsonpath='{.spec.template.spec.priorityClassName}{"\n"}'
 k describe deployment busybox-logger -n priority | grep -i "Priority Class"
+```

@@ -1017,6 +1017,8 @@ spec:
 | ReadWriteMany | RWX | Many nodes can mount read-write. Doesn't work with hostPath — I tried. |
 | ReadWriteOncePod | RWOP | Only one pod can mount read-write. New in v1.29+, might show up. |
 
+> CKA-safe rule: `ReadWriteOnce` is node-scoped, not pod-scoped. `ReadWriteOncePod` is the pod-scoped mode. In real clusters, multiple pods on the same node can often use the same `RWO` volume; `RWOP` is the one that enforces a single pod.
+
 **Reclaim Policies** — know the difference or you'll lose data:
 
 | Policy | What actually happens |
@@ -3240,7 +3242,7 @@ If you score 60%+ on killer.sh, you'll likely pass the real exam. Note: killer.s
 
 - [ ] Clear your desk completely — nothing on it except laptop, keyboard, mouse. I had to remove a sticky note from my monitor.
 - [ ] Remove second monitors, disconnect external screens
-- [ ] Switch to wired ethernet if possible — WiFi dropped during my killer.sh practice and I lost 2 minutes reconnecting. I switched to ethernet for the real thing.
+- [ ] Switch to wired ethernet if possible — WiFi dropped during my killer.sh practice run and I lost 2 minutes reconnecting. I switched to ethernet for the real thing.
 - [ ] Run through the [first 60 seconds setup](#first-60-seconds--aliases-vim-bash) from memory one last time
 - [ ] Read the [exam day strategy](#exam-day-strategy--time-allocation) but don't cram new content — it won't stick
 - [ ] Sleep. Seriously. I went to bed early and it helped more than any last-minute studying.
