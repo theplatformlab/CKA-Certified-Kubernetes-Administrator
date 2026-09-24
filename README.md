@@ -35,7 +35,7 @@ If you're time-pressured, here's the fast track:
 3. **Do the exercises** — work through the [31 hands-on exercises](exercises/) in order. Each one targets a specific CKA domain.
 4. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md) for all skeleton YAML. Copy, paste, modify.
 5. **Do the mock exam** — practice under exam conditions with timed scenarios. See [mock-exams/README.md](mock-exams/README.md) for prep strategy and scoring.
-6. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
+6. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam). Or try [kube4sure](https://kube4sure.com/exams/cka).
 7. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
 
 ---
