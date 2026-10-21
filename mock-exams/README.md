@@ -71,8 +71,8 @@ These mocks are slightly **harder** than real exams, so scoring 12+/15 on mocks 
 - **Difficulty:** Medium-Hard (tests core concepts + edge cases)
 
 **Files:**
-- Questions: [MOCK-EXAM-01.md](MOCK-EXAM-01.md) ← START HERE
-- Solutions: [MOCK-EXAM-01-SOLUTIONS.md](MOCK-EXAM-01-SOLUTIONS.md)
+- Questions: [MOCK-EXAM-01.md](exams/MOCK-EXAM-01.md) ← START HERE
+- Solutions: [MOCK-EXAM-01-SOLUTIONS.md](solutions/MOCK-EXAM-01-SOLUTIONS.md)
 
 ## Mock Exam 02
 
@@ -84,8 +84,8 @@ These mocks are slightly **harder** than real exams, so scoring 12+/15 on mocks 
 - **Difficulty:** Medium-Hard (different mix from Exam 01, tests similar depth)
 
 **Files:**
-- Questions: [MOCK-EXAM-02.md](MOCK-EXAM-02.md)
-- Solutions: [MOCK-EXAM-02-SOLUTIONS.md](MOCK-EXAM-02-SOLUTIONS.md)
+- Questions: [MOCK-EXAM-02.md](exams/MOCK-EXAM-02.md)
+- Solutions: [MOCK-EXAM-02-SOLUTIONS.md](solutions/MOCK-EXAM-02-SOLUTIONS.md)
 
 ---
 
