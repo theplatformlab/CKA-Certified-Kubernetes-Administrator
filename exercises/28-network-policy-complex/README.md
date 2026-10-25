@@ -121,22 +121,24 @@ k delete ns frontend backend database
 <summary>Solution</summary>
 
 ```bash
-# Create namespaces
-k create ns frontend backend database
+# Create namespaces (create ns takes one name only)
+k create ns frontend
+k create ns backend
+k create ns database
 
 # Label namespaces for cross-ns selection
 k label ns frontend name=frontend
 k label ns backend name=backend
 k label ns database name=database
 
-# Deploy frontend
+# Deploy frontend (nginx listens on 80)
 k run frontend-web -n frontend --image=nginx:1.27 --labels=tier=frontend
 
-# Deploy backend
-k run backend-api -n backend --image=busybox:1.36 --command sleep 3600 --labels=tier=backend
+# Deploy backend (busybox httpd listens on 8080; plain sleep listens on nothing -> "refused")
+k run backend-api -n backend --image=busybox:1.36 --labels=tier=backend --command -- httpd -f -p 8080
 
-# Deploy database
-k run database-redis -n database --image=busybox:1.36 --command sleep 3600 --labels=tier=database
+# Deploy database (redis listens on 6379)
+k run database-redis -n database --image=redis:7 --labels=tier=database
 
 # Create services
 k expose pod frontend-web -n frontend --port=80 --type=ClusterIP
@@ -189,14 +191,81 @@ spec:
       port: 6379
 EOF
 
-# Allow DNS egress from all namespaces
-for ns in frontend backend database; do
+# Default-deny ingress for frontend (backend and database are already
+# ingress-isolated by the policies above)
 cat <<EOF | k apply -f -
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-dns-egress
-  namespace: $ns
+  name: default-deny-ingress
+  namespace: frontend
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+EOF
+
+# Egress per namespace: DNS for all + the one app port each source needs.
+# A podSelector: {} Egress policy isolates every pod's egress, so a
+# DNS-only policy alone would block frontend->backend and backend->database.
+
+# Frontend egress: DNS + backend:8080
+cat <<EOF | k apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress
+  namespace: frontend
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+EOF
+
+# Backend egress: DNS + database:6379
+cat <<EOF | k apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress
+  namespace: backend
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: database
+    ports:
+    - protocol: TCP
+      port: 6379
+EOF
+
+# Database egress: DNS only
+cat <<EOF | k apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress
+  namespace: database
 spec:
   podSelector: {}
   policyTypes:
@@ -207,14 +276,19 @@ spec:
     - protocol: UDP
       port: 53
 EOF
-done
 
-# Test connectivity
-# Frontend → Backend (should work)
-k exec -it $(k get po -n frontend -o name | head -1) -n frontend -- curl -m 2 http://backend-api.backend.svc.cluster.local:8080
+# Test connectivity (refused in 0 ms = nothing listening; hang/timeout = policy drop)
+# Frontend → Backend (should work; 404 is fine, it means connected)
+k exec frontend-web -n frontend -- curl -s -m 2 -o /dev/null -w '%{http_code}\n' http://backend-api.backend:8080
 
-# Frontend → Database (should fail)
-k exec -it $(k get po -n frontend -o name | head -1) -n frontend -- curl -m 2 http://database-redis.database.svc.cluster.local:6379
+# Frontend → Database (should time out)
+k exec frontend-web -n frontend -- curl -m 2 http://database-redis.database:6379
+
+# Backend → Database (should print +PONG)
+k exec backend-api -n backend -- sh -c 'echo PING | nc -w 2 database-redis.database 6379'
+
+# Backend → Frontend (should time out)
+k exec backend-api -n backend -- wget -qO- -T 2 http://frontend-web.frontend
 ```
 
 </details>
