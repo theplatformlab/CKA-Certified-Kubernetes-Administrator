@@ -120,8 +120,10 @@ k delete ns frontend backend database
 <details>
 <summary>Solution</summary>
 
+**1. Namespaces, pods, services**
+
 ```bash
-# Create namespaces (create ns takes one name only)
+# Create namespaces (one name per command)
 k create ns frontend
 k create ns backend
 k create ns database
@@ -144,56 +146,38 @@ k run database-redis -n database --image=redis:7 --labels=tier=database
 k expose pod frontend-web -n frontend --port=80 --type=ClusterIP
 k expose pod backend-api -n backend --port=8080 --type=ClusterIP
 k expose pod database-redis -n database --port=6379 --type=ClusterIP
+```
 
-# Allow frontend → backend
-cat <<EOF | k apply -f -
+**2. Ingress allow rules** — save as `allow-ingress.yaml`:
+
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-frontend-to-backend
-  namespace: backend
+  name: allow-ingress
+  namespace: TARGET_NS
 spec:
   podSelector:
     matchLabels:
-      tier: backend
+      tier: TARGET_NS
   policyTypes:
   - Ingress
   ingress:
   - from:
     - namespaceSelector:
         matchLabels:
-          name: frontend
+          name: SOURCE_NS
     ports:
     - protocol: TCP
-      port: 8080
-EOF
+      port: PORT
+```
 
-# Allow backend → database
-cat <<EOF | k apply -f -
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-backend-to-database
-  namespace: database
-spec:
-  podSelector:
-    matchLabels:
-      tier: database
-  policyTypes:
-  - Ingress
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: backend
-    ports:
-    - protocol: TCP
-      port: 6379
-EOF
+- Frontend → backend: replace `TARGET_NS` with `backend`, `SOURCE_NS` with `frontend`, `PORT` with `8080`, then `k apply -f allow-ingress.yaml`.
+- Backend → database: replace `TARGET_NS` with `database`, `SOURCE_NS` with `backend`, `PORT` with `6379`, then `k apply -f allow-ingress.yaml`.
 
-# Default-deny ingress for frontend (backend and database are already
-# ingress-isolated by the policies above)
-cat <<EOF | k apply -f -
+**3. Default-deny ingress for frontend** — save as `deny-ingress.yaml`, then `k apply -f deny-ingress.yaml`:
+
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -203,19 +187,16 @@ spec:
   podSelector: {}
   policyTypes:
   - Ingress
-EOF
+```
 
-# Egress per namespace: DNS for all + the one app port each source needs.
-# A podSelector: {} Egress policy isolates every pod's egress, so a
-# DNS-only policy alone would block frontend->backend and backend->database.
+**4. Egress: DNS + the one app port each source needs** — save as `allow-egress.yaml`:
 
-# Frontend egress: DNS + backend:8080
-cat <<EOF | k apply -f -
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-egress
-  namespace: frontend
+  namespace: SOURCE_NS
 spec:
   podSelector: {}
   policyTypes:
@@ -228,56 +209,21 @@ spec:
   - to:
     - namespaceSelector:
         matchLabels:
-          name: backend
+          name: DEST_NS
     ports:
     - protocol: TCP
-      port: 8080
-EOF
+      port: PORT
+```
 
-# Backend egress: DNS + database:6379
-cat <<EOF | k apply -f -
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-egress
-  namespace: backend
-spec:
-  podSelector: {}
-  policyTypes:
-  - Egress
-  egress:
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: database
-    ports:
-    - protocol: TCP
-      port: 6379
-EOF
+A `podSelector: {}` Egress policy isolates every pod's egress, so a DNS-only policy alone would block frontend → backend and backend → database.
 
-# Database egress: DNS only
-cat <<EOF | k apply -f -
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-egress
-  namespace: database
-spec:
-  podSelector: {}
-  policyTypes:
-  - Egress
-  egress:
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-EOF
+- Frontend: replace `SOURCE_NS` with `frontend`, `DEST_NS` with `backend`, `PORT` with `8080`, then `k apply -f allow-egress.yaml`.
+- Backend: replace `SOURCE_NS` with `backend`, `DEST_NS` with `database`, `PORT` with `6379`, then `k apply -f allow-egress.yaml`.
+- Database: replace `SOURCE_NS` with `database` and delete the second rule (the `to:` block with `DEST_NS` and `PORT`), so only DNS stays, then `k apply -f allow-egress.yaml`.
 
-# Test connectivity (refused in 0 ms = nothing listening; hang/timeout = policy drop)
+**5. Test connectivity** (refused in 0 ms = nothing listening; hang/timeout = policy drop)
+
+```bash
 # Frontend → Backend (should work; 404 is fine, it means connected)
 k exec frontend-web -n frontend -- curl -s -m 2 -o /dev/null -w '%{http_code}\n' http://backend-api.backend:8080
 
