@@ -134,7 +134,7 @@ prepare_ops_nodes() {
       set -e
       export DEBIAN_FRONTEND=noninteractive
       apt-get update -qq
-      apt-get install -y -qq curl gpg vim less >/dev/null
+      apt-get install -y -qq curl gpg vim less sudo openssl >/dev/null
       mkdir -p /etc/apt/keyrings
       curl -fsSL https://pkgs.k8s.io/core:/stable:/${next_minor}/deb/Release.key \\
         | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg

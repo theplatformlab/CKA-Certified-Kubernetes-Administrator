@@ -53,3 +53,8 @@ node_exec() {
   local node="$1"; shift
   docker exec "$node" bash -c "$*"
 }
+
+# Create a namespace if it doesn't exist yet (idempotent).
+ensure_ns() {
+  kc create namespace "$1" --dry-run=client -o yaml | kc apply -f - >/dev/null
+}

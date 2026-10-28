@@ -1,0 +1,15 @@
+# shellcheck shell=bash
+# rcfile for the shells inside the mock exam tmux session.
+# Mirrors the real exam terminal: `k` alias + completion are preconfigured.
+
+[[ -f ~/.bashrc ]] && source ~/.bashrc
+
+EXAM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="$EXAM_DIR/bin:$PATH"
+
+alias k=kubectl
+source <(kubectl completion bash)
+complete -o default -F __start_kubectl k
+
+PS1='\[\e[1;33m\][exam]\[\e[0m\] \u@\h:\w\$ '
+cd "${CKA_EXAM_HOME:-$HOME}" || true

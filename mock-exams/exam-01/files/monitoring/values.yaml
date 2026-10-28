@@ -1,0 +1,14 @@
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: "1.28"
+
+service:
+  port: 80
+
+persistence:
+  enabled: false
+  size: 1Gi
+  # empty = default StorageClass
+  storageClassName: ""

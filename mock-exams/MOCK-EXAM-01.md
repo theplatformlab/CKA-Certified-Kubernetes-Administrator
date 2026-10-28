@@ -2,181 +2,228 @@
 
 Duration: 2 hours (120 minutes)
 Questions: 15
-Passing Score: 66% (approximately 10 questions correct)
+Passing Score: 66% (weights in brackets; partial credit per check)
+
+Start it with `./scripts/mock-exam.sh start 1`. That command builds two fresh clusters (`cka-exam` and `cka-exam-ops`), prepares every question, opens the question panel and a shell, and starts the docs-only browser. Each question tells you which context to use. Grade with `s` in the question panel or `./scripts/mock-exam.sh grade`.
+
+Answer files go into `~/cka-exam/`. Node access: `ssh <node-name>`. In the exam shell this opens a root shell on the kind node.
 
 Do not look at the solutions until you complete this exam.
 
 ---
 
-## Question 1: Pod Deployment Troubleshooting
+## Question 1 — Fix a crashing pod with a ConfigMap (6%)
 
-A pod named `app-frontend` in namespace `production` is stuck in `CrashLoopBackOff`. The pod's container is looking for a configuration file at `/etc/app/config.yaml`, but this file doesn't exist in the image.
+**Context:** `kubectl config use-context kind-cka-exam`
 
-You need to:
-1. Create a ConfigMap named `app-config` with the file content: `database_host: postgres.production.svc.cluster.local`
-2. Mount this ConfigMap as a file at `/etc/app/config.yaml` in the pod
-3. Verify the pod starts successfully
+Pod `app-frontend` in namespace `production` is in `CrashLoopBackOff`. It expects a configuration file at `/etc/app/config.yaml`, but the file does not exist. The pod's manifest is saved at `~/cka-exam/q01/app-frontend.yaml`.
 
-The pod manifest already exists; you only need to update it.
+1. Create a ConfigMap named `app-config` in namespace `production` with one key, `config.yaml`, whose content is exactly:
+   `database_host: postgres.production.svc.cluster.local`
+2. Make the ConfigMap available to pod `app-frontend` so that the file `/etc/app/config.yaml` contains that content.
+3. The pod must keep its name, image and command, and must be `Running`.
 
-**Time: 8 minutes**
 
+## Question 2 — RBAC for a user and a ServiceAccount (6%)
 
-## Question 2: RBAC and Service Account
+**Context:** `kubectl config use-context kind-cka-exam`
 
-A developer needs to be able to list Deployments and Pods in the `staging` namespace, but not in other namespaces. Currently, they cannot perform these actions.
+In namespace `staging`:
 
-Create:
-1. A Role that allows listing Pods and Deployments in `staging`
-2. A RoleBinding that grants this Role to the user `dev-user`
+1. Create a Role named `dev-reader` that allows `get`, `list` and `watch` on Pods and Deployments, and nothing else.
+2. Create a ServiceAccount named `ci-bot`.
+3. Create a RoleBinding named `dev-reader-binding` that grants the Role to the user `dev-user` and to the ServiceAccount `ci-bot`.
 
-Verify the permissions work using `kubectl auth can-i`.
+`dev-user` must not get any permissions outside namespace `staging`.
 
-**Time: 7 minutes**
 
+## Question 3 — Node maintenance (6%)
 
-## Question 3: Node Maintenance
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Node `worker-2` needs maintenance and will be offline for 1 hour. Currently, there are several running pods on this node including a critical database pod and a deployment with 3 replicas.
+Node `cka-exam-worker2` needs maintenance.
 
-1. Prepare the node for maintenance without losing pod data
-2. Ensure the database pod is NOT evicted (it has local persistent data)
-3. Verify the node is ready for maintenance
+1. Make the node unschedulable and evict all workloads from it. Only DaemonSet-managed pods may remain on the node.
+2. Deployment `shop-api` in namespace `maintenance` must end up with all 3 replicas Ready on other nodes.
+3. The standalone pod `scratch` in namespace `maintenance` stores only temporary data. Losing it is acceptable.
 
-**Time: 6 minutes**
+Leave the node unschedulable.
 
 
-## Question 4: Persistent Volume Configuration
+## Question 4 — Static PersistentVolume (7%)
 
-An application needs persistent storage that:
-1. Size: 5Gi
-2. Access mode: can be used by multiple pods simultaneously
-3. Storage class: `fast-ssd`
-4. Mounted at `/data` in the pod
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Create the necessary resources (StorageClass if needed, PV, PVC, and update a deployment to use it). The deployment `db-app` already exists in the `databases` namespace.
+The Deployment `db-app` in namespace `databases` needs shared storage.
 
-**Time: 10 minutes**
+1. Create a StorageClass named `fast-ssd` with provisioner `kubernetes.io/no-provisioner`, `volumeBindingMode: WaitForFirstConsumer` and `reclaimPolicy: Retain`.
+2. Create a PersistentVolume named `db-pv`:
+   - capacity `5Gi`
+   - access mode `ReadWriteMany`
+   - StorageClass `fast-ssd`
+   - reclaim policy `Retain`
+   - `hostPath` `/mnt/data/db`, type `DirectoryOrCreate`
+3. Create a PersistentVolumeClaim named `db-pvc` in namespace `databases`. It must request `5Gi` with `ReadWriteMany` from StorageClass `fast-ssd`.
+4. Update Deployment `db-app` to mount the claim at `/data`. The Deployment must be Ready and the PVC `Bound` to `db-pv`.
 
 
-## Question 5: Network Policy Troubleshooting
+## Question 5 — NetworkPolicies for a three-tier app (8%)
 
-Currently, all pods in namespace `shop` can communicate with each other. You need to implement network isolation:
-1. Frontend pods (label: `tier=frontend`) can receive traffic on port 80 only
-2. Backend pods (label: `tier=backend`) can receive traffic from frontend pods on port 3000 only
-3. Database pods (label: `tier=database`) should not receive any incoming traffic except from backend pods on port 5432
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Create the appropriate NetworkPolicies.
+Namespace `shop` runs three Deployments, `frontend`, `backend` and `database`, with pod labels `tier=frontend`, `tier=backend` and `tier=database`. Each tier has a Service with the same name. Currently all traffic is allowed.
 
-**Time: 10 minutes**
+Create NetworkPolicies in namespace `shop` so that:
 
+1. Pods with `tier=frontend` accept ingress on TCP port `80` from anywhere, including other namespaces.
+2. Pods with `tier=backend` accept ingress only from `tier=frontend` pods in `shop`, on TCP port `3000`.
+3. Pods with `tier=database` accept ingress only from `tier=backend` pods in `shop`, on TCP port `5432`.
+4. All other ingress traffic to pods in `shop` is denied. Do not restrict egress.
 
-## Question 6: Helm Chart Deployment
 
-A Helm chart named `monitoring` exists in the `helm-charts` directory locally. It has default values that need to be overridden:
-- Set `replica_count` to 3
-- Set `storage_size` to 50Gi
-- Enable `persistence`
+## Question 6 — Install a local Helm chart (7%)
 
-Deploy the chart to namespace `monitoring`. If the namespace doesn't exist, create it. The deployment should be named `monitoring-stack`.
+**Context:** `kubectl config use-context kind-cka-exam`
 
-**Time: 8 minutes**
+A Helm chart is located at `~/cka-exam/helm-charts/monitoring`.
 
+Install it as release `monitoring-stack` in namespace `monitoring` and create the namespace if needed. Override these chart values:
 
-## Question 7: Container Runtime Configuration
+- `replicaCount` = `3`
+- `persistence.enabled` = `true`
+- `persistence.size` = `2Gi`
 
-The cluster is having issues with container image pulls. After investigation, you realize the cluster needs to use CRI-dockerd instead of the default containerd runtime. The necessary binaries are already installed.
+Do not modify the chart files. All replicas must be Ready.
 
-Configure the kubelet on worker nodes to use CRI-dockerd and verify the configuration works.
 
-**Time: 8 minutes**
+## Question 7 — Kubelet and container runtime (8%)
 
+**Context:** `kubectl config use-context kind-cka-exam-ops`
 
-## Question 8: API Server Audit Logs
+Node `cka-exam-ops-worker` is `NotReady`. Access it with `ssh cka-exam-ops-worker`.
 
-The cluster has been experiencing unauthorized API requests. You need to enable and review API server audit logs to identify:
-1. Who accessed ConfigMaps in the `default` namespace
-2. When the access occurred
-3. Whether it was successful
+Fix the node so that it is `Ready` again. The kubelet must use containerd at `unix:///run/containerd/containerd.sock`, and it must be enabled to start automatically when the node boots.
 
-Enable API server audit logging and examine the logs for ConfigMap access patterns.
 
-**Time: 10 minutes**
+## Question 8 — API server audit logging (7%)
 
+**Context:** `kubectl config use-context kind-cka-exam-ops`
 
-## Question 9: HPA and Application Scaling
+Enable audit logging on the kube-apiserver of node `cka-exam-ops-control-plane` (`ssh cka-exam-ops-control-plane`).
 
-An application deployment named `web-app` in namespace `production` runs with 2 replicas. Create a Horizontal Pod Autoscaler that maintains an average CPU utilization of 70% across pods, scaling between a minimum of 2 and a maximum of 10 replicas.
+1. Create the audit policy `/etc/kubernetes/audit/policy.yaml` with these rules:
+   - Secrets in all namespaces are logged at level `Metadata`.
+   - ConfigMaps in namespace `default` are logged at level `Request`.
+   - Nothing else is logged.
+2. Configure the kube-apiserver to:
+   - use that policy file
+   - write the log to `/var/log/kubernetes/audit/audit.log`
+   - keep logs for at most `7` days
+   - keep at most `3` old log files
+3. The kube-apiserver must be running again afterwards.
 
-**Time: 7 minutes**
 
+## Question 9 — HorizontalPodAutoscaler (5%)
 
-## Question 10: Ingress Configuration with TLS
+**Context:** `kubectl config use-context kind-cka-exam`
 
-A service `api` needs to be exposed via Ingress with:
-1. Hostname: `api.example.com`
-2. TLS enabled with certificate secret `api-tls-cert`
-3. Path-based routing: `/api/*` routes to the service
-4. Health check endpoint at `/health` should not require TLS termination
+Deployment `web-app` in namespace `production` runs with 2 replicas.
 
-Create the Ingress resource (assume the TLS certificate secret already exists).
+Create a HorizontalPodAutoscaler (`autoscaling/v2`) named `web-app` in namespace `production` that:
 
-**Time: 8 minutes**
+- targets Deployment `web-app`
+- keeps the average CPU utilization at `70%`
+- scales between `2` and `10` replicas
+- uses a scale-down stabilization window of `30` seconds
 
 
-## Question 11: Cluster Troubleshooting
+## Question 10 — Ingress with TLS (6%)
 
-The `kube-scheduler` component has stopped running. Investigate:
-1. Check the status of all control plane components
-2. Review kubelet logs on the control plane node
-3. Identify why the scheduler pod is not running
-4. Restart the scheduler if needed
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Document the issue and resolution.
+In namespace `api`, a Service `api` listens on port `8080`. The TLS Secret `api-tls-cert` and the IngressClass `nginx` already exist.
 
-**Time: 12 minutes**
+Create an Ingress named `api-ingress` in namespace `api`:
 
+- IngressClass `nginx`
+- TLS for host `api.example.com` using Secret `api-tls-cert`
+- host `api.example.com` with two paths, both going to Service `api` on port `8080`:
+  - `/api`, path type `Prefix`
+  - `/health`, path type `Exact`
 
-## Question 12: StatefulSet with Persistent Storage
 
-Deploy a StatefulSet named `database-cluster` with:
-1. 3 replicas
-2. Each pod needs a persistent volume (PVC) of 10Gi
-3. Pods should have stable DNS names like `database-cluster-0.database-cluster`, etc.
-4. Service port 5432 should be exposed via a headless service
+## Question 11 — Pods stuck in Pending (8%)
 
-**Time: 10 minutes**
+**Context:** `kubectl config use-context kind-cka-exam-ops`
 
+The pods of Deployment `rescue` in namespace `default` stay `Pending`.
 
-## Question 13: Resource Quotas and Limits
+Find the cause and fix it so that all replicas run. Do not modify the Deployment.
 
-The `test` namespace is consuming too many resources. Implement:
-1. ResourceQuota that limits the namespace to 4 CPU cores and 8Gi memory total
-2. LimitRange that ensures individual pods request at least 100m CPU and 128Mi memory
-3. Verify that a pod requesting 2 CPUs and 2Gi memory is rejected
 
-**Time: 8 minutes**
+## Question 12 — StatefulSet with stable storage (7%)
 
+**Context:** `kubectl config use-context kind-cka-exam`
 
-## Question 14: Pod Security Standards
+In namespace `databases`:
 
-Namespace `restricted` needs to enforce security policies. Configure:
-1. Pod Security Standards in `enforce` mode: `restricted`
-2. Pod Security Standards in `audit` mode: `baseline`
-3. Test by deploying a pod with `privileged: true` and verify it's denied
+1. Create a headless Service named `database-cluster`:
+   - selector `app=database-cluster`
+   - port `5432`, named `postgres`
+2. Create a StatefulSet named `database-cluster`:
+   - 3 replicas, governed by the Service above, pod label `app=database-cluster`
+   - one container named `postgres`, image `postgres:17-alpine`, container port `5432`
+   - environment `POSTGRES_PASSWORD=exam-pass` and `PGDATA=/var/lib/postgresql/data/pgdata`
+   - a volume claim template named `data`: `ReadWriteOnce`, `1Gi`, default StorageClass, mounted at `/var/lib/postgresql/data`
 
-**Time: 8 minutes**
+All 3 pods must be Ready. They must be resolvable as `database-cluster-0.database-cluster.databases.svc.cluster.local` and so on.
 
 
-## Question 15: Multi-Container Pod with Sidecar
+## Question 13 — ResourceQuota and LimitRange (6%)
 
-Create a pod named `app-with-logger` that:
-1. Main container: runs `nginx` image
-2. Sidecar container: runs `busybox` that tails nginx logs from a shared volume
-3. Both containers share a volume at `/var/log/nginx` (for main) and `/logs` (for sidecar)
-4. The pods should continue running and logging without errors
+**Context:** `kubectl config use-context kind-cka-exam`
 
-**Time: 8 minutes**
+Namespace `test` uses too many resources. In namespace `test`:
+
+1. Create a ResourceQuota named `compute-quota` with these limits:
+   - `requests.cpu: 4`
+   - `requests.memory: 8Gi`
+   - `limits.cpu: 4`
+   - `limits.memory: 8Gi`
+2. Create a LimitRange named `container-limits` for type `Container`:
+   - default request: `100m` CPU, `128Mi` memory
+   - default limit: `200m` CPU, `256Mi` memory
+   - minimum: `100m` CPU, `128Mi` memory
+   - maximum: `1` CPU, `1Gi` memory
+
+Afterwards, a pod whose container requests `2` CPUs and `2Gi` memory must be rejected. A pod without any resources must be admitted with the defaults.
+
+
+## Question 14 — Pod Security Standards (7%)
+
+**Context:** `kubectl config use-context kind-cka-exam`
+
+Namespace `restricted` runs Deployment `web`.
+
+1. Configure Pod Security Admission on namespace `restricted`:
+   - `enforce` at level `restricted`
+   - `warn` at level `restricted`
+   - `audit` at level `baseline`
+2. Update Deployment `web` so that its pods are admitted under the `restricted` level, and make sure all its replicas are Running. Do not change the image.
+
+Privileged pods must then be rejected in this namespace.
+
+
+## Question 15 — Native sidecar container (6%)
+
+**Context:** `kubectl config use-context kind-cka-exam`
+
+Create a pod named `app-with-logger` in namespace `logging`:
+
+- main container `nginx`, image `nginx:1.28`, which mounts an `emptyDir` volume named `logs` at `/var/log/nginx`
+- a sidecar named `logger`, image `busybox:1.37`, implemented as a native sidecar (an init container that keeps running), with command `sh -c 'tail -F /logs/access.log'` and the same `logs` volume mounted at `/logs`
+
+Requests to nginx must show up in the logs of container `logger`.
 
 ---
 
@@ -184,4 +231,4 @@ Create a pod named `app-with-logger` that:
 
 Total Time: 120 minutes
 
-After completing, review your answers against the solutions provided in `MOCK-EXAM-01-SOLUTIONS.md`.
+After completing, review your answers against the solutions in `MOCK-EXAM-01-SOLUTIONS.md`.

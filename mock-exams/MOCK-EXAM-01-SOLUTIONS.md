@@ -1,374 +1,335 @@
 # Mock Exam 01 — Solutions
 
+Don't read this before you finish the exam. Grade first (`./scripts/mock-exam.sh grade`), then compare.
+
+Every solution starts with the context switch from the question. On the real exam, forgetting it is the most expensive mistake there is.
+
 ---
 
-## Solution 1: Pod Deployment Troubleshooting
+## Question 1 — Fix a crashing pod with a ConfigMap
 
-Create ConfigMap:
 ```bash
-k create configmap app-config --from-literal=config.yaml='database_host: postgres.production.svc.cluster.local' -n production
+k config use-context kind-cka-exam
+k -n production logs app-frontend          # FATAL: /etc/app/config.yaml not found
+
+k -n production create configmap app-config \
+  --from-literal=config.yaml='database_host: postgres.production.svc.cluster.local'
 ```
 
-Or more naturally, create the file first:
-```bash
-echo 'database_host: postgres.production.svc.cluster.local' > config.yaml
-k create configmap app-config --from-file=config.yaml -n production
-```
-
-Update pod manifest to mount ConfigMap. The pod's `volumes` section should reference the ConfigMap, and the container's `volumeMounts` should mount it:
+Pod volumes are immutable, so edit the saved manifest and replace the pod:
 
 ```yaml
+# ~/cka-exam/q01/app-frontend.yaml (added parts)
 spec:
   containers:
   - name: app
-    image: your-image
+    # ... image and command unchanged ...
     volumeMounts:
-    - name: config-volume
+    - name: config
       mountPath: /etc/app
   volumes:
-  - name: config-volume
+  - name: config
     configMap:
       name: app-config
-      items:
-      - key: config.yaml
-        path: config.yaml
 ```
 
-Verify:
 ```bash
-k get pod app-frontend -n production
-k exec app-frontend -n production -- cat /etc/app/config.yaml
+k replace --force -f ~/cka-exam/q01/app-frontend.yaml
+k -n production exec app-frontend -- cat /etc/app/config.yaml
 ```
 
-**Key insight:** The pod was crashing because the file didn't exist. ConfigMap mounts it at the expected path. The `items` field ensures the key name matches the file name.
+Mounting the whole ConfigMap at `/etc/app` is fine, because the key name becomes the file name. If `/etc/app` held other files, you would use `mountPath: /etc/app/config.yaml` with `subPath: config.yaml` instead.
 
 ---
 
-## Solution 2: RBAC and Service Account
+## Question 2 — RBAC for a user and a ServiceAccount
 
-Create Role:
 ```bash
-k create role list-resources --verb=list --resource=pods,deployments -n staging
+k config use-context kind-cka-exam
+k -n staging create role dev-reader --verb=get,list,watch --resource=pods,deployments
+k -n staging create serviceaccount ci-bot
+k -n staging create rolebinding dev-reader-binding --role=dev-reader \
+  --user=dev-user --serviceaccount=staging:ci-bot
+
+k auth can-i list deployments -n staging --as dev-user                      # yes
+k auth can-i list pods -n default --as dev-user                             # no
+k auth can-i list deployments -n staging --as system:serviceaccount:staging:ci-bot   # yes
 ```
 
-Create RoleBinding:
-```bash
-k create rolebinding dev-user-binding --role=list-resources --user=dev-user -n staging
-```
-
-Verify permissions:
-```bash
-k auth can-i list pods --as=dev-user -n staging
-k auth can-i list deployments --as=dev-user -n staging
-k auth can-i list pods --as=dev-user -n production  # Should be denied
-```
-
-**Key insight:** RoleBinding is namespace-scoped. `--as=dev-user` tests permissions for that user. The user cannot list pods in other namespaces because the Role only applies to `staging`.
+`--resource=deployments` resolves to `deployments.apps`. A Role and RoleBinding only grant access inside their namespace. That is what keeps `dev-user` out of other namespaces.
 
 ---
 
-## Solution 3: Node Maintenance
+## Question 3 — Node maintenance
 
-Cordon the node:
 ```bash
-k cordon worker-2
+k config use-context kind-cka-exam
+k drain cka-exam-worker2 --ignore-daemonsets --delete-emptydir-data --force
+
+k -n maintenance get pods -o wide            # shop-api pods now on other nodes
+k get pods -A -o wide --field-selector spec.nodeName=cka-exam-worker2   # only DaemonSet pods
 ```
 
-Drain the node but exclude static pods (which can't be evicted):
-```bash
-k drain worker-2 --ignore-daemonsets --delete-emptydir-data
-```
+- `--ignore-daemonsets` is needed because DaemonSet pods can't be evicted (kube-proxy, kindnet).
+- `--delete-emptydir-data` is needed because `scratch` uses an emptyDir.
+- `--force` is needed because `scratch` has no controller, so drain must delete it for good.
 
-If the database pod has a local persistent volume and shouldn't be evicted, add `--skip-wait-for-delete-timeout`:
-```bash
-k drain worker-2 --ignore-daemonsets --delete-emptydir-data --force
-```
-
-Verify node is cordoned:
-```bash
-k get node worker-2  # Should show NotReady,SchedulingDisabled
-```
-
-After maintenance, uncordon:
-```bash
-k uncordon worker-2
-```
-
-**Key insight:** `cordon` prevents new pods from scheduling. `drain` evicts existing pods. Daemonsets pods need `--ignore-daemonsets` because they manage themselves. Pods with local storage may need `--force` to evict.
+Don't uncordon. The question wants the node to stay in maintenance.
 
 ---
 
-## Solution 4: Persistent Volume Configuration
+## Question 4 — Static PersistentVolume
 
-Assuming you need a ReadWriteMany storage class for multiple pods:
-
-Create StorageClass (if `fast-ssd` doesn't exist):
 ```yaml
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: fast-ssd
-provisioner: pd.csi.storage.gke.io
-parameters:
-  type: pd-ssd
-allowVolumeExpansion: true
-```
-
-Create PVC:
-```bash
-k create pvc db-storage --size=5Gi --storageclass=fast-ssd --access-modes=ReadWriteMany -n databases
-```
-
-Or YAML:
-```yaml
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: db-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: [ReadWriteMany]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: fast-ssd
+  hostPath:
+    path: /mnt/data/db
+    type: DirectoryOrCreate
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: db-storage
+  name: db-pvc
   namespace: databases
 spec:
-  accessModes:
-  - ReadWriteMany
+  accessModes: [ReadWriteMany]
   storageClassName: fast-ssd
   resources:
     requests:
       storage: 5Gi
 ```
 
-Update deployment `db-app` to mount the PVC:
 ```bash
-k set volume deployment/db-app -n databases --add --mount-path=/data --type=persistentVolumeClaim --claim-name=db-storage
+k config use-context kind-cka-exam
+k apply -f q4.yaml
+k -n databases edit deploy db-app
 ```
 
-Or edit and add to spec:
 ```yaml
-volumeMounts:
-- name: data-volume
-  mountPath: /data
-...
-volumes:
-- name: data-volume
-  persistentVolumeClaim:
-    claimName: db-storage
+    spec:
+      containers:
+      - name: app
+        # ...
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: db-pvc
 ```
 
-Verify:
-```bash
-k get pvc -n databases
-k describe pod -n databases  # Should show mapped volume
-```
-
-**Key insight:** ReadWriteMany is needed if multiple pods use the same storage. PVC claims the storage from the pool. The deployment mounts it at `/data`.
+With `WaitForFirstConsumer`, the PVC stays `Pending` until a pod uses it. That is expected, not an error. hostPath volumes don't enforce access modes, so RWX works here. In production you would use NFS or CephFS for real RWX.
 
 ---
 
-## Solution 5: Network Policy Troubleshooting
+## Question 5 — NetworkPolicies for a three-tier app
 
-Frontend policy (allow inbound on port 80):
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: frontend-policy
+  name: default-deny-ingress
+  namespace: shop
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend
   namespace: shop
 spec:
   podSelector:
     matchLabels:
       tier: frontend
-  policyTypes:
-  - Ingress
+  policyTypes: [Ingress]
   ingress:
   - ports:
     - protocol: TCP
       port: 80
-```
-
-Backend policy (allow inbound from frontend on port 3000):
-```yaml
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: backend-policy
+  name: backend
   namespace: shop
 spec:
   podSelector:
     matchLabels:
       tier: backend
-  policyTypes:
-  - Ingress
-  ingress: 
-  - ports:
-    - protocol: TCP
-      port: 3000
-    from:
+  policyTypes: [Ingress]
+  ingress:
+  - from:
     - podSelector:
         matchLabels:
           tier: frontend
-```
-
-Database policy (allow inbound from backend on port 5432):
-```yaml
+    ports:
+    - protocol: TCP
+      port: 3000
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: database-policy
+  name: database
   namespace: shop
 spec:
   podSelector:
     matchLabels:
       tier: database
-  policyTypes:
-  - Ingress
-  ingress: 
-    ports:
-    - protocol: TCP
-      port: 5432
-    from:
+  policyTypes: [Ingress]
+  ingress:
+  - from:
     - podSelector:
         matchLabels:
           tier: backend
+    ports:
+    - protocol: TCP
+      port: 5432
 ```
 
-Apply all three policies:
+- An ingress rule with `ports` but no `from` allows that port from everywhere, which is what the frontend needs.
+- A `podSelector` inside `from` without a `namespaceSelector` only matches pods in the policy's own namespace.
+- Only ingress is restricted, so DNS (egress) keeps working.
+
+Test it:
+
 ```bash
-k apply -f frontend-policy.yaml -f backend-policy.yaml -f database-policy.yaml -n shop
+k -n shop run t --rm -it --image=busybox:1.37 --labels=tier=frontend --restart=Never -- wget -qO- -T 3 backend:3000
 ```
-
-**Key insight:** NetworkPolicy uses label selectors to specify both source and destination. The `from` field restricts incoming traffic to only those pods. All three policies work together to enforce the communication flow.
 
 ---
 
-## Solution 6: Helm Chart Deployment
+## Question 6 — Install a local Helm chart
 
-Create namespace:
 ```bash
-k create namespace monitoring
+k config use-context kind-cka-exam
+helm show values ~/cka-exam/helm-charts/monitoring      # find the value names
+helm install monitoring-stack ~/cka-exam/helm-charts/monitoring \
+  -n monitoring --create-namespace \
+  --set replicaCount=3 \
+  --set persistence.enabled=true \
+  --set persistence.size=2Gi
+
+helm -n monitoring list
+helm -n monitoring get values monitoring-stack
+k -n monitoring get deploy,pvc
 ```
 
-Deploy Helm chart with overrides:
-```bash
-helm install monitoring-stack ./helm-charts/monitoring \
-  -n monitoring \
-  --set replica_count=3 \
-  --set storage_size=50Gi \
-  --set persistence=true
-```
-
-Verify deployment:
-```bash
-helm list -n monitoring
-k get deployment -n monitoring
-```
-
-**Key insight:** `--set` overrides values in the chart's `values.yaml`. Multiple `--set` flags can be chained. `helm list` shows installed releases by name.
+If you installed it with the wrong values, fix them with `helm upgrade monitoring-stack ... --set ...`, then `--reuse-values`. Don't edit `values.yaml`.
 
 ---
 
-## Solution 7: Container Runtime Configuration
-
-On each worker node, update kubelet config:
+## Question 7 — Kubelet and container runtime
 
 ```bash
-ssh worker-node
-sudo nano /etc/kubernetes/kubelet.conf
+k config use-context kind-cka-exam-ops
+k get nodes                                  # cka-exam-ops-worker NotReady
+ssh cka-exam-ops-worker
+
+systemctl status kubelet                     # activating (auto-restart), disabled
+journalctl -u kubelet -n 20 --no-pager       # ... endpoint "unix:///run/cri-dockerd.sock": no such file
+
+grep -rn cri-dockerd /var/lib/kubelet/config.yaml /var/lib/kubelet/kubeadm-flags.env /etc/default/kubelet 2>/dev/null
+sed -i 's|unix:///run/cri-dockerd.sock|unix:///run/containerd/containerd.sock|' /var/lib/kubelet/config.yaml
+systemctl enable --now kubelet
+systemctl restart kubelet
+exit
+
+k get nodes -w
 ```
 
-Add or update:
-```yaml
-containerRuntimeEndpoint: unix:///var/run/cri-dockerd.sock
-```
-
-Restart kubelet:
-```bash
-sudo systemctl restart kubelet
-```
-
-Verify the runtime:
-```bash
-k get nodes -o wide
-k describe node workeŕ-1  # Check Runtime Version should show docker
-```
-
-Test with a pod:
-```bash
-k run test-pod --image=nginx
-k get pod test-pod -o wide
-```
-
-**Key insight:** CRI-dockerd listens on a Unix socket at `/var/run/cri-dockerd.sock`. Kubelet must be told where to find it. After restart, pods should run on CRI-dockerd.
+Runtime settings can live in three places: `/var/lib/kubelet/config.yaml` (`containerRuntimeEndpoint`), `/var/lib/kubelet/kubeadm-flags.env` (`--container-runtime-endpoint`) and `/etc/default/kubelet`. Check all three. "Starts on boot" means `systemctl enable`.
 
 ---
 
-## Solution 8: API Server Audit Logs
-
-Enable audit logging in kube-apiserver. On the control plane node:
+## Question 8 — API server audit logging
 
 ```bash
-sudo nano /etc/kubernetes/manifests/kube-apiserver.yaml
+k config use-context kind-cka-exam-ops
+ssh cka-exam-ops-control-plane
+mkdir -p /etc/kubernetes/audit /var/log/kubernetes/audit
+cat > /etc/kubernetes/audit/policy.yaml <<'EOF'
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+- level: Metadata
+  resources:
+  - group: ""
+    resources: ["secrets"]
+- level: Request
+  namespaces: ["default"]
+  resources:
+  - group: ""
+    resources: ["configmaps"]
+- level: None
+EOF
+cp /etc/kubernetes/manifests/kube-apiserver.yaml /root/kube-apiserver.yaml.bak
+vim /etc/kubernetes/manifests/kube-apiserver.yaml
 ```
 
-Add audit policy file and log output:
 ```yaml
 spec:
   containers:
   - command:
     - kube-apiserver
-    - --audit-policy-file=/etc/kubernetes/audit-policy.yaml
-    - --audit-log-path=/var/log/kubernetes/audit.log
+    - --audit-policy-file=/etc/kubernetes/audit/policy.yaml
+    - --audit-log-path=/var/log/kubernetes/audit/audit.log
     - --audit-log-maxage=7
-  ...
-  volumeMounts:
-  - name: audit
-    mountPath: /var/log/kubernetes
+    - --audit-log-maxbackup=3
+    # ... existing flags ...
+    volumeMounts:
+    - name: audit-policy
+      mountPath: /etc/kubernetes/audit
+      readOnly: true
+    - name: audit-log
+      mountPath: /var/log/kubernetes/audit
   volumes:
-  - name: audit
+  - name: audit-policy
     hostPath:
-      path: /var/log/kubernetes
+      path: /etc/kubernetes/audit
+      type: DirectoryOrCreate
+  - name: audit-log
+    hostPath:
+      path: /var/log/kubernetes/audit
+      type: DirectoryOrCreate
 ```
 
-Create audit policy:
 ```bash
-sudo nano /etc/kubernetes/audit-policy.yaml
+# wait for the apiserver to come back (30-60s)
+watch crictl ps --name kube-apiserver
+tail -n 2 /var/log/kubernetes/audit/audit.log
 ```
 
-Policy to log ConfigMap access:
-```yaml
-apiVersion: audit.k8s.io/v1
-kind: Policy
-rules:
-- level: RequestResponse
-  resources:
-  - group: ""
-    resources: ["configmaps"]
-  namespaces: ["default"]
-- level: Metadata
-  resources:
-  - group: ""
-    resources: ["configmaps"]
-```
-
-Review logs:
-```bash
-sudo tail -f /var/log/kubernetes/audit.log | jq '.[] | select(.objectRef.resource=="configmaps")'
-```
-
-**Key insight:** Audit logs capture who did what and when. By filtering for ConfigMaps in the `default` namespace, you can identify unauthorized access patterns.
+Rule order matters: the first rule that matches wins, so the catch-all `level: None` goes last. Without the volume mounts, the apiserver can't read the policy or write the log, and it won't start. If it doesn't come back, check `crictl ps -a` and `crictl logs <id>`, or `/var/log/pods/kube-system_kube-apiserver-*`.
 
 ---
 
-## Solution 9: HPA and Application Scaling
+## Question 9 — HorizontalPodAutoscaler
 
-Create HPA:
-```bash
-k autoscale deployment web-app -n production --min=2 --max=10 --cpu-percent=70
-```
-
-Or YAML for more control:
 ```yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: web-app-hpa
+  name: web-app
   namespace: production
 spec:
   scaleTargetRef:
@@ -384,311 +345,254 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 30
 ```
 
-Verify HPA:
-```bash
-k get hpa -n production
-k describe hpa web-app-hpa -n production
-kubectl top pods -n production   # confirms metrics-server is working
-```
-
-**Key insight:** HPA uses a single target utilization, not separate scale-up and scale-down thresholds. On each sync it computes `desiredReplicas = ceil(currentReplicas × currentCPU / targetCPU)` and scales in either direction within the `minReplicas`/`maxReplicas` bounds. A built-in tolerance (default 10%) prevents action on minor fluctuations, and scale-down aggressiveness can be tuned via `spec.behavior.scaleDown` (e.g. `stabilizationWindowSeconds`) rather than any fixed percentage. HPA requires `metrics-server` to be running.
+`k autoscale deploy web-app --cpu-percent=70 --min=2 --max=10 -n production $do > hpa.yaml` gives you the skeleton. The `behavior` block has to be added by hand.
 
 ---
 
-## Solution 10: Ingress Configuration with TLS
+## Question 10 — Ingress with TLS
 
-Create Ingress:
+```bash
+k config use-context kind-cka-exam
+k -n api create ingress api-ingress --class=nginx \
+  --rule="api.example.com/api*=api:8080,tls=api-tls-cert" \
+  --rule="api.example.com/health=api:8080" $do > ing.yaml
+```
+
+Check the result: `/api*` becomes `pathType: Prefix` and `/health` becomes `Exact`.
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: api-ingress
+  namespace: api
 spec:
+  ingressClassName: nginx
   tls:
-  - hosts:
-    - api.example.com
+  - hosts: [api.example.com]
     secretName: api-tls-cert
   rules:
   - host: api.example.com
     http:
       paths:
-      - path: /api/
+      - path: /api
         pathType: Prefix
         backend:
           service:
             name: api
             port:
-              number: 80
+              number: 8080
       - path: /health
         pathType: Exact
         backend:
           service:
             name: api
             port:
-              number: 80
+              number: 8080
 ```
 
-Apply Ingress:
-```bash
-k apply -f ingress.yaml
-```
-
-Verify:
-```bash
-k get ingress
-k describe ingress api-ingress
-```
-
-**Key insight:** TLS is configured at the Ingress level. Both `/api/*` and `/health` routes go to the same service. The health endpoint doesn't need special handling; all traffic is TLS-terminated at the Ingress. The service backend receives unencrypted traffic.
+No ingress controller runs in the exam cluster, so only the resource is graded.
 
 ---
 
-## Solution 11: Cluster Troubleshooting
+## Question 11 — Pods stuck in Pending
 
-Check control plane components:
 ```bash
-k get pods -n kube-system | grep scheduler
-k describe pod -n kube-system kube-scheduler-controlplane
-k logs -n kube-system kube-scheduler-controlplane
+k config use-context kind-cka-exam-ops
+k -n default describe pod -l app=rescue      # no events at all -> nothing is scheduling
+k -n kube-system get pods                    # kube-scheduler in CrashLoopBackOff
+k -n kube-system logs kube-scheduler-cka-exam-ops-control-plane
+# ... stat /etc/kubernetes/scheduler.config: no such file or directory
+
+ssh cka-exam-ops-control-plane
+ls /etc/kubernetes/                           # scheduler.conf exists
+sed -i 's|--kubeconfig=/etc/kubernetes/scheduler.config|--kubeconfig=/etc/kubernetes/scheduler.conf|' \
+  /etc/kubernetes/manifests/kube-scheduler.yaml
+exit
+
+k -n kube-system get pods -w
+k -n default get pods
 ```
 
-Check kubelet logs on control plane:
-```bash
-ssh controlplane
-sudo journalctl -u kubelet -n 50
-sudo journalctl -u kubelet -p err
-```
-
-Common causes:
-- Scheduler CrashLoopBackOff: usually a configuration issue in `/etc/kubernetes/manifests/kube-scheduler.yaml`
-- Static pod not starting: check manifest syntax
-- Kubelet can't read manifest: permissions issue
-
-Restart kubelet:
-```bash
-sudo systemctl restart kubelet
-```
-
-Verify scheduler is running:
-```bash
-k get pods -n kube-system kube-scheduler-controlplane
-k get pods  # Verify new pods are being scheduled
-```
-
-**Key insight:** If `kube-scheduler` static pod crashes, no pods can be scheduled. Check kubelet logs to see why the manifest isn't loading. Static pods are in `/etc/kubernetes/manifests/` on the control plane node.
+A Pending pod with no `FailedScheduling` event means no scheduler looked at it at all. Check the scheduler, not the pod.
 
 ---
 
-## Solution 12: StatefulSet with Persistent Storage
+## Question 12 — StatefulSet with stable storage
 
-Create StatefulSet:
 ```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-cluster
+  namespace: databases
+spec:
+  clusterIP: None
+  selector:
+    app: database-cluster
+  ports:
+  - name: postgres
+    port: 5432
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: database-cluster
+  namespace: databases
 spec:
   serviceName: database-cluster
   replicas: 3
   selector:
     matchLabels:
-      app: database
+      app: database-cluster
   template:
     metadata:
       labels:
-        app: database
+        app: database-cluster
     spec:
       containers:
       - name: postgres
-        image: postgres:15
+        image: postgres:17-alpine
         ports:
         - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_PASSWORD
+          value: exam-pass
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
         volumeMounts:
-        - name: db-storage
+        - name: data
           mountPath: /var/lib/postgresql/data
   volumeClaimTemplates:
   - metadata:
-      name: db-storage
+      name: data
     spec:
-      accessModes: ["ReadWriteOnce"]
+      accessModes: [ReadWriteOnce]
       resources:
         requests:
-          storage: 10Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: database-cluster
-spec:
-  clusterIP: None
-  selector:
-    app: database
-  ports:
-  - port: 5432
-    targetPort: 5432
+          storage: 1Gi
 ```
 
-Apply:
 ```bash
-k apply -f statefulset.yaml
+k -n databases get pods -w      # database-cluster-0, then -1, then -2
+k -n databases run t --rm -it --image=busybox:1.37 --restart=Never -- \
+  nslookup database-cluster-0.database-cluster.databases.svc.cluster.local
 ```
 
-Verify:
-```bash
-k get statefulset
-k get pods -o wide  # Should see database-cluster-0, database-cluster-1, database-cluster-2
-k get pvc  # Each pod should have its own PVC
-```
-
-**Key insight:** `volumeClaimTemplates` creates a unique PVC for each pod. `serviceName: database-cluster` links to the headless service. Pod DNS names are `database-cluster-0.database-cluster`, etc.
+PGDATA points to a subdirectory because Postgres refuses to initialise a directory that isn't empty, and some volume types contain `lost+found`.
 
 ---
 
-## Solution 13: Resource Quotas and Limits
+## Question 13 — ResourceQuota and LimitRange
 
-Create ResourceQuota:
-```yaml
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: test-quota
-  namespace: test
-spec:
-  hard:
-    requests.cpu: "4"
-    requests.memory: 8Gi
-    limits.cpu: "4"
-    limits.memory: 8Gi
+```bash
+k config use-context kind-cka-exam
+k -n test create quota compute-quota \
+  --hard=requests.cpu=4,requests.memory=8Gi,limits.cpu=4,limits.memory=8Gi
 ```
 
-Create LimitRange:
 ```yaml
 apiVersion: v1
 kind: LimitRange
 metadata:
-  name: test-limits
+  name: container-limits
   namespace: test
 spec:
   limits:
-  - min:
+  - type: Container
+    defaultRequest:
       cpu: 100m
       memory: 128Mi
-    type: Pod
+    default:
+      cpu: 200m
+      memory: 256Mi
+    min:
+      cpu: 100m
+      memory: 128Mi
+    max:
+      cpu: "1"
+      memory: 1Gi
 ```
 
-Apply both:
-```bash
-k apply -f resourcequota.yaml -f limitrange.yaml -n test
-```
-
-Test deployment of a pod requesting 2 CPUs and 2Gi memory:
-```bash
-k run test-pod --image=nginx --requests='cpu=2,memory=2Gi' -n test
-```
-
-This should be rejected:
-```
-Error from server (Forbidden): pods "test-pod" is forbidden: exceeded quota: test-quota
-```
-
-Verify quotas and limits:
-```bash
-k describe resourcequota test-quota -n test
-k describe limitrange test-limits -n test
-```
-
-**Key insight:** ResourceQuota limits the namespace total. LimitRange limits individual pods. Together, they prevent resource exhaustion at namespace and pod levels.
+The 2-CPU pod is rejected by the LimitRange (`maximum cpu usage per Container is 1`), not by the quota. Once the quota covers `limits.*`, every pod has to declare limits. The LimitRange defaults fill them in, which is why a pod without resources is still admitted.
 
 ---
 
-## Solution 14: Pod Security Standards
+## Question 14 — Pod Security Standards
 
-Update namespace to enforce PSS:
 ```bash
-k label namespace restricted \
+k config use-context kind-cka-exam
+k label ns restricted \
   pod-security.kubernetes.io/enforce=restricted \
-  pod-security.kubernetes.io/audit=baseline \
-  pod-security.kubernetes.io/warn=baseline
+  pod-security.kubernetes.io/warn=restricted \
+  pod-security.kubernetes.io/audit=baseline
+k -n restricted rollout restart deploy web    # warning lists what's missing; new pods are rejected
+k -n restricted edit deploy web
 ```
 
-Or via YAML:
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: restricted
-  labels:
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/audit: baseline
-    pod-security.kubernetes.io/warn: baseline
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: nginx-unprivileged
+        image: nginxinc/nginx-unprivileged:1.28-alpine
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
 ```
 
-Test with a privileged pod:
 ```bash
-k run priv-pod --image=nginx --privileged -n restricted
+k -n restricted rollout status deploy web
+k -n restricted run priv --image=busybox:1.37 \
+  --overrides='{"spec":{"containers":[{"name":"priv","image":"busybox:1.37","securityContext":{"privileged":true}}]}}'
+# Error ... violates PodSecurity "restricted:latest"
 ```
 
-Expected result:
-```
-Error from server (Forbidden): pods "priv-pod" is forbidden:
-violates PodSecurity "restricted:latest": privileged (container "nginx" must not set securityContext.privileged=true)
-```
-
-**Key insight:** Enforcement (`enforce`) blocks pods that violate the policy. Audit and warn levels log violations but allow them. `restricted` PSS requires no privileged containers, read-only root filesystem, etc.
+Labelling the namespace doesn't touch running pods. `enforce` only applies when pods are created. So check the ReplicaSet events (`k -n restricted describe rs`) after the restart.
 
 ---
 
-## Solution 15: Multi-Container Pod with Sidecar
+## Question 15 — Native sidecar container
 
-Create pod:
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
   name: app-with-logger
+  namespace: logging
 spec:
+  initContainers:
+  - name: logger
+    image: busybox:1.37
+    restartPolicy: Always          # this makes it a native sidecar
+    command: ["sh", "-c", "tail -F /logs/access.log"]
+    volumeMounts:
+    - name: logs
+      mountPath: /logs
   containers:
   - name: nginx
     image: nginx:1.28
     volumeMounts:
-    - name: log-volume
+    - name: logs
       mountPath: /var/log/nginx
-  - name: logger
-    image: busybox:1.37
-    command: ["/bin/sh"]
-    args: ["-c", "tail -f /logs/access.log"]
-    volumeMounts:
-    - name: log-volume
-      mountPath: /logs
   volumes:
-  - name: log-volume
+  - name: logs
     emptyDir: {}
 ```
 
-Apply:
 ```bash
-k apply -f pod-with-sidecar.yaml
+k -n logging exec app-with-logger -c nginx -- curl -s localhost >/dev/null
+k -n logging logs app-with-logger -c logger
 ```
 
-Verify:
-```bash
-k get pod app-with-logger
-k logs app-with-logger -c nginx
-k logs app-with-logger -c logger
-k exec app-with-logger -c logger -- ls -la /logs
-```
-
-**Key insight:** Both containers share the same `log-volume` (emptyDir). The main container writes logs to `/var/log/nginx`. The sidecar reads them from `/logs` (same mount, different path). EmptyDir storage is ephemeral and deleted when the pod terminates.
-
----
-
-## Overall Scoring
-
-Each question is worth ~6.7 points (15 questions = 100 points).
-- 10+ correct = Pass (66%)
-- 12+ correct = Strong performance
-- 15/15 = Excellent mastery
-
-Review the solutions that you missed and reference the corresponding exercises in the repo for deeper practice.
+The nginx image links `access.log` to stdout. Mounting the emptyDir over `/var/log/nginx` hides that symlink, so nginx writes a real file the sidecar can tail. `tail -F` (capital F) keeps retrying until the file exists.

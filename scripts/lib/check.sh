@@ -7,10 +7,16 @@
 
 CHECK_PASS=0
 CHECK_FAIL=0
+CHECK_GATE=""
 
-check_reset() { CHECK_PASS=0; CHECK_FAIL=0; }
+check_reset() { CHECK_PASS=0; CHECK_FAIL=0; CHECK_GATE=""; }
 
-_pass() { CHECK_PASS=$((CHECK_PASS + 1)); echo -e "  ${GREEN}✓${NC} $1"; }
+_pass() {
+  # After a failed gate nothing else earns points (no credit for "X is not
+  # allowed" style checks when the task wasn't attempted).
+  if [[ -n "$CHECK_GATE" ]]; then _fail "$1" "not graded: requires '$CHECK_GATE'"; return 0; fi
+  CHECK_PASS=$((CHECK_PASS + 1)); echo -e "  ${GREEN}✓${NC} $1"
+}
 _fail() {
   CHECK_FAIL=$((CHECK_FAIL + 1))
   echo -e "  ${RED}✗${NC} $1"
@@ -23,6 +29,14 @@ _fail() {
 check() {
   local desc="$1"; shift
   if "$@" >/dev/null 2>&1; then _pass "$desc"; else _fail "$desc"; fi
+}
+
+# check_gate "description" command [args...]
+# Like check, but if it fails every following check of this run fails too.
+# Use it for the "task was attempted" precondition (e.g. the Role exists).
+check_gate() {
+  local desc="$1"; shift
+  if "$@" >/dev/null 2>&1; then _pass "$desc"; else _fail "$desc"; CHECK_GATE="$desc"; fi
 }
 
 # check_not "description" command [args...]  — passes when the command fails.
@@ -57,16 +71,25 @@ jp() {
 exists() { kc get "$@" >/dev/null 2>&1; }
 
 # probe <namespace> <labels|-> <command>
-# Runs a throwaway busybox pod (optionally labelled, e.g. "app=client,tier=web")
-# and executes <command> in it with sh -c. Returns the command's exit code.
-# Used for connectivity and DNS tests.
+# Runs a throwaway busybox pod (optionally labelled, e.g. "app=client,tier=web"),
+# executes <command> in it with sh -c and prints its output. Returns 0 when the
+# command succeeded. Used for connectivity and DNS tests.
+# (The pod runs detached and its output is read from the logs afterwards;
+# attaching with `kubectl run -i` can miss output printed right at the start.)
 probe() {
   local ns="$1" labels="$2" cmd="$3"
-  local name="probe-$RANDOM$RANDOM"
-  local args=(-n "$ns" run "$name" --image=busybox:1.37 --restart=Never --quiet --rm -i
-              --pod-running-timeout=60s --command)
+  local name="probe-$RANDOM$RANDOM" phase="" i
+  local args=(-n "$ns" run "$name" --image=busybox:1.37 --restart=Never --command)
   [[ "$labels" != "-" ]] && args+=(--labels="$labels")
-  timeout 90 kubectl --context "$CTX" "${args[@]}" -- sh -c "$cmd" </dev/null 2>/dev/null
+  kc "${args[@]}" -- sh -c "$cmd" >/dev/null 2>&1 || return 1
+  for (( i = 0; i < 180; i++ )); do
+    phase="$(kc -n "$ns" get pod "$name" -o jsonpath='{.status.phase}' 2>/dev/null)"
+    [[ "$phase" == Succeeded || "$phase" == Failed ]] && break
+    sleep 0.5
+  done
+  kc -n "$ns" logs "$name" 2>/dev/null
+  kc -n "$ns" delete pod "$name" --wait=false >/dev/null 2>&1
+  [[ "$phase" == Succeeded ]]
 }
 
 # check_summary — prints the result line; returns 0 only if every check passed.

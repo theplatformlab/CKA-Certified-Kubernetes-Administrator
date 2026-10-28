@@ -1,0 +1,21 @@
+#!/bin/bash
+# ssh shim for the mock exam: `ssh <kind-node>` opens a root shell on that node
+# (kind nodes are containers), just like `ssh <node>` on the real exam.
+# Anything that isn't a kind node is passed to the real ssh.
+
+target=""
+for arg in "$@"; do
+  [[ "$arg" == -* ]] && continue
+  target="${arg#*@}"
+  break
+done
+
+if [[ -n "$target" ]] && docker inspect -f '{{ index .Config.Labels "io.x-k8s.kind.cluster" }}' "$target" 2>/dev/null | grep -q .; then
+  exec docker exec -it -e TERM="${TERM:-xterm}" -w /root "$target" bash -l
+fi
+
+for real in /usr/bin/ssh /bin/ssh; do
+  [[ -x "$real" ]] && exec "$real" "$@"
+done
+echo "ssh: '$target' is not a kind node and no ssh client is installed" >&2
+exit 255
