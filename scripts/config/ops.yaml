@@ -1,0 +1,8 @@
+# Ops cluster: control-plane work (kubeadm upgrade, etcd, static pods,
+# broken components). init-cluster.sh adds the pkgs.k8s.io apt repo for the
+# next minor version on every node so `kubeadm upgrade` can be practised.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker

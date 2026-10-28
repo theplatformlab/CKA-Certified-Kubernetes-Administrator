@@ -34,3 +34,10 @@ __pycache__/
 *.tfstate
 *.tfstate.backup
 .terraform/
+
+# Your own exercise solutions (manifests you write while working on a lab)
+exercises/**/*.yaml
+exercises/**/*.yml
+
+# Mock exam runtime state (timer, browser profile, proxy logs)
+.exam-runtime/

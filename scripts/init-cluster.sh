@@ -1,18 +1,25 @@
 #!/bin/bash
 # CKA practice cluster — creates a local Kubernetes cluster with kind.
 # Requires: Docker (running), kubectl, curl.
-# 
+#
 # Usage:
-#   ./scripts/init-cluster.sh                    # Create cluster named 'cka-practice'
-#   CLUSTER_NAME=my-lab ./scripts/init-cluster.sh # Create with custom name
-#   ./scripts/init-cluster.sh --recreate         # Delete and recreate cluster
-#   ./scripts/init-cluster.sh --help             # Show help
+#   ./scripts/init-cluster.sh                     # 'practice' profile -> cluster 'cka-practice'
+#   ./scripts/init-cluster.sh --profile ops       # control-plane work + kubeadm upgrade -> 'cka-ops'
+#   ./scripts/init-cluster.sh --profile cni       # no CNI installed (exercise 27) -> 'cka-cni'
+#   ./scripts/init-cluster.sh --profile runtime   # cri-dockerd labs (18, 26) -> 'cka-runtime'
+#   ./scripts/init-cluster.sh --recreate          # Delete and recreate the cluster
+#   CLUSTER_NAME=my-lab ./scripts/init-cluster.sh # Override the cluster name
+#   ./scripts/init-cluster.sh --help              # Show help
 #
 # After creation, run: source ./scripts/exam-setup.sh
 
 set -euo pipefail
 
-CLUSTER_NAME="${CLUSTER_NAME:-cka-practice}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
+PROFILE="practice"
 KIND_VERSION="${KIND_VERSION:-v0.31.0}"
 KUBE_VERSION="${KUBE_VERSION:-v1.35.1}"  # v1.35+ for native sidecar exercises
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
@@ -20,29 +27,31 @@ INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 RECREATE=false
 
 # Parse arguments
-for arg in "$@"; do
-  case "$arg" in
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --recreate) RECREATE=true ;;
+    --profile)
+      PROFILE="${2:-}"
+      shift
+      ;;
     -h|--help)
-      sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
-      echo "Unknown argument: $arg (try --help)" >&2
+      echo "Unknown argument: $1 (try --help)" >&2
       exit 1
       ;;
   esac
+  shift
 done
 
-# Color output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+CONFIG_FILE="${SCRIPT_DIR}/config/${PROFILE}.yaml"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  log_error "Unknown profile '${PROFILE}' (expected: practice, ops, cni, runtime)"
+  exit 1
+fi
+CLUSTER_NAME="${CLUSTER_NAME:-$(cluster_name "$PROFILE")}"
 
 # Check if a command exists
 need_cmd() {
@@ -108,6 +117,50 @@ ensure_docker() {
   fi
 }
 
+# ops profile: add the pkgs.k8s.io apt repo for the NEXT minor version on every
+# node so the kubeadm upgrade can be done the same way as on a real kubeadm
+# cluster (apt-get install kubeadm=... / kubeadm upgrade apply ...).
+# The control plane also gets etcdctl for backup/restore tasks.
+prepare_ops_nodes() {
+  local minor next_minor node
+  minor="${KUBE_VERSION#v}"
+  minor="${minor%.*}"
+  next_minor="v${minor%%.*}.$(( ${minor#*.} + 1 ))"
+
+  log_info "Adding Kubernetes ${next_minor} apt repository to all nodes ..."
+  for node in $(kind get nodes --name "$CLUSTER_NAME"); do
+    log_info "  ${node}"
+    node_exec "$node" "
+      set -e
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -qq
+      apt-get install -y -qq curl gpg vim less >/dev/null
+      mkdir -p /etc/apt/keyrings
+      curl -fsSL https://pkgs.k8s.io/core:/stable:/${next_minor}/deb/Release.key \\
+        | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${next_minor}/deb/ /' \\
+        > /etc/apt/sources.list.d/kubernetes.list
+      apt-get update -qq
+    "
+  done
+
+  node="${CLUSTER_NAME}-control-plane"
+  log_info "Installing etcdctl on ${node} ..."
+  node_exec "$node" "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq etcd-client >/dev/null"
+  log_info "Upgrade target versions available: $(node_exec "$node" "apt-cache madison kubeadm | awk '{print \$3}' | head -3 | tr '\n' ' '")"
+}
+
+# Each kind node uses several inotify instances; the common default of 128 is
+# exhausted by ~2 clusters and containerd then fails with "too many open files".
+check_inotify() {
+  local instances
+  instances="$(cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || echo 0)"
+  if (( instances > 0 && instances < 512 )); then
+    log_warn "fs.inotify.max_user_instances is ${instances}; running several kind clusters needs >= 512."
+    echo "  Fix: echo -e 'fs.inotify.max_user_instances=1024\\nfs.inotify.max_user_watches=1048576' | sudo tee /etc/sysctl.d/99-kind.conf && sudo sysctl --system" >&2
+  fi
+}
+
 # Configure kubeconfig
 configure_kubeconfig() {
   mkdir -p "$HOME/.kube"
@@ -119,6 +172,7 @@ main() {
   need_cmd kubectl
   ensure_docker
   ensure_kind
+  check_inotify
 
   # Check if cluster already exists
   if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
@@ -141,16 +195,25 @@ main() {
 
   # Create cluster with specific Kubernetes version
   echo ""
-  log_info "Creating kind cluster '${CLUSTER_NAME}' with Kubernetes ${KUBE_VERSION} ..."
+  log_info "Creating kind cluster '${CLUSTER_NAME}' (profile: ${PROFILE}) with Kubernetes ${KUBE_VERSION} ..."
   log_info "(This may take 1-2 minutes on first run)"
   echo ""
   
+  local wait_args=(--wait 300s)
+  # Without a CNI the nodes never become Ready, so don't wait for them.
+  [[ "$PROFILE" == "cni" ]] && wait_args=()
+
   kind create cluster \
     --name "$CLUSTER_NAME" \
     --image "kindest/node:${KUBE_VERSION}" \
-    --wait 300s
+    --config "$CONFIG_FILE" \
+    "${wait_args[@]}"
 
   configure_kubeconfig
+
+  if [[ "$PROFILE" == "ops" ]]; then
+    prepare_ops_nodes
+  fi
 
   echo ""
   log_info "Cluster ready!"

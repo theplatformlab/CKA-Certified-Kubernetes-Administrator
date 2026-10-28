@@ -1,0 +1,7 @@
+# Runtime cluster: container runtime experiments (exercises 18 and 26,
+# cri-dockerd). Kept separate because switching a node's runtime is disruptive.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
