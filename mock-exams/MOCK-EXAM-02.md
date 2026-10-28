@@ -1,187 +1,208 @@
 # Mock Exam 02 — CKA Practice (Kubernetes 1.35)
 
 Duration: 2 hours (120 minutes)
-Questions: 15
-Passing Score: 66% (approximately 10 questions correct)
+Questions: 16
+Passing Score: 66% (weights in brackets; partial credit per check)
+
+Start it with `./scripts/mock-exam.sh start 2`. That command builds two fresh clusters (`cka-exam` and `cka-exam-ops`), prepares every question, opens the question panel and a shell, and starts the docs-only browser. Each question tells you which context to use. Grade with `s` in the question panel or `./scripts/mock-exam.sh grade`.
+
+Answer files go into `~/cka-exam/`. Node access: `ssh <node-name>`. In the exam shell this opens a root shell on the kind node.
 
 Do not look at the solutions until you complete this exam.
 
 ---
 
-## Question 1: Service Discovery and DNS
+## Question 1 — Service discovery and DNS (5%)
 
-An application in namespace `backend` needs to call a service in namespace `frontend` via DNS. The service name is `web-ui` and it exposes port 3000.
+**Context:** `kubectl config use-context kind-cka-exam`
 
-The application's configuration needs the full DNS name to connect. What is the correct DNS name within the cluster that the backend application should use?
+Namespace `frontend` contains a Service `web-ui` on port `3000`. An application in namespace `backend` needs to reach it.
 
-Also, verify that pod-to-pod DNS resolution works using nslookup or dig from a test pod.
+1. Write the fully qualified DNS name of Service `web-ui` into `~/cka-exam/q01/dns.txt` (only the name).
+2. Create a pod named `dns-test` in namespace `backend` with image `busybox:1.37` and command `sleep 3600`.
+3. Use `dns-test` to resolve the Service's name with `nslookup`. Save the complete output to `~/cka-exam/q01/nslookup.txt`.
 
-**Time: 6 minutes**
 
+## Question 2 — Roll back a broken rollout (7%)
 
-## Question 2: Deployment Rolling Update and Rollback
+**Context:** `kubectl config use-context kind-cka-exam`
 
-A deployment `payment-service` has been updated with a new image version that introduced a bug. Users are reporting errors. You need to:
-1. Check the deployment's rollout history
-2. Identify which revision had the issue
-3. Rollback to the previous stable version
-4. Verify the rollback completed successfully
+Deployment `payment-service` in namespace `payments` was updated several times. The latest update broke it.
 
-**Time: 8 minutes**
+1. Find the revision that introduced the broken version. Write its revision number into `~/cka-exam/q02/broken-revision.txt`.
+2. Roll the Deployment back to the revision right before the broken one.
+3. All 3 replicas must be Ready.
 
 
-## Question 3: Secrets and Environment Variables
+## Question 3 — Secrets as environment variables (6%)
 
-A pod needs access to database credentials:
-- Username: `dbuser`
-- Password: `secret123`
-- Database: `appdb`
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Create a Secret and mount it in a deployment pod as environment variables (not as files).
+In namespace `apps`:
 
-Verify that the pod can access these environment variables without exposing them in pod logs.
+1. Create a Secret named `db-credentials` with the keys `DB_USER=dbuser`, `DB_PASSWORD=secret123` and `DB_NAME=appdb`.
+2. Create a Deployment named `db-client`:
+   - 1 replica, image `busybox:1.37`, command `sleep 3600`
+   - all three keys of the Secret available as environment variables with the same names
+   - no secret values written into the Deployment manifest
 
-**Time: 7 minutes**
 
+## Question 4 — DaemonSet on all nodes (5%)
 
-## Question 4: DaemonSet Configuration
+**Context:** `kubectl config use-context kind-cka-exam`
 
-A monitoring agent needs to run on every node in the cluster, including control plane nodes. Currently, some nodes are missing the agent due to taints.
+Create a DaemonSet named `node-agent` in namespace `monitoring`:
 
-Create or update a DaemonSet to:
-1. Run the `datadog/agent:latest` image on all nodes
-2. Tolerate the taint `node-role.kubernetes.io/control-plane:NoSchedule`
-3. Verify the agent is running on all nodes
+- pod label `app=node-agent`
+- container `agent`, image `busybox:1.37`, command `sleep 86400`
+- resource requests `10m` CPU and `16Mi` memory
+- one pod on every node of the cluster, including the control plane node
 
-**Time: 8 minutes**
 
+## Question 5 — API server is down (9%)
 
-## Question 5: Cluster API Server Debugging
+**Context:** `kubectl config use-context kind-cka-exam-ops`
 
-The API server appears to be responding slowly. You need to:
-1. Check the API server logs for errors or warnings
-2. Verify the API server is listening on port 6443
-3. Check if there are too many requests from a specific source
-4. Review the audit trail for suspicious activity
+`kubectl` can no longer talk to cluster `cka-exam-ops`. The kube-apiserver runs as a static pod on `cka-exam-ops-control-plane` (`ssh cka-exam-ops-control-plane`).
 
-Provide the commands you would use to debug this issue.
+Find the cause and fix it. The API server must be healthy again.
 
-**Time: 9 minutes**
 
+## Question 6 — ConfigMap changes and running pods (6%)
 
-## Question 6: ConfigMap Updates and Pod Restarts
+**Context:** `kubectl config use-context kind-cka-exam`
 
-A ConfigMap contains application configuration that was just updated. Pods currently running the application still have the old configuration because they mounted the ConfigMap at pod startup.
+Deployment `config-app` in namespace `config-demo` uses ConfigMap `app-config`. It reads key `mode` as environment variable `APP_MODE`, and the ConfigMap is also mounted at `/etc/app`.
 
-Implement a solution to ensure pods pick up the new configuration without manually restarting them. Consider using volume reload mechanisms or automation.
+1. Change the ConfigMap: set `mode` to `production` and `message` to `v2`.
+2. Make sure all pods of `config-app` use the new values, both in the environment variable and in the file `/etc/app/message`. Do not delete the Deployment.
 
-**Time: 8 minutes**
 
+## Question 7 — PriorityClasses (5%)
 
-## Question 7: PriorityClass and Pod Eviction
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Set up a cluster with different priority levels:
-1. Create a PriorityClass for critical workloads with priority 1000
-2. Create a PriorityClass for standard workloads with priority 100
-3. Deploy two critical pods and one standard pod
-4. When the node runs out of memory, verify the standard pod is evicted before critical pods
+1. Create a PriorityClass named `critical-workload` with value `1000000` and description `critical`.
+2. Create a PriorityClass named `standard-workload` with value `1000` and `preemptionPolicy: Never`.
+   Neither PriorityClass may be the global default.
+3. In namespace `priority`, create a Deployment `critical-app` with 2 replicas, image `busybox:1.37` and command `sleep 3600`, using PriorityClass `critical-workload`.
+4. In namespace `priority`, create a pod `batch-job` with image `busybox:1.37` and command `sleep 3600`, using PriorityClass `standard-workload`.
 
-Briefly explain the preemption policy.
 
-**Time: 9 minutes**
+## Question 8 — Expose an application with a NodePort (6%)
 
+**Context:** `kubectl config use-context kind-cka-exam`
 
-## Question 8: Service Types and Exposure
+Deployment `legacy-app` in namespace `legacy` listens on port `3000`.
 
-A legacy application needs to be accessible from outside the cluster on a specific port. Internal services use ClusterIP, but this application needs external access without using Ingress.
+Create a Service named `legacy-svc` in namespace `legacy`:
 
-Create a Service of the appropriate type that:
-1. Exposes the pod on an external IP
-2. Uses port 8080 on the node and routes to port 3000 on the pod
-3. Verify external connectivity
+- type `NodePort`
+- Service port `8080`
+- target port `3000`
+- node port `30080`
 
-**Time: 7 minutes**
+The application must answer on `<any-node-ip>:30080`.
 
 
-## Question 9: CronJob Scheduling
+## Question 9 — CronJob (6%)
 
-Set up a backup job that should run:
-1. Every day at 2 AM
-2. Keep only the last 3 successful job runs
-3. Suspend the CronJob (it should not run for the next month)
-4. Start it again when needed
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Create the CronJob manifest and verify the schedule settings.
+In namespace `backup`:
 
-**Time: 7 minutes**
+1. Create a CronJob named `db-backup`:
+   - runs every day at 02:00
+   - image `busybox:1.37`, command `sh -c 'echo backup done'`
+   - keeps the last `3` successful and the last `1` failed Jobs
+   - concurrency policy `Forbid`
+   - suspended
+2. Test it once right now: create a Job named `db-backup-manual` from the CronJob. The Job must complete successfully.
 
 
-## Question 10: Cluster Certificate Rotation
+## Question 10 — Renew control plane certificates (8%)
 
-The cluster's certificate-based authentication is expiring soon. You need to:
-1. Check the current certificate expiration date
-2. Renew the certificates using kubeadm
-3. Verify the new certificates are in place
-4. Ensure the API server is using the new certificates
+**Context:** `kubectl config use-context kind-cka-exam-ops`
 
-Provide the commands needed for certificate rotation.
+The certificates of cluster `cka-exam-ops` need to be renewed (`ssh cka-exam-ops-control-plane`).
 
-**Time: 10 minutes**
+1. Write the current expiration date of the kube-apiserver serving certificate into `~/cka-exam/q10/expiration.txt` on your exam host (not on the node). Use the same format `kubeadm certs check-expiration` prints, for example `Oct 28, 2027 21:12 UTC`.
+2. Renew all certificates with kubeadm.
+3. Make sure the running kube-apiserver serves the renewed certificate.
 
 
-## Question 11: Pod Disruption Budgets
+## Question 11 — PodDisruptionBudget (5%)
 
-An application deployment runs 10 replicas and cannot lose more than 2 pods simultaneously during cluster disruptions (maintenance, node failures).
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Create a PodDisruptionBudget that enforces this constraint. Test the budget by attempting to drain a node with multiple application pods.
+Deployment `frontend` in namespace `web` runs 10 replicas with pod label `app=frontend`.
 
-**Time: 8 minutes**
+Create a PodDisruptionBudget named `frontend-pdb` in namespace `web` that allows at most `2` of these pods to be unavailable during voluntary disruptions.
 
 
-## Question 12: Custom Resource Definitions (CRD)
+## Question 12 — Custom resources (5%)
 
-Your team has created a custom CRD called `Database` to represent database instances. A developer needs to:
-1. Check if the CRD already exists
-2. Create an instance of the custom resource
-3. Verify the custom resource is stored in etcd
-4. Delete the custom resource
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Provide the commands to interact with the custom resource.
+The CRD `databases.example.com` (kind `Database`) is installed.
 
-**Time: 7 minutes**
+1. In namespace `team-data`, create a `Database` named `orders-db` with `engine: postgres`, `version: "17"` and `storageGB: 20`. Use `kubectl explain` to find the schema.
+2. Delete the `Database` named `legacy-db` in namespace `team-data`.
+3. Write the names of all CRDs in the API group `example.com` into `~/cka-exam/q12/crds.txt`, one per line.
 
 
-## Question 13: Enforce Pod Security Standards
+## Question 13 — Pod Security Admission (6%)
 
-Create a namespace named `restricted` and configure Pod Security Admission to enforce and warn on the `restricted` standard.
+**Context:** `kubectl config use-context kind-cka-exam`
 
-1. Create a Pod named `restricted-pod` that complies with the `restricted` standard.
-2. Attempt to create a privileged Pod named `blocked-pod` in the same namespace. Confirm that the API server rejects it and returns a warning.
+1. Create namespace `secure-apps` with Pod Security Admission `enforce` and `warn` both set to level `restricted`.
+2. Create a pod `restricted-pod` in `secure-apps` with image `nginxinc/nginx-unprivileged:1.28-alpine` that complies with the `restricted` level and is Running.
+3. Try to create a pod `blocked-pod` in `secure-apps` with image `busybox:1.37`, command `sleep 3600` and `securityContext.privileged: true`. Save the error message to `~/cka-exam/q13/error.txt`.
 
-**Time: 9 minutes**
 
+## Question 14 — StorageClass and default class (8%)
 
-## Question 14: Storage Class and Dynamic Provisioning
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Configure dynamic volume provisioning:
-1. Create a StorageClass with the SSD provisioner
-2. Create a PVC that requests 20Gi
-3. Verify that PV is automatically created and bound
-4. Deploy a pod that uses the dynamically provisioned volume
+1. Create a StorageClass named `local-ssd`:
+   - provisioner `rancher.io/local-path`
+   - `reclaimPolicy: Retain`
+   - `volumeBindingMode: WaitForFirstConsumer`
+2. Make `local-ssd` the cluster's default StorageClass. `standard` must no longer be the default.
+3. In namespace `storage`, create a PVC named `data-pvc` that requests `2Gi` with `ReadWriteOnce`, without specifying a StorageClass.
+4. In namespace `storage`, create a pod named `data-pod` with image `nginx:1.28` that mounts `data-pvc` at `/usr/share/nginx/html`. The PVC must be `Bound`.
 
-**Time: 8 minutes**
 
+## Question 15 — Namespace resource governance (6%)
 
-## Question 15: Namespace Quota and Resource Management
+**Context:** `kubectl config use-context kind-cka-exam`
 
-Set up resource governance for the `batch-jobs` namespace:
-1. Limit total CPU to 10 cores
-2. Limit total memory to 20Gi
-3. Set per-pod minimum: 500m CPU, 256Mi memory
-4. Set per-pod maximum: 4 CPU, 8Gi memory
-5. Test by trying to deploy a pod that exceeds limits and verify it's rejected
+In namespace `batch-jobs`:
 
-**Time: 10 minutes**
+1. Create a ResourceQuota named `batch-quota`:
+   - `requests.cpu: 10`, `requests.memory: 20Gi`
+   - `limits.cpu: 10`, `limits.memory: 20Gi`
+   - `pods: 20`
+2. Create a LimitRange named `batch-limits` for type `Container`:
+   - minimum `500m` CPU and `256Mi` memory
+   - maximum `4` CPU and `8Gi` memory
+   - default request and default limit both `500m` CPU and `256Mi` memory
+
+A container requesting `5` CPUs must then be rejected.
+
+
+## Question 16 — Gateway API traffic splitting (7%)
+
+**Context:** `kubectl config use-context kind-cka-exam`
+
+The Gateway API CRDs and GatewayClass `exam-gateway` are installed. In namespace `gateway` the Services `web-v1` and `web-v2` (both port `80`) exist.
+
+1. Create a Gateway named `web-gateway` in namespace `gateway`:
+   - GatewayClass `exam-gateway`
+   - one listener named `http`, protocol `HTTP`, port `80`, hostname `web.example.com`
+2. Create an HTTPRoute named `web-route` in namespace `gateway`:
+   - attached to `web-gateway`, hostname `web.example.com`
+   - sends requests for path prefix `/` to `web-v1` (weight `80`) and `web-v2` (weight `20`), both on port `80`
 
 ---
 
@@ -189,4 +210,4 @@ Set up resource governance for the `batch-jobs` namespace:
 
 Total Time: 120 minutes
 
-After completing, review your answers against the solutions provided in `MOCK-EXAM-02-SOLUTIONS.md`.
+After completing, review your answers against the solutions in `MOCK-EXAM-02-SOLUTIONS.md`.
