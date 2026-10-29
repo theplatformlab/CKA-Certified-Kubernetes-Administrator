@@ -13,12 +13,14 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 
 | | Practice session | Mock exam |
 |---|---|---|
-| Selection | N items (1/3/5/10), optionally from one domain, or items you pick yourself | Generated, weighted like the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10% |
+| Selection | N items (1/3/5/10), optionally from one domain, or items you pick yourself | 17 questions by default (adjustable in the exam setup, or `CKA_EXAM_QUESTIONS`), split by the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10%. Long tasks are limited so the set fits the duration |
 | Time | Soft: each item shows its recommended time next to your time on it | Hard countdown (120/90/60 min); grading starts automatically at 0 |
 | Help | Hints one at a time (`h`), check any time (`c`), solution on demand (`s s`) | None. Only the docs-only browser (kubernetes.io, helm.sh, gateway-api.sigs.k8s.io) |
 | Pause | `P` pauses; the menu offers "Continue" later, and clusters keep running | `P P` freezes the timer and stops the exam clusters, freeing memory. "Continue" starts them again (~1 min) and the timer resumes. `q` leaves the panel with the timer still running |
 | Clusters | Persistent `cka-practice`, `cka-ops`, `cka-cni`, `cka-runtime`, `cka-ha`, created on demand | Fresh `cka-exam`, `cka-exam-ops`, and `cka-exam-cni/-runtime/-ha` when an item needs one; built in parallel on their own docker network |
 | End | `F F` grades all items, then cleans them up | `S S` submits; the exam clusters stay up so you can inspect them |
+
+**One item per topic.** Every item has a topic (pod-security, networkpolicy, priorityclass, ...). A generated session never contains two items of the same topic, so you don't get three Pod Security questions in one exam.
 
 **Which items come first.** Items you have never done come first, then items whose last attempt failed, then passed items, least recently practised first. Every exam item can also be practised; some labs (tutorial-style or multi-scenario) are practice-only.
 
@@ -58,7 +60,7 @@ History is stored in `~/.local/share/cka-lab/sessions/` (one JSON file per sessi
 
 ```bash
 ./cka list                       # the pool: id, domain, cluster, time, weight, modes, your status
-./cka gen exam 120               # preview a generated exam (creates nothing)
+./cka gen exam 120 17            # preview a generated exam: minutes, questions (creates nothing)
 ./cka gen practice networking 5  # preview a practice selection
 ./cka render <id>                # print an item's task and hints as the app shows them
 
@@ -75,6 +77,7 @@ An item is a directory in `questions/<id>/` (or `exercises/<NN>-<name>/`) with t
 **`item.yaml`**
 ```yaml
 title: Roll back a broken rollout
+topic: rollouts                # a generated session never has two items of one topic
 domain: workloads              # troubleshooting | architecture | networking | workloads | storage
 difficulty: 1                  # 1-3
 minutes: 7                     # realistic exam time

@@ -75,7 +75,8 @@ type model struct {
 	countIdx  int
 	picked    map[string]bool
 	// exam config
-	durIdx int
+	durIdx    int
+	questions int
 
 	// busy screen
 	busyTitle string
@@ -143,7 +144,8 @@ var counts = []int{1, 3, 5, 10}
 var durations = []int{120, 90, 60}
 
 func newModel(items []*Item, store *Store) *model {
-	m := &model{items: items, store: store, picked: map[string]bool{}, renderCache: map[string]string{}, countIdx: 1}
+	m := &model{items: items, store: store, picked: map[string]bool{}, renderCache: map[string]string{}, countIdx: 1,
+		questions: examQuestionsDefault()}
 	m.vp = viewport.New(80, 20)
 	return m
 }
@@ -469,18 +471,21 @@ func (m *model) keyExamCfg(key string) (tea.Model, tea.Cmd) {
 	case "up", "k":
 		m.cursor = max(0, m.cursor-1)
 	case "down", "j":
-		m.cursor = min(1, m.cursor+1)
+		m.cursor = min(2, m.cursor+1)
 	case "left", "h", "right", "l":
 		d := 1
 		if key == "left" || key == "h" {
 			d = -1
 		}
-		if m.cursor == 0 {
+		switch m.cursor {
+		case 0:
 			m.durIdx = (m.durIdx + d + len(durations)) % len(durations)
+		case 1:
+			m.questions = min(30, max(5, m.questions+d))
 		}
 	case "enter":
-		if m.cursor == 1 {
-			return m.startSession(GenOptions{Mode: "exam", Minutes: durations[m.durIdx]})
+		if m.cursor == 2 {
+			return m.startSession(GenOptions{Mode: "exam", Minutes: durations[m.durIdx], Count: m.questions})
 		}
 	case "esc", "q":
 		m.scr, m.cursor = scrMenu, 0
@@ -974,7 +979,7 @@ func (m *model) View() string {
 	case scrPickItems:
 		body, footer = m.viewPickItems(), "space select · enter start (selection or current) · esc back"
 	case scrExamCfg:
-		body, footer = m.viewExamCfg(), "←/→ duration · enter start · esc back"
+		body, footer = m.viewExamCfg(), "↑/↓ row · ←/→ change · enter start · esc back"
 	case scrBusy:
 		body = m.viewBusy()
 		if m.busyErr != nil {
@@ -1096,9 +1101,10 @@ func (m *model) viewPickItems() string {
 func (m *model) viewExamCfg() string {
 	var b strings.Builder
 	b.WriteString(stTitle.Render("Mock exam") + "\n")
-	b.WriteString(stDim.Render("Questions are drawn from the pool, weighted like the CKA curriculum. Hard timer, no hints,\ngraded when you submit (S S) or the time runs out.") + "\n\n")
-	b.WriteString(cursorLine(m.cursor == 0, fmt.Sprintf("Duration: ‹ %d min ›", durations[m.durIdx])) + "\n")
-	b.WriteString(cursorLine(m.cursor == 1, "Start") + "\n\n")
+	b.WriteString(stDim.Render("Questions are drawn from the pool, weighted like the CKA curriculum, one per topic.\nHard timer, no hints, graded when you submit (S S) or the time runs out.") + "\n\n")
+	b.WriteString(cursorLine(m.cursor == 0, fmt.Sprintf("Duration:  ‹ %d min ›", durations[m.durIdx])) + "\n")
+	b.WriteString(cursorLine(m.cursor == 1, fmt.Sprintf("Questions: ‹ %d ›", m.questions)) + "\n")
+	b.WriteString(cursorLine(m.cursor == 2, "Start") + "\n\n")
 	b.WriteString(stDim.Render("Starting builds fresh clusters cka-exam and cka-exam-ops (2-3 minutes)\nand opens the docs-only browser. The timer starts when everything is ready."))
 	for _, d := range Domains {
 		b.WriteString("\n" + stDim.Render(fmt.Sprintf("  %-24s %d%%", d.Name, d.Weight)))

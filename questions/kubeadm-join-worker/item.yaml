@@ -1,4 +1,5 @@
 title: Join a worker node with kubeadm
+topic: kubeadm-join
 domain: architecture
 difficulty: 2
 minutes: 8

@@ -42,6 +42,7 @@ type Item struct {
 	Cluster    string   `yaml:"-"` // practice | ops | cni | runtime (LAB_CLUSTER in lab.sh)
 	Exercise   bool     `yaml:"-"`
 	Title      string   `yaml:"title"`
+	Topic      string   `yaml:"topic"` // at most one item per topic in a generated session
 	Domain     string   `yaml:"domain"`
 	Difficulty int      `yaml:"difficulty"`
 	Minutes    int      `yaml:"minutes"`

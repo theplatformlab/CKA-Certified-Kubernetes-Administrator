@@ -53,6 +53,9 @@ func testItems() []*Item {
 	add("conflict-2", "troubleshooting", 8, []string{"x2"}, []string{"apiserver"}, "ops")
 	add("shared-ns-1", "workloads", 8, []string{"same"}, nil, "practice")
 	add("shared-ns-2", "workloads", 8, []string{"same"}, nil, "practice")
+	add("topic-1", "networking", 8, []string{"t1"}, nil, "practice")
+	add("topic-2", "networking", 8, []string{"t2"}, nil, "practice")
+	items[len(items)-2].Topic, items[len(items)-1].Topic = "same-topic", "same-topic"
 	add("special-1", "architecture", 8, []string{"s1"}, nil, "ha")
 	add("special-2", "architecture", 8, []string{"s2"}, nil, "cni")
 	return items
@@ -63,7 +66,7 @@ func noParams(*Item, int64) (map[string]string, error) { return map[string]strin
 func TestGenerateExam(t *testing.T) {
 	items := testItems()
 	for seed := int64(0); seed < 50; seed++ {
-		picks, err := Generate(items, map[string]ItemStat{}, GenOptions{Mode: "exam", Minutes: 120, Seed: seed}, noParams)
+		picks, err := Generate(items, map[string]ItemStat{}, GenOptions{Mode: "exam", Minutes: 120, Count: 17, Seed: seed}, noParams)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,6 +85,12 @@ func TestGenerateExam(t *testing.T) {
 		}
 		if ids["shared-ns-1"] && ids["shared-ns-2"] {
 			t.Errorf("seed %d: namespace collision", seed)
+		}
+		if len(picks) != 17 {
+			t.Errorf("seed %d: %d questions", seed, len(picks))
+		}
+		if ids["topic-1"] && ids["topic-2"] {
+			t.Errorf("seed %d: two items of one topic", seed)
 		}
 		if special > 1 {
 			t.Errorf("seed %d: %d special-cluster items", seed, special)
@@ -141,6 +150,9 @@ func TestPool(t *testing.T) {
 		if len(doc.Hints) == 0 {
 			t.Errorf("%s: no hints", it.ID)
 		}
+		if it.Topic == "" {
+			t.Errorf("%s: no topic", it.ID)
+		}
 	}
 }
 
@@ -167,5 +179,16 @@ func TestExamView(t *testing.T) {
 	}
 	if !strings.Contains(out, "> keep me") || !strings.Contains(out, "Clients fail.") {
 		t.Errorf("too much removed:\n%s", out)
+	}
+}
+
+func TestDomainQuotas(t *testing.T) {
+	q := domainQuotas(17)
+	sum := 0
+	for _, v := range q {
+		sum += v
+	}
+	if sum != 17 || q["troubleshooting"] != 5 || q["storage"] != 2 {
+		t.Errorf("quotas %v", q)
 	}
 }

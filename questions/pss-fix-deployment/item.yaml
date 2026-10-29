@@ -1,5 +1,6 @@
 title: Pod Security Standards
-domain: architecture
+topic: pod-security
+domain: workloads
 difficulty: 2
 minutes: 8
 weight: 7

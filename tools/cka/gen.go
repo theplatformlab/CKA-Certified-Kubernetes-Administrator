@@ -5,6 +5,7 @@ package main
 //   practice: a number of items, optionally from one domain
 // Within a domain, never-attempted items come first, then items whose last
 // attempt failed, then passed ones (least recently practised first).
+// A session never contains two items of the same topic.
 
 import (
 	"fmt"
@@ -17,7 +18,7 @@ type GenOptions struct {
 	Mode    string // exam | practice
 	Minutes int    // exam duration
 	Domain  string // practice: "" = all
-	Count   int    // practice: number of items
+	Count   int    // number of items (practice) / questions (exam)
 	Only    []string
 	Seed    int64
 }
@@ -52,6 +53,11 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		}
 		for _, c := range chosen {
 			if conflicts(c, pick) {
+				return false
+			}
+			// Generated sessions cover distinct topics (items you pick
+			// yourself may repeat one).
+			if len(opt.Only) == 0 && it.Topic != "" && it.Topic == c.Item.Topic {
 				return false
 			}
 			if opt.Mode == "exam" && specialClusters[it.Cluster] && specialClusters[c.Item.Cluster] {
@@ -100,46 +106,89 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		return chosen, nil
 	}
 
-	// Exam: fill each domain's share of the time budget.
-	budget := float64(opt.Minutes) * 0.95
-	used := map[string]float64{}
+	// Exam: opt.Count questions, split over the domains by curriculum weight,
+	// and their estimated times must fit the duration.
+	n := opt.Count
+	if n <= 0 {
+		n = DefaultExamQuestions
+	}
+	quota := domainQuotas(n)
+	budget := float64(opt.Minutes)
 	total := 0.0
-	for _, d := range Domains {
-		target := budget * float64(d.Weight) / 100
-		for _, it := range ordered {
-			if it.Domain != d.Key || used[d.Key] >= target*0.8 {
-				continue
-			}
-			m := examMinutes(it)
-			if used[d.Key] > 0 && used[d.Key]+m > target*1.2 {
-				continue
-			}
-			if inPicks(chosen, it) {
-				continue
-			}
-			if tryAdd(it) {
-				used[d.Key] += m
-				total += m
+	fits := func(it *Item, strict bool) bool {
+		if !strict {
+			return true
+		}
+		left := n - len(chosen) - 1 // slots still to fill after this one
+		m := examMinutes(it)
+		// Keep each pick near the average time still available per slot,
+		// so long tasks don't crowd out the remaining questions.
+		share := (budget - total) / float64(left+1)
+		return m <= 1.4*share && total+m+float64(left)*minExamMinutes <= budget
+	}
+	add := func(it *Item, strict bool) bool {
+		if inPicks(chosen, it) || !fits(it, strict) || !tryAdd(it) {
+			return false
+		}
+		total += examMinutes(it)
+		return true
+	}
+	// Each domain gets its quota: first with items that keep the exam within
+	// the time budget, then (if a domain would stay short) without that limit.
+	got := map[string]int{}
+	for _, strict := range []bool{true, false} {
+		for _, d := range Domains {
+			for _, it := range ordered {
+				if got[d.Key] >= quota[d.Key] {
+					break
+				}
+				if it.Domain == d.Key && add(it, strict) {
+					got[d.Key]++
+				}
 			}
 		}
 	}
-	// Top up with whatever fits if some domain ran short.
+	// A domain without enough distinct items: fill up from the others.
 	for _, it := range ordered {
-		if total >= budget*0.9 {
+		if len(chosen) >= n {
 			break
 		}
-		if inPicks(chosen, it) || total+examMinutes(it) > budget {
-			continue
-		}
-		if tryAdd(it) {
-			total += examMinutes(it)
-		}
+		add(it, false)
 	}
 	if len(chosen) == 0 {
 		return nil, fmt.Errorf("no items available")
 	}
 	rng.Shuffle(len(chosen), func(i, j int) { chosen[i], chosen[j] = chosen[j], chosen[i] })
 	return chosen, nil
+}
+
+// DefaultExamQuestions: the real CKA has about 15-20 tasks in 120 minutes.
+const DefaultExamQuestions = 17
+
+// The shortest realistic task; used to keep room for the remaining slots.
+const minExamMinutes = 5.0
+
+// domainQuotas splits n questions over the domains by weight (largest remainder).
+func domainQuotas(n int) map[string]int {
+	quota := map[string]int{}
+	type rem struct {
+		key  string
+		frac float64
+	}
+	var rems []rem
+	used := 0
+	for _, d := range Domains {
+		exact := float64(n) * float64(d.Weight) / 100
+		quota[d.Key] = int(exact)
+		used += int(exact)
+		rems = append(rems, rem{d.Key, exact - float64(int(exact))})
+	}
+	sort.SliceStable(rems, func(i, j int) bool { return rems[i].frac > rems[j].frac })
+	for i := 0; used < n; i++ {
+		quota[rems[i%len(rems)].key]++
+		used++
+	}
+	return quota
 }
 
 // Exercise times are learning times; in an exam they take roughly 60% of that.

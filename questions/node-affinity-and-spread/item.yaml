@@ -1,4 +1,5 @@
 title: Node affinity and topology spread
+topic: scheduling-affinity
 domain: workloads
 difficulty: 2
 minutes: 9

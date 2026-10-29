@@ -1,5 +1,6 @@
 title: PodDisruptionBudget
-domain: architecture
+topic: pdb
+domain: workloads
 difficulty: 1
 minutes: 5
 weight: 5

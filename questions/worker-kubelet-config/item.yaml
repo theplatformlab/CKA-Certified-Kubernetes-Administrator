@@ -1,4 +1,5 @@
 title: Worker node NotReady
+topic: node-kubelet
 domain: troubleshooting
 difficulty: 2
 minutes: 8

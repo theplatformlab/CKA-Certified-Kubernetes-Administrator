@@ -1,4 +1,5 @@
 title: Forward a private DNS zone in CoreDNS
+topic: coredns
 domain: networking
 difficulty: 2
 minutes: 9

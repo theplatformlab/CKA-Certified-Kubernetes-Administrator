@@ -3,7 +3,7 @@
 //	cka                 interactive app (normally started through ./cka, which
 //	                    puts it into a tmux layout next to a shell)
 //	cka list            list the pool
-//	cka gen exam [min]  preview a generated exam (nothing is created)
+//	cka gen exam [min] [questions]  preview a generated exam (nothing is created)
 //	cka gen practice [domain] [count]
 //	cka render <id>     print an item's task as the app shows it
 package main
@@ -49,8 +49,14 @@ func main() {
 		if len(args) > 1 {
 			opt.Mode = args[1]
 		}
-		if opt.Mode == "exam" && len(args) > 2 {
-			opt.Minutes, _ = strconv.Atoi(args[2])
+		if opt.Mode == "exam" {
+			opt.Count = examQuestionsDefault()
+			if len(args) > 2 {
+				opt.Minutes, _ = strconv.Atoi(args[2])
+			}
+			if len(args) > 3 {
+				opt.Count, _ = strconv.Atoi(args[3])
+			}
 		}
 		if opt.Mode == "practice" {
 			if len(args) > 2 && args[2] != "all" {
@@ -93,6 +99,14 @@ func main() {
 	default:
 		fail(fmt.Errorf("unknown command %q (ui, list, gen, render)", args[0]))
 	}
+}
+
+// examQuestionsDefault: CKA_EXAM_QUESTIONS or the built-in default (17).
+func examQuestionsDefault() int {
+	if v, err := strconv.Atoi(os.Getenv("CKA_EXAM_QUESTIONS")); err == nil && v > 0 {
+		return v
+	}
+	return DefaultExamQuestions
 }
 
 func fail(err error) {

@@ -1,4 +1,5 @@
 title: Pod Pending on its volume
+topic: pvc-binding
 domain: storage
 difficulty: 2
 minutes: 8
