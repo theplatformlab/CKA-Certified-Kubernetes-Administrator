@@ -224,7 +224,7 @@ main() {
     else
       log_info "Cluster '${CLUSTER_NAME}' already exists."
       configure_kubeconfig
-      kubectl cluster-info
+      kubectl --context "kind-${CLUSTER_NAME}" cluster-info || true
       echo ""
       log_info "Cluster ready."
       echo ""
@@ -263,8 +263,8 @@ main() {
 
   echo ""
   log_info "Cluster ready!"
-  kubectl cluster-info
-  kubectl get nodes -o wide
+  kubectl --context "kind-${CLUSTER_NAME}" cluster-info || true
+  kubectl --context "kind-${CLUSTER_NAME}" get nodes -o wide || true
   
   echo ""
   echo "📌 Context: kind-${CLUSTER_NAME}"
