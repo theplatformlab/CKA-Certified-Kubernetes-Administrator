@@ -1,0 +1,8 @@
+title: Find resource-hungry pods with kubectl top
+domain: troubleshooting
+difficulty: 1
+minutes: 5
+weight: 5
+modes: [practice, exam]
+namespaces: [perf]
+conflicts: [metrics-server]

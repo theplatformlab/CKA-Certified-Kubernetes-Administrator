@@ -5,3 +5,4 @@ minutes: 20
 weight: 10
 modes: [practice]
 namespaces: [exercise-30]
+needs: [cluster-dns]

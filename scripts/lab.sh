@@ -157,11 +157,14 @@ main() {
   echo -e "${BLUE}${BOLD}$(basename "$EXERCISE_DIR")${NC} — $action (context: ${CTX})"
   case "$action" in
     setup)
-      # A previous cleanup may still be deleting the namespace.
-      if [[ -n "${NS:-}" ]] && [[ "$(kc get ns "$NS" -o jsonpath='{.status.phase}' 2>/dev/null)" == Terminating ]]; then
-        log_info "Waiting for namespace $NS to finish terminating ..."
-        kc wait --for=delete "namespace/$NS" --timeout=180s >/dev/null 2>&1 || true
-      fi
+      # A previous cleanup may still be deleting the namespaces.
+      local ns
+      for ns in ${NS:-} $(item_namespaces); do
+        if [[ "$(kc get ns "$ns" -o jsonpath='{.status.phase}' 2>/dev/null)" == Terminating ]]; then
+          log_info "Waiting for namespace $ns to finish terminating ..."
+          kc wait --for=delete "namespace/$ns" --timeout=180s >/dev/null 2>&1 || true
+        fi
+      done
       mkdir -p "$WORKDIR"
       if declare -F lab_setup >/dev/null; then lab_setup; else echo "  Nothing to set up."; fi
       log_info "Ready. Work in context ${CTX}:  kubectl config use-context ${CTX}"

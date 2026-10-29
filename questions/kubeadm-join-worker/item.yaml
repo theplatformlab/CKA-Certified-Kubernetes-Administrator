@@ -1,0 +1,7 @@
+title: Join a worker node with kubeadm
+domain: architecture
+difficulty: 2
+minutes: 8
+weight: 7
+modes: [practice, exam]
+conflicts: [extra-node]

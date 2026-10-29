@@ -1,0 +1,7 @@
+title: Degraded etcd cluster
+domain: troubleshooting
+difficulty: 3
+minutes: 12
+weight: 9
+modes: [practice, exam]
+conflicts: [ha-control-plane]

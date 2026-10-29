@@ -5,3 +5,4 @@ minutes: 10
 weight: 7
 modes: [practice, exam]
 namespaces: [db-cluster]
+needs: [cluster-dns]

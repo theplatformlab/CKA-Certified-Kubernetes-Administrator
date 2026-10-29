@@ -18,7 +18,7 @@ lab_setup() {
 
 lab_check() {
   check_gate "broken-revision.txt exists" test -s "$WORKDIR/broken-revision.txt"
-  check_eq "broken-revision.txt contains revision 3" "$(tr -d '[:space:]' <"$WORKDIR/broken-revision.txt" 2>/dev/null)" "3"
+  check_eq "broken-revision.txt contains revision 3" "$(tr -d '[:space:]' 2>/dev/null <"$WORKDIR/broken-revision.txt")" "3"
   check_eq "Deployment payment-service runs nginx:1.28 again" \
     "$(jp -n $NS deploy payment-service '{.spec.template.spec.containers[0].image}')" "nginx:1.28"
   check_eq "3/3 replicas updated and ready" \

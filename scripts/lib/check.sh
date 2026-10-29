@@ -81,12 +81,14 @@ exists() { kc get "$@" >/dev/null 2>&1; }
 # command succeeded. Used for connectivity and DNS tests.
 # (The pod runs detached and its output is read from the logs afterwards;
 # attaching with `kubectl run -i` can miss output printed right at the start.)
+# The command starts after PROBE_DELAY seconds (default 3): kindnet needs a
+# moment to apply NetworkPolicies to a new pod, before that traffic passes.
 probe() {
   local ns="$1" labels="$2" cmd="$3"
   local name="probe-$RANDOM$RANDOM" phase="" i
   local args=(-n "$ns" run "$name" --image=busybox:1.37 --restart=Never --command)
   [[ "$labels" != "-" ]] && args+=(--labels="$labels")
-  kc "${args[@]}" -- sh -c "$cmd" >/dev/null 2>&1 || return 1
+  kc "${args[@]}" -- sh -c "sleep ${PROBE_DELAY:-3}; $cmd" >/dev/null 2>&1 || return 1
   for (( i = 0; i < 180; i++ )); do
     phase="$(kc -n "$ns" get pod "$name" -o jsonpath='{.status.phase}' 2>/dev/null)"
     [[ "$phase" == Succeeded || "$phase" == Failed ]] && break

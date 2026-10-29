@@ -1,0 +1,8 @@
+title: Deployment creates no pods
+domain: troubleshooting
+difficulty: 2
+minutes: 8
+weight: 7
+modes: [practice, exam]
+namespaces: [ledger]
+conflicts: [controller-manager-manifest]

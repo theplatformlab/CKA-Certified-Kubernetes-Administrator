@@ -48,7 +48,8 @@ type Item struct {
 	Weight     int      `yaml:"weight"`
 	Modes      []string `yaml:"modes"`
 	Namespaces []string `yaml:"namespaces"`
-	Conflicts  []string `yaml:"conflicts"`
+	Conflicts  []string `yaml:"conflicts"` // cluster-wide things the item changes or breaks
+	Needs      []string `yaml:"needs"`     // things it relies on (never drawn with an item that breaks them)
 	Order      string   `yaml:"order"` // "late": set up after the other items on its cluster
 }
 

@@ -1,0 +1,7 @@
+title: Worker node NotReady
+domain: troubleshooting
+difficulty: 2
+minutes: 8
+weight: 7
+modes: [practice, exam]
+conflicts: [worker-kubelet]

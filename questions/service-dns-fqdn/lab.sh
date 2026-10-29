@@ -14,7 +14,7 @@ lab_check() {
   local dir="$WORKDIR"
   check_gate "dns.txt exists" test -s "$dir/dns.txt"
   check_match "dns.txt contains the Service FQDN" \
-    "$(tr -d '[:space:]' <"$dir/dns.txt" 2>/dev/null)" '^web-ui\.portal\.svc\.cluster\.local\.?$'
+    "$(tr -d '[:space:]' 2>/dev/null <"$dir/dns.txt")" '^web-ui\.portal\.svc\.cluster\.local\.?$'
   check_eq "Pod dns-test runs busybox:1.37 in namespace orders" \
     "$(jp -n orders pod dns-test '{.spec.containers[0].image} {.status.phase}')" "busybox:1.37 Running"
   local ip; ip="$(jp -n portal svc web-ui '{.spec.clusterIP}')"

@@ -5,3 +5,4 @@ minutes: 25
 weight: 12
 modes: [practice, exam]
 namespaces: [frontend, backend, database]
+needs: [cluster-dns]

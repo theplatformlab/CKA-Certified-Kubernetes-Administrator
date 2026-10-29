@@ -81,7 +81,8 @@ minutes: 7                     # realistic exam time
 weight: 7                      # exam points
 modes: [practice, exam]        # or [practice] for tutorial-style labs
 namespaces: [payments]         # every namespace it uses; must be unique in the pool ({{PARAM}} allowed)
-conflicts: [apiserver-manifest] # shared cluster-wide things it changes; items sharing a tag are never drawn together
+conflicts: [apiserver-manifest] # shared cluster-wide things it changes or breaks; items sharing a tag are never drawn together
+needs: [cluster-dns]           # things it relies on; never drawn with an item whose conflicts break them
 order: late                    # only if its setup leaves the API server down
 ```
 

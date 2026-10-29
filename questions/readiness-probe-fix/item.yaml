@@ -5,3 +5,4 @@ minutes: 8
 weight: 6
 modes: [practice, exam]
 namespaces: [inventory]
+needs: [cluster-dns]

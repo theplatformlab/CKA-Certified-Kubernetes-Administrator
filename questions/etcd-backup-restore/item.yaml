@@ -1,0 +1,9 @@
+title: etcd backup and restore
+domain: architecture
+difficulty: 3
+minutes: 15
+weight: 9
+modes: [practice, exam]
+namespaces: [vault-records]
+conflicts: [etcd-data, apiserver-manifest, extra-node]
+order: late

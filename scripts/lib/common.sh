@@ -57,6 +57,12 @@ node_exec() {
   docker exec "$node" bash -c "$*"
 }
 
+# Run a shell command on a node, feeding stdin (e.g. a file to write).
+node_exec_stdin() {
+  local node="$1"; shift
+  docker exec -i "$node" bash -c "$*"
+}
+
 # Create a namespace if it doesn't exist yet (idempotent).
 ensure_ns() {
   kc create namespace "$1" --dry-run=client -o yaml | kc apply -f - >/dev/null

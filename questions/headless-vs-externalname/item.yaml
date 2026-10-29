@@ -1,0 +1,8 @@
+title: Headless and ExternalName Services
+domain: networking
+difficulty: 1
+minutes: 7
+weight: 6
+modes: [practice, exam]
+namespaces: [lookup, datastore]
+needs: [cluster-dns]

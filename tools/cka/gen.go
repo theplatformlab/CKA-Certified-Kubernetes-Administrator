@@ -183,14 +183,18 @@ func conflicts(a, b Pick) bool {
 			}
 		}
 	}
-	for _, x := range a.Item.Conflicts {
-		for _, y := range b.Item.Conflicts {
-			if x == y {
-				return true
+	overlap := func(x, y []string) bool {
+		for _, a := range x {
+			for _, b := range y {
+				if a == b {
+					return true
+				}
 			}
 		}
+		return false
 	}
-	return false
+	return overlap(a.Item.Conflicts, b.Item.Conflicts) ||
+		overlap(a.Item.Conflicts, b.Item.Needs) || overlap(b.Item.Conflicts, a.Item.Needs)
 }
 
 func describePicks(picks []Pick) string {
