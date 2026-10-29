@@ -20,7 +20,7 @@ TLS configuration troubleshooting involves configuration and restart traps:
 
 ## Tasks
 
-Run `./scripts/lab.sh setup 30` first. Work in namespace `exercise-30`: setup deploys the Deployment `secure-web` (`nginx:1.28`, 1 replica) behind the ClusterIP Service `secure-web` on port 443. nginx terminates TLS with a self-signed certificate (Secret `secure-web-tls`) and reads its server config from the ConfigMap `secure-web-config`. The service currently supports only TLS 1.3.
+Work in namespace `exercise-30` (`./scripts/lab.sh setup 30` prepares it). It runs the Deployment `secure-web` (`nginx:1.28`, 1 replica) behind the ClusterIP Service `secure-web` on port 443. nginx terminates TLS with a self-signed certificate (Secret `secure-web-tls`) and reads its server config from the ConfigMap `secure-web-config`. The service currently supports only TLS 1.3.
 
 1. Find where the TLS protocol setting comes from (`k describe deployment secure-web`, then the ConfigMap)
 2. Add support for TLS 1.2 (make both available):

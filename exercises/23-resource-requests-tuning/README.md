@@ -8,7 +8,7 @@ Debug and fix a Deployment where pods won't schedule due to insufficient resourc
 
 Work in namespace `exercise-23` (`./scripts/lab.sh setup 23` creates it).
 
-kind nodes report the whole host's CPU and memory, so a fixed "512Mi / 500m" would always fit. Setup therefore creates the Deployment `web` (3 replicas, `nginx:1.27`, pinned to node `cka-practice-worker` with a `nodeSelector`) with requests of 60% of that node's allocatable CPU and memory — intentionally too high: one replica runs, two stay Pending.
+The Deployment `web` (3 replicas, `nginx:1.27`, pinned to node `cka-practice-worker` with a `nodeSelector`) requests 60% of that node's allocatable CPU and memory per replica — too much: one replica runs, two stay Pending. (kind nodes report the whole host's CPU and memory, so the numbers are derived from the node rather than fixed.)
 
 1. Observe the Pending pods and find out why they won't schedule
 2. Check the capacity of `cka-practice-worker`: Allocatable and Allocated resources

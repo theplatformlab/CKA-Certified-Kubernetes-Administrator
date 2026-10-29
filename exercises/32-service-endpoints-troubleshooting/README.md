@@ -1,29 +1,21 @@
-# Exercise 32 — Troubleshoot a Service with No Endpoints
+# Exercise 32 — Troubleshoot a Service
 
 > **Medium** | ~15 min | Domain: Services & Networking (20%)
 >
 > Related: [Service skeleton](../../skeletons/service.yaml) | [Exercise 11 — Troubleshoot Cluster](../11-troubleshoot-cluster/)
 
-A ClusterIP Service named `payments` is not routing traffic to its Deployment. Seed the lab, diagnose why the Service has no endpoints, fix it, and verify DNS and HTTP access from a test Pod.
+Clients can't reach the `payments` application through its ClusterIP Service. Find the cause, fix it, and verify DNS and HTTP access from a test Pod.
 
-## Setup
+## Current state
 
-Run setup first:
-
-```bash
-./scripts/lab.sh setup 32
-```
-
-It creates namespace `exercise-32` with the Deployment `payments` (`nginx:1.28`, 2 replicas), the ClusterIP Service `payments` (port 80) and the test Pod `netcheck` (`busybox:1.37`), and waits until they are Ready. Something in it is broken — that is the task.
+Namespace `exercise-32` contains the Deployment `payments` (`nginx:1.28`, 2 replicas), the ClusterIP Service `payments` (port 80) and the test Pod `netcheck` (`busybox:1.37`) (`./scripts/lab.sh setup 32` creates them). Something in it is broken — that is the task.
 
 ## Tasks
 
 Work in namespace `exercise-32`.
 
-1. Check the `payments` Service and its EndpointSlices. Find why it has no usable backends.
-2. Inspect the Service selector and the Deployment's Pod labels. Fix the Service without changing the Deployment.
-3. Confirm the EndpointSlices contain both ready Pod IPs.
-4. From `netcheck`, resolve `payments.exercise-32.svc.cluster.local` and make an HTTP request to the Service (port 80).
+1. From `netcheck`, an HTTP request to `payments.exercise-32.svc.cluster.local` (port 80) must succeed, served by both replicas.
+2. Fix the cause without changing the Deployment.
 
 Validate with `./scripts/lab.sh check 32`.
 
@@ -32,8 +24,8 @@ Validate with `./scripts/lab.sh check 32`.
 <details>
 <summary>Stuck? Click to reveal hints</summary>
 
+- Does the Service have endpoints? `k get endpointslices -n exercise-32 -l kubernetes.io/service-name=payments`
 - Start with `k get svc payments -n exercise-32 -o yaml` and `k get pods -n exercise-32 --show-labels`.
-- Check EndpointSlices with `k get endpointslices -n exercise-32 -l kubernetes.io/service-name=payments`.
 - A Service selector must match the Pod labels exactly.
 - If endpoints exist but the request still fails, compare `port`, `targetPort`, and the port the application listens on.
 

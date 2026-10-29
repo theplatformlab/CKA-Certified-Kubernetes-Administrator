@@ -6,11 +6,11 @@
 
 Switch a running node from containerd to cri-dockerd (Docker Engine) and bring it back to Ready with its pods. This is useful implementation practice for clusters that choose Docker Engine, but the curriculum does not require this specific runtime.
 
-This is the second half of [Exercise 18](../18-cri-dockerd-setup/): 18 installs Docker Engine and cri-dockerd, this one points the kubelet at it. It requires 18's end state as prerequisite — `./scripts/lab.sh setup 26` provides it if you skipped 18.
+This is the second half of [Exercise 18](../18-cri-dockerd-setup/): 18 installs Docker Engine and cri-dockerd, this one points the kubelet at it. It starts from 18's end state (`./scripts/lab.sh setup 26` provides it if you skipped 18).
 
 ## Tasks
 
-Use the runtime cluster (`./scripts/init-cluster.sh --profile runtime`) and run `./scripts/lab.sh setup 26` first. Setup brings the worker node `cka-runtime-worker` to the end state of Exercise 18 if you have not done it (Docker Engine + cri-dockerd v0.4.9 running, socket `/run/cri-dockerd.sock`), and creates the Deployment `web` (2 × `nginx:1.28`) and Service `web` in namespace `exercise-26`. Those pods run on `cka-runtime-worker` — the only schedulable node — currently through containerd.
+This runs on the runtime cluster (`./scripts/init-cluster.sh --profile runtime`, then `./scripts/lab.sh setup 26`). On the worker node `cka-runtime-worker`, Docker Engine and cri-dockerd v0.4.9 are running (socket `/run/cri-dockerd.sock`), and namespace `exercise-26` contains the Deployment `web` (2 × `nginx:1.28`) and the Service `web`. Those pods run on `cka-runtime-worker` — the only schedulable node — currently through containerd.
 
 Open a root shell on the node with `docker exec -it cka-runtime-worker bash` — the kind equivalent of `ssh cka-runtime-worker` + `sudo -i` in the exam.
 

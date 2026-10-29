@@ -158,3 +158,14 @@ func TestApplyBaseline(t *testing.T) {
 		t.Errorf("attempted item lost points: %d", si.Passed())
 	}
 }
+
+func TestExamView(t *testing.T) {
+	q := "# Exercise 32 — Troubleshoot\n\n> **Medium** | ~15 min\n\nClients fail.\n\n## Tasks\n\n> keep me\n1. fix"
+	out := ExamView(q, 4)
+	if !strings.HasPrefix(out, "# Question 4\n") || strings.Contains(out, "Medium") || strings.Contains(out, "Exercise") {
+		t.Errorf("not hidden:\n%s", out)
+	}
+	if !strings.Contains(out, "> keep me") || !strings.Contains(out, "Clients fail.") {
+		t.Errorf("too much removed:\n%s", out)
+	}
+}

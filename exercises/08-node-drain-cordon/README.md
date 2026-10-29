@@ -6,7 +6,7 @@ Drain a worker node for maintenance, then bring it back. This tests your underst
 
 ## Tasks
 
-Work in namespace `exercise-08` (`./scripts/lab.sh setup 08` creates it). Setup also creates the Deployment `drain-test` (3 replicas, `nginx:1.27`, with an `emptyDir` volume) spread across both workers.
+Work in namespace `exercise-08` (`./scripts/lab.sh setup 08` creates it). It contains the Deployment `drain-test` (3 replicas, `nginx:1.27`, with an `emptyDir` volume), spread across both workers.
 
 The node to maintain is the worker `cka-practice-worker2` (on another practice cluster name: `<cluster>-worker2`).
 

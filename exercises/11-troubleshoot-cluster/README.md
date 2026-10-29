@@ -20,11 +20,11 @@ Before working through these scenarios, understand the trap architecture:
 
 ## Tasks
 
-This exercise runs on the ops cluster (`./scripts/init-cluster.sh --profile ops`). `./scripts/lab.sh setup 11` breaks the cluster in four places at once — one fault per scenario below. Run setup first and don't look at what it changes; the tasks only describe symptoms. Work in namespace `exercise-11` (setup creates it).
+This exercise runs on the ops cluster (`./scripts/init-cluster.sh --profile ops`; `./scripts/lab.sh setup 11` breaks it — don't look at what it changes). The cluster is broken in four places at once, one fault per scenario below; the tasks only describe symptoms. Work in namespace `exercise-11`.
 
 Nodes are `cka-ops-control-plane` and `cka-ops-worker`. Open a shell on a node with `docker exec -it <node> bash` — the kind equivalent of `ssh <node>` in the exam.
 
-`./scripts/lab.sh check 11` reports each scenario separately (`[A]` ... `[D]`), so you can fix them in any order. Faults can mask each other: a symptom may change after you fix another scenario — re-test after every fix.
+The check reports each scenario separately (`[A]` ... `[D]`), so you can fix them in any order. Faults can mask each other: a symptom may change after you fix another scenario — re-test after every fix.
 
 ### Scenario A: Broken kubelet
 

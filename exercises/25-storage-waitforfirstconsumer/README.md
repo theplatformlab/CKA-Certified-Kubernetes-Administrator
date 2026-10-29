@@ -6,7 +6,7 @@ Create a StorageClass with `WaitForFirstConsumer` binding mode, and understand w
 
 ## Tasks
 
-Work in namespace `exercise-25` (`./scripts/lab.sh setup 25` creates it). Setup also prepares the "local disk": the directory `/mnt/disks/vol1` on node `cka-practice-worker` (on another practice cluster name: `<cluster>-worker`). A `local` PV needs its path to exist on the node.
+Work in namespace `exercise-25` (`./scripts/lab.sh setup 25` creates it and prepares the disk). The "local disk" is the directory `/mnt/disks/vol1` on node `cka-practice-worker`. A `local` PV needs its path to exist on the node.
 
 1. Create a StorageClass named `local-storage` with:
    - Provisioner: `kubernetes.io/no-provisioner` (local volumes)

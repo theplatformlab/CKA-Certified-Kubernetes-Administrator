@@ -804,7 +804,11 @@ func (m *model) refreshViewport(top bool) {
 	}
 	vars := itemVars(s, si, it)
 	var b strings.Builder
-	b.WriteString(Render(doc.Question, vars, s.Clusters))
+	question := doc.Question
+	if s.Mode == "exam" && s.Status != StatusFinished {
+		question = ExamView(question, m.cur+1)
+	}
+	b.WriteString(Render(question, vars, s.Clusters))
 	if si.SetupError != "" {
 		b.WriteString("\n\n> ⚠ The setup of this item failed: " + si.SetupError + "\n")
 	}
@@ -1124,6 +1128,10 @@ func (m *model) viewSession() string {
 	s := m.sess
 	si := s.Items[m.cur]
 	left := fmt.Sprintf(" Q%d/%d · %s · w%d", m.cur+1, len(s.Items), domainName(si.Domain), si.Weight)
+	if s.Mode == "exam" {
+		// Like the real exam: question number and weight, no topic.
+		left = fmt.Sprintf(" Question %d of %d · weight %d%%", m.cur+1, len(s.Items), weightPercent(s, si))
+	}
 	if si.Flagged {
 		left += " · ⚑"
 	}
@@ -1171,6 +1179,9 @@ func (m *model) viewOverview() string {
 			status = fmt.Sprintf(" %d/%d", si.Passed(), len(si.Checks))
 		}
 		line := fmt.Sprintf("%s %2d. %-44s %-15s w%-2d%s", mark, i+1, truncate(si.Title, 44), si.Domain, si.Weight, status)
+		if m.sess.Mode == "exam" {
+			line = fmt.Sprintf("%s Question %2d   %2d%%", mark, i+1, weightPercent(m.sess, si))
+		}
 		b.WriteString(cursorLine(i == m.cursor, line) + "\n")
 	}
 	return b.String()
@@ -1328,4 +1339,16 @@ func capitalize(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// weightPercent: the item's share of the exam's total weight.
+func weightPercent(s *Session, si *SessionItem) int {
+	total := 0
+	for _, it := range s.Items {
+		total += it.Weight
+	}
+	if total == 0 {
+		return 0
+	}
+	return (si.Weight*100 + total/2) / total
 }

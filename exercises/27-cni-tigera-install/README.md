@@ -6,7 +6,7 @@ Install a full CNI plugin using the Tigera Operator for Calico, including networ
 
 ## Tasks
 
-This exercise requires the cni cluster (`./scripts/init-cluster.sh --profile cni`). It is created **without** a CNI plugin: both nodes are `NotReady` and CoreDNS is `Pending`. Run `./scripts/lab.sh setup 27` — it creates namespace `exercise-27`.
+This exercise runs on the cni cluster (`./scripts/init-cluster.sh --profile cni`, then `./scripts/lab.sh setup 27`). It was created **without** a CNI plugin: both nodes are `NotReady` and CoreDNS is `Pending`. Namespace `exercise-27` exists.
 
 1. Find the cluster's pod CIDR from the kube-controller-manager (`--cluster-cidr`) or the `kubeadm-config` ConfigMap
 2. Install the Tigera Operator, Calico **v3.33.0**:

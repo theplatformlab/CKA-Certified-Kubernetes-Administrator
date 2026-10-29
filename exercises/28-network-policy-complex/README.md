@@ -30,7 +30,7 @@ If your CNI doesn't enforce policies, the NetworkPolicy objects exist but traffi
 
 ## Tasks
 
-Run `./scripts/lab.sh setup 28` first. It creates the namespaces `frontend`, `backend`, `database` (no NetworkPolicies yet) and deploys:
+The namespaces `frontend`, `backend` and `database` exist, without any NetworkPolicies yet (`./scripts/lab.sh setup 28` creates them), and run:
 
 | Namespace | Deployment / Service | Image | Pod label | Ports |
 |-----------|----------------------|-------|-----------|-------|

@@ -16,7 +16,7 @@ The CKA focuses on HPA, but understanding VPA helps with cluster resource effici
 
 ## Tasks (HPA)
 
-Work in namespace `exercise-16` (`./scripts/lab.sh setup 16` creates it). kind clusters have no metrics-server, so setup also installs metrics-server v0.9.0 with `--kubelet-insecure-tls` (kind's kubelet serving certificates are self-signed).
+Work in namespace `exercise-16` (`./scripts/lab.sh setup 16` creates it and installs metrics-server). metrics-server v0.9.0 runs in the cluster with `--kubelet-insecure-tls`, because kind's kubelet serving certificates are self-signed.
 
 1. Verify the metrics-server is running in the cluster (`k top nodes` returns data)
 2. Create a Deployment named `load-app` with:

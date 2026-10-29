@@ -8,7 +8,7 @@ Install Argo CD from a Helm chart template and configure it to deploy applicatio
 
 ## Tasks
 
-This exercise requires `helm` on your workstation and runs on the practice cluster. Run `./scripts/lab.sh setup 31` first: it pre-installs the Argo CD v3.5.6 CRDs (`applications`, `applicationsets`, `appprojects` in `argoproj.io`), like an exam environment where "the CRDs are already installed". The Application deploys into namespace `exercise-31`; Argo CD creates it.
+This exercise requires `helm` on your workstation and runs on the practice cluster (`./scripts/lab.sh setup 31` prepares it). The Argo CD v3.5.6 CRDs are already installed (`applications`, `applicationsets`, `appprojects` in `argoproj.io`), like an exam environment where "the CRDs are already installed". The Application deploys into namespace `exercise-31`; Argo CD creates it.
 
 1. Add the official Argo CD Helm repository under the name `argo`: `https://argoproj.github.io/argo-helm`
 2. Generate a template of chart `argo/argo-cd` version **10.11.6** (Argo CD v3.5.6) with release name `argocd` for namespace `argocd`:

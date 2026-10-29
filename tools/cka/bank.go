@@ -169,7 +169,7 @@ func ParseReadme(md string) Doc {
 		body := strings.TrimSpace(md[l[1]:end])
 		lower := strings.ToLower(title)
 		switch {
-		case strings.HasPrefix(lower, "tasks"), lower == "context", lower == "setup", strings.HasPrefix(lower, "important"):
+		case strings.HasPrefix(lower, "tasks"), lower == "context", lower == "setup", lower == "current state", strings.HasPrefix(lower, "important"):
 			question = append(question, "## "+title+"\n\n"+body)
 		case lower == "hints":
 			doc.Hints = parseHints(body)
@@ -189,7 +189,7 @@ func ParseReadme(md string) Doc {
 func cleanPreamble(s string) string {
 	var out []string
 	for _, line := range strings.Split(s, "\n") {
-		if strings.HasPrefix(line, "> Related:") {
+		if strings.HasPrefix(line, "> Related:") || strings.TrimSpace(line) == ">" {
 			continue
 		}
 		out = append(out, line)
@@ -256,6 +256,9 @@ func stripLabHints(s string) string {
 			}
 			return "the check"
 		})
+		if strings.Contains(line, "lab.sh") {
+			continue // a manual-use instruction that doesn't apply inside ./cka
+		}
 		out = append(out, line)
 	}
 	return strings.Join(out, "\n")
@@ -306,4 +309,27 @@ func (it *Item) Doc() (Doc, error) {
 		}
 	}
 	return doc, nil
+}
+
+// ExamView hides what the real exam doesn't show: the item's title (the
+// question is just "Question N") and the notes under it (difficulty,
+// domain, "supplemental" remarks).
+func ExamView(question string, n int) string {
+	lines := strings.Split(question, "\n")
+	var out []string
+	inPreamble := true
+	for i, line := range lines {
+		if i == 0 && strings.HasPrefix(line, "# ") {
+			out = append(out, fmt.Sprintf("# Question %d", n))
+			continue
+		}
+		if strings.HasPrefix(line, "## ") {
+			inPreamble = false
+		}
+		if inPreamble && strings.HasPrefix(line, ">") {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
 }

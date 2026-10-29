@@ -8,7 +8,7 @@ Install a chart, override values, upgrade to a new version, and roll back when s
 
 ## Tasks
 
-Work in namespace `exercise-13`. `./scripts/lab.sh setup 13` makes sure it does **not** exist yet (and removes an old `web` release) — let Helm create it.
+Work in namespace `exercise-13`. It does **not** exist yet — let Helm create it (`./scripts/lab.sh setup 13` removes it and any old `web` release).
 
 Chart: `podinfo/podinfo` from the repository `https://stefanprodan.github.io/podinfo` (a small, well-maintained demo app; the Deployment is named `<release>-podinfo`).
 

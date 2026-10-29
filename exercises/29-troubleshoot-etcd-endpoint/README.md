@@ -1,8 +1,8 @@
-# Exercise 29 — Troubleshoot Broken Cluster (Incorrect etcd Endpoint)
+# Exercise 29 — Troubleshoot a Broken Control Plane
 
 > Related: [README — Cluster Maintenance](../../README.md#domain-7--cluster-maintenance-11) | **Updated May 2026**
 
-Debug and fix a broken control plane where API server points to wrong etcd endpoint. Tests troubleshooting methodology and static pod modification.
+The cluster's API server doesn't come up any more. Find the cause and fix it. Practises troubleshooting with the container runtime and static pod manifests.
 
 ## Conventions
 
@@ -18,15 +18,10 @@ Trap architecture for this exercise:
 
 ## Tasks
 
-This exercise runs on the ops cluster (`./scripts/init-cluster.sh --profile ops`). `./scripts/lab.sh setup 29` breaks it — run setup first, and don't look at what it changes. The control plane node is `cka-ops-control-plane`; open a shell on it with `docker exec -it cka-ops-control-plane bash` (the kind equivalent of `ssh cka-ops-control-plane` in the exam).
+This exercise runs on the ops cluster (`./scripts/init-cluster.sh --profile ops`; `./scripts/lab.sh setup 29` breaks it — don't look at what it changes). The control plane node is `cka-ops-control-plane`: `ssh cka-ops-control-plane` in the lab shell (or `docker exec -it cka-ops-control-plane bash`).
 
-1. Cluster is broken: `k get nodes` no longer answers — the API server won't start
-2. Open a shell on the control plane node
-3. Find the API server container and read its logs (with the API down, `k logs` can't help — use the container runtime on the node)
-4. Find the root cause in the API server's static pod manifest in `/etc/kubernetes/manifests/`
-5. Verify the correct value against the configuration of the component the API server depends on — don't guess
-6. Fix the manifest in place and wait for the kubelet to restart the API server
-7. Verify cluster is healthy:
+1. `k get nodes` no longer answers. Find out why and fix it — verify the correct values against the configuration of the components involved, don't guess.
+2. Afterwards the cluster must be healthy:
    - `k get nodes` works and all nodes are `Ready`
    - `k get pods -A` works
    - the `kube-apiserver-cka-ops-control-plane` pod is Running and Ready
@@ -46,7 +41,7 @@ Validate with `./scripts/lab.sh check 29`.
 <details>
 <summary>Stuck? Click to reveal hints</summary>
 
-- With the API down, `k logs` fails. On the node: `crictl ps -a | grep kube-apiserver`, then `crictl logs <container-id>`
+- Open a shell on the control plane node. With the API down, `k logs` fails. On the node: `crictl ps -a | grep kube-apiserver`, then `crictl logs <container-id>`
 - The same logs are on disk: `/var/log/pods/kube-system_kube-apiserver-*/kube-apiserver/`
 - `journalctl -u kubelet -f` shows the kubelet (re)starting the static pod
 - Get correct etcd endpoint: `grep "\-\-listen-client-urls" /etc/kubernetes/manifests/etcd.yaml`
