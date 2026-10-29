@@ -56,6 +56,11 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
   tmux set -t "$SESSION" status-right " Ctrl-b ←/→ switch pane · Ctrl-b c new shell "
   tmux set -t "$SESSION" status-right-length 60
 fi
+# tmux holds a lone Esc for escape-time (default 500 ms) to see whether an
+# escape sequence follows — that made "Esc = back" feel sluggish. It is a
+# server-wide option; 10 ms is what most vim users configure anyway.
+tmux set -s escape-time 10
+
 if ! tmux list-panes -s -t "$SESSION" -F '#{pane_title}' | grep -qx cka-app; then
   tmux split-window -t "$SESSION:lab" -h -b -l 50% "$app_cmd"
   tmux select-pane -t "$SESSION:lab" -T cka-app
