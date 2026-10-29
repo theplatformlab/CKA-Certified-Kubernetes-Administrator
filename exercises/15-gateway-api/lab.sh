@@ -28,6 +28,7 @@ EOF
 }
 
 lab_check() {
+  check_eq "Gateway web-gateway exists in $NS" "$(jp -n $NS gateway web-gateway '{.metadata.name}')" "web-gateway"
   check_eq "Gateway web-gateway uses the existing GatewayClass $GW_CLASS" \
     "$(jp -n $NS gateway web-gateway '{.spec.gatewayClassName}')" "$GW_CLASS"
   check_eq "Gateway web-gateway has one listener on port 80, protocol HTTP" \
