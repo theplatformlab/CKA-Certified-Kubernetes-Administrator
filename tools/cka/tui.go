@@ -559,16 +559,18 @@ func (m *model) resume(s *Session) (tea.Model, tea.Cmd) {
 	}
 	return m, m.runBusy("Resuming "+s.Mode+" session", scrSession, func(log func(string)) error {
 		// Paused sessions may have stopped clusters (exam pause stops them).
+		var stopped []string
 		for _, p := range sessionProfiles(s, m.items) {
 			name := s.Clusters[p]
 			if !clusterExists(name) {
 				return fmt.Errorf("cluster %s no longer exists — the session can't be resumed", name)
 			}
 			if !clusterRunning(name) {
-				if err := startCluster(name, log); err != nil {
-					return err
-				}
+				stopped = append(stopped, name)
 			}
+		}
+		if err := startClusters(stopped, log); err != nil {
+			return err
 		}
 		if s.Mode == "exam" && s.RemainingSec > 0 {
 			s.Deadline = time.Now().Add(time.Duration(s.RemainingSec) * time.Second)
@@ -624,12 +626,14 @@ func (m *model) startGrading() {
 	s.Status = StatusPaused // not "active": the timer must stop while grading
 	m.viewSess = s
 	cmd := m.runBusy("Grading ...", scrResults, func(log func(string)) error {
+		var stopped []string
 		for _, p := range sessionProfiles(s, m.items) {
 			if name := s.Clusters[p]; clusterExists(name) && !clusterRunning(name) {
-				if err := startCluster(name, log); err != nil {
-					return err
-				}
+				stopped = append(stopped, name)
 			}
+		}
+		if err := startClusters(stopped, log); err != nil {
+			return err
 		}
 		for i, si := range s.Items {
 			it := findItem(m.items, si.ItemID)
@@ -639,6 +643,7 @@ func (m *model) startGrading() {
 			log(fmt.Sprintf("Checking %d/%d: %s", i+1, len(s.Items), si.Title))
 			results, _, _ := RunCheck(s, si, it)
 			si.Checks, si.Graded, si.GradedAt = results, true, time.Now()
+			si.ApplyBaseline()
 		}
 		s.Status, s.Finished = StatusFinished, time.Now()
 		m.store.Save(s)

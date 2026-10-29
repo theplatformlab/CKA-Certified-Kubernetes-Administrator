@@ -32,8 +32,34 @@ type SessionItem struct {
 	Flagged        bool              `json:"flagged"`
 	TimeSec        int               `json:"timeSec"`
 	Checks         []CheckResult     `json:"checks,omitempty"`
+	// Baseline: checks that already passed right after setup (exercises only;
+	// pool questions have a check_gate instead).
+	Baseline []string `json:"baseline,omitempty"`
 	Graded         bool              `json:"graded"`
 	GradedAt       time.Time         `json:"gradedAt,omitempty"`
+}
+
+// ApplyBaseline zeroes an untouched item: if no check that failed after setup
+// passes now, the checks that passed anyway ("X is not allowed") earn nothing.
+func (si *SessionItem) ApplyBaseline() {
+	if len(si.Baseline) == 0 {
+		return
+	}
+	before := map[string]bool{}
+	for _, d := range si.Baseline {
+		before[d] = true
+	}
+	for _, c := range si.Checks {
+		if c.Pass && !before[c.Desc] {
+			return // something was done
+		}
+	}
+	for i := range si.Checks {
+		if si.Checks[i].Pass {
+			si.Checks[i].Pass = false
+			si.Checks[i].Detail = "not graded: the task was not attempted"
+		}
+	}
 }
 
 func (si *SessionItem) Passed() int {

@@ -262,8 +262,9 @@ func stopCluster(name string) error {
 	return exec.Command("docker", append([]string{"stop", "-t", "20"}, all...)...).Run()
 }
 
-// startCluster starts a stopped cluster and waits until the API server answers
-// and all nodes are Ready again.
+// startCluster starts a stopped cluster and waits (up to ~1.5 minutes) for the
+// API server. A cluster whose control plane an exam task broke on purpose
+// never gets ready, so not answering is reported but is not an error.
 func startCluster(name string, log func(string)) error {
 	first, rest := clusterContainers(name)
 	if len(first)+len(rest) == 0 {
@@ -279,18 +280,34 @@ func startCluster(name string, log func(string)) error {
 		}
 	}
 	ctx := "kind-" + name
-	for i := 0; i < 90; i++ {
+	for i := 0; i < 25; i++ {
 		if exec.Command("kubectl", "--context", ctx, "--request-timeout=5s", "get", "--raw", "/readyz").Run() == nil {
-			break
+			exec.Command("kubectl", "--context", ctx, "wait", "--for=condition=Ready", "nodes", "--all", "--timeout=90s").Run()
+			log("Cluster " + name + " is up")
+			return nil
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
-	err := exec.Command("kubectl", "--context", ctx, "wait", "--for=condition=Ready", "nodes", "--all", "--timeout=180s").Run()
-	if err != nil {
-		return fmt.Errorf("cluster %s did not become ready", name)
-	}
-	log("Cluster " + name + " is up")
+	log("Cluster " + name + " started, but its API server doesn't answer (expected if a task broke it)")
 	return nil
+}
+
+// startClusters starts several clusters in parallel.
+func startClusters(names []string, log func(string)) error {
+	var wg sync.WaitGroup
+	errs := make(chan error, len(names))
+	for _, n := range names {
+		wg.Add(1)
+		go func(n string) {
+			defer wg.Done()
+			if err := startCluster(n, log); err != nil {
+				errs <- err
+			}
+		}(n)
+	}
+	wg.Wait()
+	close(errs)
+	return <-errs
 }
 
 // Profiles used by a session's items.
@@ -422,7 +439,42 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 		setup(si)
 	}
 	pwg.Wait()
+	recordBaselines(s, byID, log)
 	return nil
+}
+
+// recordBaselines runs the checks of exercise items once after setup, when
+// their pods have settled. Exercises have no check_gate, so grading uses the
+// baseline to give an untouched exercise 0 points (see ApplyBaseline).
+func recordBaselines(s *Session, byID map[string]*Item, log func(string)) {
+	var wg sync.WaitGroup
+	for _, si := range s.Items {
+		it := byID[si.ItemID]
+		if !it.Exercise || si.SetupError != "" {
+			continue
+		}
+		wg.Add(1)
+		go func(si *SessionItem, it *Item) {
+			defer wg.Done()
+			ctx := "kind-" + s.Clusters[it.Cluster]
+			for _, ns := range it.Namespaces {
+				exec.Command("kubectl", "--context", ctx, "-n", Render(ns, si.Params, nil), "wait",
+					"--for=condition=Ready", "pods", "--all", "--timeout=60s").Run()
+			}
+			if results, _, err := RunCheck(s, si, it); err == nil {
+				si.Baseline = nil
+				for _, r := range results {
+					if r.Pass {
+						si.Baseline = append(si.Baseline, r.Desc)
+					}
+				}
+			}
+		}(si, it)
+	}
+	if len(s.Items) > 0 {
+		log("Recording the starting state of exercise items ...")
+	}
+	wg.Wait()
 }
 
 // Cleanup runs every item's cleanup (practice sessions, after grading).

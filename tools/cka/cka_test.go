@@ -143,3 +143,18 @@ func TestPool(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyBaseline(t *testing.T) {
+	si := &SessionItem{Baseline: []string{"cannot delete"}, Checks: []CheckResult{
+		{Pass: true, Desc: "cannot delete"}, {Pass: false, Desc: "role exists"}}}
+	si.ApplyBaseline()
+	if si.Passed() != 0 {
+		t.Errorf("untouched item kept %d points", si.Passed())
+	}
+	si = &SessionItem{Baseline: []string{"cannot delete"}, Checks: []CheckResult{
+		{Pass: true, Desc: "cannot delete"}, {Pass: true, Desc: "role exists"}}}
+	si.ApplyBaseline()
+	if si.Passed() != 2 {
+		t.Errorf("attempted item lost points: %d", si.Passed())
+	}
+}

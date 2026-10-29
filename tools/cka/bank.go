@@ -296,5 +296,14 @@ func (it *Item) Doc() (Doc, error) {
 		doc.Question = stripLabHints(doc.Question)
 		doc.Solution = stripLabHints(doc.Solution)
 	}
+	// Like on the exam, every task starts with the context to switch to.
+	if !strings.Contains(doc.Question, "use-context") {
+		title, rest, _ := strings.Cut(doc.Question, "\n")
+		if strings.HasPrefix(title, "# ") {
+			doc.Question = title + "\n\n**Context:** `kubectl config use-context {{CONTEXT}}`\n" + rest
+		} else {
+			doc.Question = "**Context:** `kubectl config use-context {{CONTEXT}}`\n\n" + doc.Question
+		}
+	}
 	return doc, nil
 }
