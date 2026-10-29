@@ -310,11 +310,18 @@ func startCluster(name string, log func(string)) error {
 		}
 	}
 	ctx := "kind-" + name
+	start := time.Now()
+	lastLog := start
 	for i := 0; i < 25; i++ {
 		if exec.Command("kubectl", "--context", ctx, "--request-timeout=5s", "get", "--raw", "/readyz").Run() == nil {
+			log(fmt.Sprintf("API server of %s answers after %ds, waiting for its nodes ...", name, int(time.Since(start).Seconds())))
 			exec.Command("kubectl", "--context", ctx, "wait", "--for=condition=Ready", "nodes", "--all", "--timeout=90s").Run()
-			log("Cluster " + name + " is up")
+			log(fmt.Sprintf("Cluster %s is up (%ds)", name, int(time.Since(start).Seconds())))
 			return nil
+		}
+		if time.Since(lastLog) > 15*time.Second {
+			lastLog = time.Now()
+			log(fmt.Sprintf("  %s: waiting for the API server (%ds) ...", name, int(time.Since(start).Seconds())))
 		}
 		time.Sleep(3 * time.Second)
 	}
