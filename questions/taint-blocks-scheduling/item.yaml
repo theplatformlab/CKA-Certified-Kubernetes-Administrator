@@ -1,0 +1,8 @@
+title: Pods Pending on a tainted node
+domain: troubleshooting
+difficulty: 2
+minutes: 7
+weight: 6
+modes: [practice, exam]
+namespaces: [analytics]
+conflicts: [worker2-taint, worker2-drain]

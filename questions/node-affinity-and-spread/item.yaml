@@ -1,0 +1,8 @@
+title: Node affinity and topology spread
+domain: workloads
+difficulty: 2
+minutes: 9
+weight: 7
+modes: [practice, exam]
+namespaces: [edge]
+conflicts: [worker2-taint, worker2-drain, worker1-capacity]

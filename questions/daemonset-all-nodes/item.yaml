@@ -5,3 +5,4 @@ minutes: 6
 weight: 5
 modes: [practice, exam]
 namespaces: [node-agents]
+conflicts: [worker2-taint]

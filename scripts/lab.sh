@@ -72,7 +72,9 @@ print_params() {
   declare -F lab_params >/dev/null || return 0
   CKA_RNG_FILE="$(mktemp)"
   export CKA_RNG_FILE
-  echo "${CKA_SEED:-1}" >"$CKA_RNG_FILE"
+  # Spread neighbouring seeds (1, 2, 3, ...) over the generator's state space.
+  echo $(( (${CKA_SEED:-1} * 2654435761 + 1013904223) % 2147483648 )) >"$CKA_RNG_FILE"
+  _rand >/dev/null; _rand >/dev/null
   lab_params
   rm -f "$CKA_RNG_FILE"
 }
