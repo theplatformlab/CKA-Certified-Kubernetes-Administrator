@@ -192,3 +192,18 @@ func TestDomainQuotas(t *testing.T) {
 		t.Errorf("quotas %v", q)
 	}
 }
+
+func TestPracticeAllDomainsWeighted(t *testing.T) {
+	items := testItems()
+	picks, err := Generate(items, map[string]ItemStat{}, GenOptions{Mode: "practice", Count: 10, Seed: 3}, noParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	per := map[string]int{}
+	for _, p := range picks {
+		per[p.Item.Domain]++
+	}
+	if len(picks) != 10 || per["troubleshooting"] != 3 || per["storage"] != 1 {
+		t.Errorf("distribution %v", per)
+	}
+}

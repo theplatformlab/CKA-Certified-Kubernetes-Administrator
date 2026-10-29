@@ -1032,6 +1032,13 @@ func (m *model) viewMenu() string {
 	return b.String()
 }
 
+// info renders a dim explanatory text wrapped to the pane width (the
+// hard-coded line breaks are only paragraph hints).
+func (m *model) info(text string) string {
+	text = strings.ReplaceAll(text, "\n", " ")
+	return stDim.Width(max(20, m.width-2)).Render(text)
+}
+
 func cursorLine(sel bool, s string) string {
 	if sel {
 		return stSel.Render("› " + s)
@@ -1046,12 +1053,12 @@ func (m *model) viewPracticeCfg() string {
 	}
 	var b strings.Builder
 	b.WriteString(stTitle.Render("Practice session") + "\n")
-	b.WriteString(stDim.Render("Soft time targets, hints (h), checks (c) and solutions (s) on demand, pause anytime (P).") + "\n\n")
+	b.WriteString(m.info("Soft time targets, hints (h), checks (c) and solutions (s) on demand, pause anytime (P).") + "\n\n")
 	b.WriteString(cursorLine(m.cursor == 0, "Domain:  ‹ "+domain+" ›") + "\n")
 	b.WriteString(cursorLine(m.cursor == 1, fmt.Sprintf("Items:   ‹ %d ›", counts[m.countIdx])) + "\n")
 	b.WriteString(cursorLine(m.cursor == 2, "Choose items myself …") + "\n")
 	b.WriteString(cursorLine(m.cursor == 3, "Start") + "\n\n")
-	b.WriteString(stDim.Render("Items you haven't done come first, then items you failed last time.\nSessions use cka-practice (and cka-ops / cka-cni / cka-runtime when an item needs them)."))
+	b.WriteString(m.info("With “All domains”, the items are spread over the domains like the curriculum. Items you haven't done come first, then items you failed last time, one per topic.\nSessions use cka-practice (and cka-ops / cka-cni / cka-runtime when an item needs them)."))
 	return b.String()
 }
 
@@ -1093,11 +1100,11 @@ func (m *model) viewPickItems() string {
 func (m *model) viewExamCfg() string {
 	var b strings.Builder
 	b.WriteString(stTitle.Render("Mock exam") + "\n")
-	b.WriteString(stDim.Render("Questions are drawn from the pool, weighted like the CKA curriculum, one per topic.\nHard timer, no hints, graded when you submit (S S) or the time runs out.") + "\n\n")
+	b.WriteString(m.info("Questions are drawn from the pool, weighted like the CKA curriculum, one per topic.\nHard timer, no hints, graded when you submit (S S) or the time runs out.") + "\n\n")
 	b.WriteString(cursorLine(m.cursor == 0, fmt.Sprintf("Duration:  ‹ %d min ›", durations[m.durIdx])) + "\n")
 	b.WriteString(cursorLine(m.cursor == 1, fmt.Sprintf("Questions: ‹ %d ›", m.questions)) + "\n")
 	b.WriteString(cursorLine(m.cursor == 2, "Start") + "\n\n")
-	b.WriteString(stDim.Render("Starting builds fresh clusters cka-exam and cka-exam-ops (2-3 minutes)\nand opens the docs-only browser. The timer starts when everything is ready."))
+	b.WriteString(m.info("Starting builds fresh clusters cka-exam and cka-exam-ops (2-3 minutes)\nand opens the docs-only browser. The timer starts when everything is ready."))
 	for _, d := range Domains {
 		b.WriteString("\n" + stDim.Render(fmt.Sprintf("  %-24s %d%%", d.Name, d.Weight)))
 	}
@@ -1216,7 +1223,7 @@ func (m *model) viewResults() string {
 		b.WriteString(cursorLine(i == m.cursor, line) + "\n")
 	}
 	if s.Mode == "exam" && s.Status == StatusFinished {
-		b.WriteString("\n" + stDim.Render("The exam clusters stay up for inspection (Clusters menu to delete them)."))
+		b.WriteString("\n" + m.info("The exam clusters stay up for inspection (Clusters menu to delete them)."))
 	}
 	return b.String()
 }
@@ -1307,7 +1314,7 @@ func (m *model) viewClusters() string {
 		}
 		b.WriteString(cursorLine(i == m.cursor, fmt.Sprintf("%-18s %-9s %s", r.name, r.profile, state)) + "\n")
 	}
-	b.WriteString("\n" + stDim.Render("Stopped clusters keep their state and use no memory. Sessions start or create\nthe clusters they need; exams always recreate cka-exam*. Pausing an exam stops them."))
+	b.WriteString("\n" + m.info("Stopped clusters keep their state and use no memory. Sessions start or create\nthe clusters they need; exams always recreate cka-exam*. Pausing an exam stops them."))
 	return b.String()
 }
 

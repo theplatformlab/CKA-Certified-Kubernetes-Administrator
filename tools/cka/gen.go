@@ -94,11 +94,33 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 	ordered := prioritize(candidates, stats, rng)
 
 	if opt.Mode == "practice" {
+		// "All domains": spread the items like the curriculum (for 10 items
+		// 3 troubleshooting, 2-3 architecture, 2 networking, ...).
+		if opt.Domain == "" && opt.Count > 1 {
+			quota := domainQuotas(opt.Count)
+			for _, d := range Domains {
+				got := 0
+				for _, it := range ordered {
+					if got >= quota[d.Key] {
+						break
+					}
+					if it.Domain == d.Key && !inPicks(chosen, it) && tryAdd(it) {
+						got++
+					}
+				}
+			}
+		}
 		for _, it := range ordered {
 			if len(chosen) >= opt.Count {
 				break
 			}
-			tryAdd(it)
+			if !inPicks(chosen, it) {
+				tryAdd(it)
+			}
+		}
+		if opt.Domain == "" {
+			// Mixed order instead of grouped by domain.
+			rng.Shuffle(len(chosen), func(i, j int) { chosen[i], chosen[j] = chosen[j], chosen[i] })
 		}
 		if len(chosen) == 0 {
 			return nil, fmt.Errorf("no items available")

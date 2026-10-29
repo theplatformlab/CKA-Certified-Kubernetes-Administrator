@@ -13,7 +13,7 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 
 | | Practice session | Mock exam |
 |---|---|---|
-| Selection | N items (1/3/5/10), optionally from one domain, or items you pick yourself | 17 questions by default (adjustable in the exam setup, or `CKA_EXAM_QUESTIONS`), split by the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10%. Long tasks are limited so the set fits the duration |
+| Selection | N items (1/3/5/10) from one domain, or from all domains spread like the curriculum, or items you pick yourself | 17 questions by default (adjustable in the exam setup, or `CKA_EXAM_QUESTIONS`), split by the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10%. Long tasks are limited so the set fits the duration |
 | Time | Soft: each item shows its recommended time next to your time on it | Hard countdown (120/90/60 min); grading starts automatically at 0 |
 | Help | Hints one at a time (`h`), check any time (`c`), solution on demand (`s s`) | None. Only the docs-only browser (kubernetes.io, helm.sh, gateway-api.sigs.k8s.io) |
 | Pause | `P` pauses; the menu offers "Continue" later, and clusters keep running | `P P` freezes the timer and stops the exam clusters, freeing memory. "Continue" starts them again (~1 min) and the timer resumes. `q` leaves the panel with the timer still running |
