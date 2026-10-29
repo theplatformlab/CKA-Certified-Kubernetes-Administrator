@@ -1364,7 +1364,8 @@ func scoreBar(f float64) string {
 func (m *model) viewHistory() string {
 	sessions := m.sessions()
 	var b strings.Builder
-	b.WriteString(stTitle.Render("History") + "\n\n")
+	b.WriteString(stTitle.Render("History") + "\n")
+	b.WriteString(stDim.Render("Stored in "+m.storePath()+" (one JSON file per session)") + "\n\n")
 	if len(sessions) == 0 {
 		b.WriteString(stDim.Render("No sessions yet."))
 	}
@@ -1388,7 +1389,8 @@ func (m *model) viewHistory() string {
 func (m *model) viewStats() string {
 	stats := m.stats()
 	var b strings.Builder
-	b.WriteString(stTitle.Render("Statistics") + "\n\n")
+	b.WriteString(stTitle.Render("Statistics") + "\n")
+	b.WriteString(stDim.Render("Computed from the sessions in "+m.storePath()) + "\n\n")
 	b.WriteString(fmt.Sprintf("  %-30s %6s %6s %6s %6s %8s\n", "Domain", "items", "new", "failed", "passed", "attempts"))
 	for _, d := range Domains {
 		var total, nNew, nFail, nPass, attempts int
@@ -1498,4 +1500,12 @@ func (m *model) viewPaused() string {
 		stSel.Render("m") + "  back to the menu, clusters keep running, timer stays paused"
 	out := box.Width(min(m.width-4, 90)).Render(body)
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, out)
+}
+
+// storePath: the session directory, with the home directory shown as ~.
+func (m *model) storePath() string {
+	if h := homeDir(); h != "" && strings.HasPrefix(m.store.Dir, h) {
+		return "~" + strings.TrimPrefix(m.store.Dir, h) + "/"
+	}
+	return m.store.Dir + "/"
 }
