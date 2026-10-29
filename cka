@@ -41,9 +41,10 @@ for cmd in tmux kubectl kind docker; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "'$cmd' is required" >&2; exit 1; }
 done
 
-# The app pane closes when you quit the app (an error stays visible until
-# Enter); running ./cka again brings it back next to your shell.
-app_cmd="'$BIN' ui || { echo; echo 'cka exited with an error — press enter to close'; read; }"
+# Quitting the app closes the whole lab session (shells included; sessions
+# and exams are saved and can be continued with ./cka). An error stays
+# visible until Enter. If only the app pane was closed, ./cka brings it back.
+app_cmd="'$BIN' ui || { echo; echo 'cka exited with an error — press enter to close'; read; }; tmux kill-session -t '$SESSION'"
 
 if ! tmux has-session -t "$SESSION" 2>/dev/null; then
   rc="$REPO/scripts/exam/bashrc"
