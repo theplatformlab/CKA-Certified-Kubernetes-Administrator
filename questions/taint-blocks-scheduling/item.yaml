@@ -1,6 +1,7 @@
 title: Pods Pending on a tainted node
 topic: taints
 domain: troubleshooting
+area: nodes
 difficulty: 2
 minutes: 7
 weight: 6

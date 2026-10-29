@@ -27,6 +27,14 @@ var Domains = []struct {
 	{"storage", "Storage", 10},
 }
 
+// Sub-areas a generated session covers first, in this order, before the
+// domain's remaining slots are filled by priority. Troubleshooting follows the
+// curriculum bullets: cluster components, nodes, services/networking, output
+// streams and resource usage, application failures.
+var domainAreas = map[string][]string{
+	"troubleshooting": {"cluster-components", "nodes", "networking", "observability", "applications"},
+}
+
 func domainName(key string) string {
 	for _, d := range Domains {
 		if d.Key == key {
@@ -44,6 +52,7 @@ type Item struct {
 	Title      string   `yaml:"title"`
 	Topic      string   `yaml:"topic"` // at most one item per topic in a generated session
 	Domain     string   `yaml:"domain"`
+	Area       string   `yaml:"area"` // sub-area within the domain (see domainAreas)
 	Difficulty int      `yaml:"difficulty"`
 	Minutes    int      `yaml:"minutes"`
 	Weight     int      `yaml:"weight"`

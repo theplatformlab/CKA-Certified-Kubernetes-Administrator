@@ -1,6 +1,7 @@
 title: Rollout stuck in a namespace with a quota
 topic: quota
 domain: troubleshooting
+area: applications
 difficulty: 2
 minutes: 9
 weight: 7

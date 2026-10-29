@@ -22,6 +22,8 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 
 **One item per topic.** Every item has a topic (pod-security, networkpolicy, priorityclass, ...). A generated session never contains two items of the same topic, so you don't get three Pod Security questions in one exam.
 
+**Troubleshooting covers every area.** Troubleshooting items have an `area` that follows the curriculum bullets: cluster components (API server, scheduler, controller-manager, etcd, CoreDNS), nodes (kubelet, taints), services & networking, output streams & resource usage (logs, `kubectl top`), and application failures. With 5 troubleshooting questions (17-question exam) every area gets one; with fewer, cluster components and nodes come first.
+
 **Which items come first.** Items you have never done come first, then items whose last attempt failed, then passed items, least recently practised first. Every exam item can also be practised; some labs (tutorial-style or multi-scenario) are practice-only.
 
 **Parametrized items.** Some items roll their names and values per session: replica counts, ports, schedules, thresholds. The task text, hints, solution and validator all use the same values. The values are stored with the session, so the history shows exactly what you were asked.
@@ -79,6 +81,7 @@ An item is a directory in `questions/<id>/` (or `exercises/<NN>-<name>/`) with t
 title: Roll back a broken rollout
 topic: rollouts                # a generated session never has two items of one topic
 domain: workloads              # troubleshooting | architecture | networking | workloads | storage
+area: applications             # troubleshooting only: cluster-components | nodes | networking | observability | applications
 difficulty: 1                  # 1-3
 minutes: 7                     # realistic exam time
 weight: 7                      # exam points

@@ -1,6 +1,7 @@
 title: Worker node NotReady
 topic: node-kubelet
 domain: troubleshooting
+area: nodes
 difficulty: 2
 minutes: 8
 weight: 7

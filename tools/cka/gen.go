@@ -100,6 +100,17 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 			quota := domainQuotas(opt.Count)
 			for _, d := range Domains {
 				got := 0
+				for _, area := range domainAreas[d.Key] {
+					if got >= quota[d.Key] {
+						break
+					}
+					for _, it := range ordered {
+						if it.Domain == d.Key && it.Area == area && !inPicks(chosen, it) && tryAdd(it) {
+							got++
+							break
+						}
+					}
+				}
 				for _, it := range ordered {
 					if got >= quota[d.Key] {
 						break
@@ -146,7 +157,7 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		// Keep each pick near the average time still available per slot,
 		// so long tasks don't crowd out the remaining questions.
 		share := (budget - total) / float64(left+1)
-		return m <= 1.4*share && total+m+float64(left)*minExamMinutes <= budget
+		return m <= 1.8*share && total+m+float64(left)*minExamMinutes <= budget
 	}
 	add := func(it *Item, strict bool) bool {
 		if inPicks(chosen, it) || !fits(it, strict) || !tryAdd(it) {
@@ -158,6 +169,30 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 	// Each domain gets its quota: first with items that keep the exam within
 	// the time budget, then (if a domain would stay short) without that limit.
 	got := map[string]int{}
+	// Domains with sub-areas (troubleshooting) take one item per area first,
+	// so e.g. cluster and node problems are always part of the exam.
+	for _, d := range Domains {
+		areas := domainAreas[d.Key]
+		for ai, area := range areas {
+			if got[d.Key] >= quota[d.Key] {
+				break
+			}
+			later := areas[ai+1 : min(len(areas), ai+1+quota[d.Key]-got[d.Key]-1)]
+			done := false
+			for _, strict := range []bool{true, false} {
+				for _, it := range ordered {
+					if it.Domain == d.Key && it.Area == area && !blocksAreas(it, later, d.Key, ordered, chosen) && add(it, strict) {
+						got[d.Key]++
+						done = true
+						break
+					}
+				}
+				if done {
+					break
+				}
+			}
+		}
+	}
 	for _, strict := range []bool{true, false} {
 		for _, d := range Domains {
 			for _, it := range ordered {
@@ -235,6 +270,27 @@ func prioritize(items []*Item, stats map[string]ItemStat, rng *rand.Rand) []*Ite
 		return a.Last.Before(b.Last)
 	})
 	return out
+}
+
+// blocksAreas: picking it would leave one of the later areas without any
+// candidate (e.g. "cluster DNS is down" excludes every item that needs DNS).
+func blocksAreas(it *Item, areas []string, domain string, ordered []*Item, chosen []Pick) bool {
+	for _, area := range areas {
+		ok := false
+		for _, cand := range ordered {
+			if cand == it || cand.Domain != domain || cand.Area != area || inPicks(chosen, cand) {
+				continue
+			}
+			if !conflicts(Pick{Item: it}, Pick{Item: cand}) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return true
+		}
+	}
+	return false
 }
 
 func inPicks(picks []Pick, it *Item) bool {

@@ -1,6 +1,7 @@
 title: Deployment creates no pods
 topic: control-plane-repair
 domain: troubleshooting
+area: cluster-components
 difficulty: 2
 minutes: 8
 weight: 7

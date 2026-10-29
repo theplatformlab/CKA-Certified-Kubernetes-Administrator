@@ -1,6 +1,7 @@
 title: Pods never become ready
 topic: probes
 domain: troubleshooting
+area: networking
 difficulty: 2
 minutes: 8
 weight: 6

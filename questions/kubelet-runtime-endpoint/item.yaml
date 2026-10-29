@@ -1,6 +1,7 @@
 title: Kubelet and container runtime
 topic: node-kubelet
 domain: troubleshooting
+area: nodes
 difficulty: 2
 minutes: 8
 weight: 8

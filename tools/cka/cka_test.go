@@ -153,6 +153,15 @@ func TestPool(t *testing.T) {
 		if it.Topic == "" {
 			t.Errorf("%s: no topic", it.ID)
 		}
+		if areas := domainAreas[it.Domain]; len(areas) > 0 {
+			found := false
+			for _, a := range areas {
+				found = found || a == it.Area
+			}
+			if !found {
+				t.Errorf("%s: area %q is not one of %v", it.ID, it.Area, areas)
+			}
+		}
 	}
 }
 
@@ -205,5 +214,31 @@ func TestPracticeAllDomainsWeighted(t *testing.T) {
 	}
 	if len(picks) != 10 || per["troubleshooting"] != 3 || per["storage"] != 1 {
 		t.Errorf("distribution %v", per)
+	}
+}
+
+// With 5 troubleshooting slots, every area is covered.
+func TestExamTroubleshootingAreas(t *testing.T) {
+	repoRoot = filepath.Join("..", "..")
+	items, err := LoadBank(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for seed := int64(0); seed < 200; seed++ {
+		picks, err := Generate(items, map[string]ItemStat{}, GenOptions{Mode: "exam", Minutes: 120, Count: 17, Seed: seed}, noParams)
+		if err != nil {
+			t.Fatal(err)
+		}
+		areas := map[string]bool{}
+		for _, p := range picks {
+			if p.Item.Domain == "troubleshooting" {
+				areas[p.Item.Area] = true
+			}
+		}
+		for _, a := range domainAreas["troubleshooting"] {
+			if !areas[a] {
+				t.Errorf("seed %d: no troubleshooting item for %s (%v)", seed, a, areas)
+			}
+		}
 	}
 }
