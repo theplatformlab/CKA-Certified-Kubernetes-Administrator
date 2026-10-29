@@ -41,6 +41,10 @@ for cmd in tmux kubectl kind docker; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "'$cmd' is required" >&2; exit 1; }
 done
 
+# The app pane closes when you quit the app (an error stays visible until
+# Enter); running ./cka again brings it back next to your shell.
+app_cmd="'$BIN' ui || { echo; echo 'cka exited with an error — press enter to close'; read; }"
+
 if ! tmux has-session -t "$SESSION" 2>/dev/null; then
   rc="$REPO/scripts/exam/bashrc"
   mkdir -p "$HOME/cka-lab"
@@ -51,9 +55,12 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
   tmux set -t "$SESSION" status-left " CKA Lab │ "
   tmux set -t "$SESSION" status-right " Ctrl-b ←/→ switch pane · Ctrl-b c new shell "
   tmux set -t "$SESSION" status-right-length 60
-  tmux split-window -t "$SESSION:lab" -h -b -l 50% "'$BIN' ui; echo; echo 'cka exited — press enter to close'; read"
-  tmux select-pane -t "$SESSION:lab.0"
 fi
+if ! tmux list-panes -s -t "$SESSION" -F '#{pane_title}' | grep -qx cka-app; then
+  tmux split-window -t "$SESSION:lab" -h -b -l 50% "$app_cmd"
+  tmux select-pane -t "$SESSION:lab" -T cka-app
+fi
+tmux select-window -t "$SESSION:lab"
 
 if [[ -n "${TMUX:-}" ]]; then
   exec tmux switch-client -t "$SESSION"
