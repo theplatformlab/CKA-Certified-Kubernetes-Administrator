@@ -37,7 +37,8 @@ log_warn() {
 validate_exercise() {
   local num="$1"
   local ex_dir="$EXERCISES_DIR/$(printf "%02d" "$num")-*/README.md"
-  ex_dir=$(ls "$ex_dir" 2>/dev/null | head -1)
+  # shellcheck disable=SC2086 # the glob must expand
+  ex_dir=$(ls $ex_dir 2>/dev/null | head -1)
 
   if [[ ! -f "$ex_dir" ]]; then
     log_fail "Exercise $(printf "%02d" "$num") README not found"
@@ -57,7 +58,7 @@ validate_exercise() {
     log_pass "Conventions block present"
   else
     log_fail "Missing Conventions block (should define Primary/Secondary traps)"
-    ((errors++))
+    errors=$((errors + 1))
   fi
 
   # Check 2: What tripped me up section with at least one trap/gotcha
@@ -69,18 +70,18 @@ validate_exercise() {
       log_pass "Multiple trap/gotcha entries documented ($gotcha_count found)"
     else
       log_warn "Only $gotcha_count trap/gotcha documented (recommend 2+)"
-      ((errors++))
+      errors=$((errors + 1))
     fi
 
     if [[ $gotcha_v1_35 -ge 1 ]]; then
       log_pass "v1.35-specific gotchas documented"
     else
       log_warn "No v1.35-specific gotchas found (May 2026 update)"
-      ((errors++))
+      errors=$((errors + 1))
     fi
   else
     log_fail "Missing 'What tripped me up' section with gotchas"
-    ((errors++))
+    errors=$((errors + 1))
   fi
 
   # Check 3: Verify section exists
@@ -88,7 +89,7 @@ validate_exercise() {
     log_pass "Verification steps present"
   else
     log_fail "Missing Verify section (no validation criteria)"
-    ((errors++))
+    errors=$((errors + 1))
   fi
 
   # Check 4: Solution section exists (optional but recommended)
@@ -104,7 +105,7 @@ validate_exercise() {
     log_pass "Markdown backticks balanced"
   else
     log_fail "Unbalanced backticks in markdown"
-    ((errors++))
+    errors=$((errors + 1))
   fi
 
   # Check 6: Hints section exists
@@ -127,7 +128,7 @@ main() {
     echo "Validating all troubleshooting exercises (May 2026)..."
     for num in "${TROUBLESHOOTING_EXERCISES[@]}"; do
       if validate_exercise "$num"; then
-        ((count++))
+        count=$((count + 1))
       fi
     done
     echo ""

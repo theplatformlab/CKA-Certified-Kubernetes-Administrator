@@ -4,62 +4,66 @@ Two comprehensive practice exams that simulate real CKA exam conditions. These a
 
 ## Quick Start
 
-### Easiest Way: Use the Timed Exam Runner
-
 ```bash
-# Start Mock Exam 01 with countdown timer (120 minutes)
-bash scripts/run-mock-exam.sh 1
-
-# Or Mock Exam 02
-bash scripts/run-mock-exam.sh 2
-
-# Or shorten to 90 minutes for a quick test
-bash scripts/run-mock-exam.sh 1 90
+./scripts/mock-exam.sh start 1            # Mock Exam 01, 120 minutes
+./scripts/mock-exam.sh start 2 --minutes 90
 ```
 
-The script will:
-- ✅ Show all questions
-- ✅ Start a countdown timer (red warning in last 5 min)
-- ✅ Remind you to save answers in `/tmp/cka-exam-answers/`
-- ✅ Show solutions after exam
+This mirrors the real exam environment as closely as a laptop allows:
 
-### Manual Approach (If Preferred)
+- **Fresh clusters.** Two kind clusters are built for the exam: `cka-exam` (1 control plane + 2 workers) for namespaced tasks, and `cka-exam-ops` for control-plane work (broken components, kubelet, audit logs, certificates). Your practice clusters are not touched.
+- **Prepared questions.** Every question's starting state is created up front: namespaces, existing Deployments, deliberately broken components, files under `~/cka-exam/`.
+- **Exam window.** A tmux session opens in a new Windows Terminal window on WSL. Use `--here` to open it in the current terminal instead. The left pane is the question panel (`n`/`p` to navigate, `f` to flag, `o` for an overview, `s` to submit). The right pane is your shell, with `k` alias and completion preconfigured, like on the real exam. Open more shells with `Ctrl-b c`. The timer runs in the status bar.
+- **Context per question.** Each question starts with the `kubectl config use-context ...` you must run first, exactly like the real exam.
+- **Node access.** `ssh cka-exam-ops-control-plane` opens a root shell on that node; the exam shell maps `ssh <node>` to the kind container.
+- **Docs-only browser.** A separate Firefox profile opens behind a local allowlist proxy. Only kubernetes.io (docs and blog), helm.sh and gateway-api.sigs.k8s.io load. Everything else is blocked. Restart it with `./scripts/mock-exam.sh browser`.
+- **Automatic grading.** When you press `s` in the question panel, run `./scripts/mock-exam.sh grade`, or the time runs out, every question is checked against the live cluster state. You get a ✓/✗ list per question, partial credit per check, and a total against the 66% pass mark. Untouched questions score 0.
 
-1. **Read the questions file ONLY** — Do not open solutions until complete
-2. **Set a 2-hour timer** — This is exam length; stick to it
-3. **Solve in real Kubernetes cluster** — Use your kubeadm cluster or managed k8s
-4. **Verify each solution** — Use `kubectl get`, `describe`, `logs`, etc.
-5. **Finish or time expires** — Mark incomplete questions and move on
-6. **Score and review** — Compare against solutions file
-7. **Analyze mistakes** — Identify pattern (RBAC? Storage? Networking?)
+```bash
+./scripts/mock-exam.sh attach                     # re-open the exam window
+./scripts/mock-exam.sh grade                      # grade now (can be repeated)
+./scripts/mock-exam.sh stop                       # end the exam, delete the exam clusters
+./scripts/mock-exam.sh question 1 7 setup|check   # re-run one question's setup or check
+```
+
+Requirements: Docker, kind, kubectl, tmux, python3, jq, helm, openssl. Firefox is optional; any browser pointed at proxy `127.0.0.1:3129` gets the same allowlist. Startup takes about 2–3 minutes (cluster creation plus question setup).
+
+### How the real exam differs
+
+- Each task runs on its own pre-built cluster that you reach with `ssh`. Here, namespaced tasks share `cka-exam` and control-plane tasks share `cka-exam-ops`, so a task that breaks the API server (Mock 02, Q5) also blocks the other tasks on that cluster until you fix it.
+- The real exam runs in a remote desktop (PSI) with a terminal and a restricted Firefox. Here, tmux and a separate local Firefox profile do the same job.
+- No answer files are collected. Like the real exam, grading looks at what exists in the cluster, plus the few output files a question explicitly asks for.
+
+### Manual Approach
+
+Read `MOCK-EXAM-0N.md` and work against your own cluster. To still get grading, run each question's setup first: `./scripts/mock-exam.sh question 1 <Q> setup`. That command uses clusters `cka-exam` and `cka-exam-ops`, so create them first: `CLUSTER_NAME=cka-exam ./scripts/init-cluster.sh` and `CLUSTER_NAME=cka-exam-ops ./scripts/init-cluster.sh --profile ops`.
 
 ---
 
 ## Exam Scoring
 
+Each question has a weight (in brackets in the question title). Each one is graded with several checks, and you get `weight × passed checks / all checks`. The exam is passed at **66%**, like the real CKA.
+
 | Score | Interpretation | Next Step |
 |-------|-----------------|-----------|
-| **15/15** | Perfect — ready for real exam | Take second mock, then schedule real exam |
-| **12-14/15** | Passing (80%+) — likely ready | Review missed questions, schedule real exam |
-| **10-11/15** | Minimum passing (67-73%) — borderline | Review all solutions, redo weak domain exercises, retake mock |
-| **9/15** | Below passing — needs work | Study the solutions, redo exercises in failed domains, retake mock |
-| **<9/15** | Significant gaps — not ready | Review fundamentals, redo exercises, retake mock after 1+ week |
+| **90%+** | Ready for the real exam | Take the second mock, then schedule the exam |
+| **75-89%** | Passing with margin | Review the failed checks, schedule the exam |
+| **66-74%** | Borderline pass | Review all solutions, redo the related exercises, retake |
+| **50-65%** | Below passing | Study the solutions, redo the exercises of the weak domains |
+| **<50%** | Significant gaps | Go back to the exercises; retake the mock after 1+ week |
 
-**Real CKA exam passing score:** 66% (10/15 questions)
-
-These mocks are slightly **harder** than real exams, so scoring 12+/15 on mocks = confident for real exam.
+The grading report is saved to `.exam-runtime/result-<timestamp>.txt`.
 
 ---
 
 ## How to Use
 
-1. **Read ONLY the question file** (MOCK-EXAM-01.md or MOCK-EXAM-02.md)
-2. **Set a 2-hour timer** — Do not exceed this time
-3. **Solve each question** in your own Kubernetes cluster or practice environment
-4. **Keep score** — Track how many questions you complete correctly
-5. **Do NOT look at solutions** until after you finish
-6. **Review solutions** — Compare your answers against the solution file
-7. **Score yourself** — 10+/15 correct = passing (66%), 12+/15 = strong, 15/15 = ready for real exam
+1. **Start the exam** with `./scripts/mock-exam.sh start <N>`. Do not open the solutions.
+2. **Switch the context** at the start of every question.
+3. **Verify as you go** with `kubectl get`, `describe`, `logs`, and test traffic where it makes sense.
+4. **Submit** with `s` in the question panel when you're done, or let the timer run out.
+5. **Review** the failed checks, then read `MOCK-EXAM-0N-SOLUTIONS.md` for those questions.
+6. **Fix and re-grade.** The clusters stay up until `stop`, so you can repair a question and run `./scripts/mock-exam.sh grade` again.
 
 ## Mock Exam 01
 
@@ -67,7 +71,7 @@ These mocks are slightly **harder** than real exams, so scoring 12+/15 on mocks 
 
 - 15 questions covering all CKA domains
 - 2-hour time limit
-- Questions emphasize Pod lifecycle, RBAC, Node management, Persistent Storage, NetworkPolicy, Helm, Containers, HPA, Ingress, Kubeadm, API Server, StatefulSets, Resource Quotas, Pod Security, and Multi-container Pods
+- Questions emphasize Pod troubleshooting, RBAC, node drain, static PVs, NetworkPolicy, Helm, kubelet/runtime repair, API server audit logging, HPA, Ingress, a broken scheduler, StatefulSets, quotas, Pod Security and native sidecars
 - **Difficulty:** Medium-Hard (tests core concepts + edge cases)
 
 **Files:**
@@ -78,9 +82,9 @@ These mocks are slightly **harder** than real exams, so scoring 12+/15 on mocks 
 
 **Focus:** Services & Networking (20%) and Workloads (15%) domains
 
-- 15 questions covering all CKA domains with different scenarios than Exam 01
+- 16 questions covering all CKA domains with different scenarios than Exam 01
 - 2-hour time limit
-- Questions emphasize Service DNS, Deployment updates, Secrets, DaemonSets, API Server debugging, ConfigMap updates, PriorityClass, Service types, CronJobs, Pod Disruption Budgets, CRDs, Pod Security Standards, StorageClass, and Resource governance
+- Questions emphasize Service DNS, rollbacks, Secrets, DaemonSets, a broken API server, ConfigMap updates, PriorityClass, NodePort Services, CronJobs, certificate renewal, Pod Disruption Budgets, CRDs, Pod Security Admission, default StorageClass, resource governance and Gateway API
 - **Difficulty:** Medium-Hard (different mix from Exam 01, tests similar depth)
 
 **Files:**
@@ -110,8 +114,8 @@ These mocks are slightly **harder** than real exams, so scoring 12+/15 on mocks 
 
 **Phase 4 — Final Check (3-5 days)**
 - Retake mock exam 01 (verify improvement held)
-- If scoring 12+/15 consistently: ready for real exam
-- If scoring <12/15: do more targeted practice before scheduling
+- If scoring 75%+ consistently: ready for real exam
+- If scoring below 75%: do more targeted practice before scheduling
 
 ### Domain-Specific Focus
 
@@ -135,12 +139,12 @@ Domain weights apply to the exam domains, not to individual exercises or questio
 
 | Factor | Mock Exams | Real CKA |
 |--------|-----------|----------|
-| Task count | 15 in each practice mock | The Linux Foundation does not publish a fixed count |
+| Task count | 15–16 in each practice mock | The Linux Foundation does not publish a fixed count |
 | Time | 120 min | 120 min |
-| Average time per task | 8 minutes across 15 mock questions | Varies by task and its assigned weight |
-| Passing Score | 66% | 66% |
-| Kubernetes access | Your cluster | Exam cluster |
-| Browser | Your own | Linux Foundation browser |
+| Average time per task | ~8 minutes | Varies by task and its assigned weight |
+| Passing Score | 66% (automatic grading, partial credit) | 66% |
+| Kubernetes access | Fresh kind clusters `cka-exam` / `cka-exam-ops` | One pre-built cluster per task |
+| Browser | Local Firefox, docs-only allowlist | PSI remote desktop, docs-only Firefox |
 | kubectl | Both available | Both available |
 | kubernetes.io/docs | Allowed (good to practice) | **Allowed during real exam** |
 
@@ -201,7 +205,7 @@ After Exam:
 1. Score using GRADING.md scale
 2. Identify weak domain in DOMAINS.md
 3. Do 2-3 related exercises for remediation
-4. Retake mock if score < 12/15
+4. Retake mock if score < 75%
 ```
 
 ---
@@ -212,10 +216,10 @@ After Exam:
 
 Use the scoring table above. Then:
 
-1. **Score 15/15:** You're ready → Take killer.sh, schedule real exam
-2. **Score 12-14:** You're borderline → Review failed questions + related exercises
-3. **Score 10-11:** You're barely passing → Spend 1+ week on weak domains, retake mock
-4. **Score <10:** Not ready → Fundamentals review, redo exercises, retake after 1+ week
+1. **Score 90%+:** You're ready → Take killer.sh, schedule real exam
+2. **Score 75-89%:** You're borderline → Review failed questions + related exercises
+3. **Score 66-74%:** You're barely passing → Spend 1+ week on weak domains, retake mock
+4. **Score <66%:** Not ready → Fundamentals review, redo exercises, retake after 1+ week
 
 ### What To Do With Mistakes
 
@@ -246,7 +250,7 @@ Result: Q4 now scored correctly
 
 Before scheduling real CKA exam, verify:
 
-✅ Scored 12+/15 on both mock exams (or close)
+✅ Scored 75%+ on both mock exams (or close)
 ✅ Can consistently diagnose using DIAGNOSTICS.md
 ✅ Know common gotchas from exercise READMEs
 ✅ Passed killer.sh (if available in your cluster)
@@ -267,7 +271,7 @@ If all ✅ → Schedule exam. You're ready for 85%+ score.
 
 ## After Completing Both Mocks
 
-### If you scored 12+/15 on both:
+### If you scored 75%+ on both:
 1. **Ready for real exam** — Schedule the CKA exam
 2. **Optional:** Try killer.sh (harder than real exam, good confidence booster)
 3. **Real exam tips:**
@@ -277,21 +281,21 @@ If all ✅ → Schedule exam. You're ready for 85%+ score.
    - Ask proctor for clarification if unsure
    - Verify each solution explicitly (prod-like rigor)
 
-### If you scored 10-11/15 on both:
+### If you scored 66-74% on both:
 1. **Borderline passing** — Proceed with caution
 2. **Recommended:** Review all solutions, understand mistakes
 3. **Spend 1 week** on weak domain (e.g., RBAC if failed authZ questions)
 4. **Take one more mock** (redo the easier of the two)
-5. **If 11+/15 again:** Schedule real exam
-6. **If <11/15:** More practice needed
+5. **If 70%+ again:** Schedule real exam
+6. **If below 70%:** More practice needed
 
-### If you scored <10/15 on either mock:
+### If you scored <66% on either mock:
 1. **Not ready** — Do not schedule real exam yet
 2. **Review solutions thoroughly** — Understand each mistake
 3. **Redo weak exercises** — Go back to the relevant exercise for that domain
 4. **Wait 1-2 weeks** — Let concepts soak
 5. **Retake mock** (same exam is fine for practice)
-6. **When consistently 12+/15:** Schedule real exam
+6. **When consistently 75%+:** Schedule real exam
 
 ---
 
@@ -310,4 +314,4 @@ These are practice scenarios inspired by real CKA exam domains and topics. They 
 
 ---
 
-After completing both mock exams successfully (12+/15 each), you're ready for the real CKA exam. Good luck! 🚀
+After completing both mock exams successfully (75%+ each), you're ready for the real CKA exam. Good luck! 🚀

@@ -141,6 +141,9 @@ prepare_ops_nodes() {
       echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${next_minor}/deb/ /' \\
         > /etc/apt/sources.list.d/kubernetes.list
       apt-get update -qq
+      # kind ships its own /etc/default/kubelet; keep it when the kubelet
+      # package is upgraded instead of stopping at a dpkg conffile prompt.
+      printf 'Dpkg::Options { \"--force-confdef\"; \"--force-confold\"; };\\n' > /etc/apt/apt.conf.d/90-keep-config
     "
   done
 

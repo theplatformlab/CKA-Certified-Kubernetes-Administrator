@@ -33,7 +33,7 @@ I ordered these roughly by difficulty. If you're short on time, prioritize 09 (k
 | 23 | [Resource Requests Tuning](23-resource-requests-tuning/) | Workloads & Scheduling | Hard | 20 min |
 | 24 | [PriorityClass Patch](24-priorityclass-patch/) | Workloads & Scheduling | Medium | 15 min |
 | 25 | [Storage WaitForFirstConsumer](25-storage-waitforfirstconsumer/) | Storage | Hard | 20 min |
-| 26 | [CRI-dockerd Installation (supplemental implementation practice)](26-cri-dockerd-setup/) | Cluster Architecture | Hard | 30 min |
+| 26 | [Switch kubelet to cri-dockerd (supplemental implementation practice)](26-cri-dockerd-setup/) | Cluster Architecture | Hard | 30 min |
 | 27 | [CNI Tigera/Calico Install](27-cni-tigera-install/) | Cluster Architecture | Hard | 30 min |
 | 28 | [Complex NetworkPolicy](28-network-policy-complex/) | Services & Networking | Hard | 25 min |
 | 29 | [Troubleshoot etcd Endpoint](29-troubleshoot-etcd-endpoint/) | Troubleshooting | Hard | 20 min |
@@ -51,11 +51,13 @@ I ordered these roughly by difficulty. If you're short on time, prioritize 09 (k
 
 ## How to Use
 
-1. Read the exercise description
-2. Try the tasks without looking at the solution
+1. Prepare the exercise: `./scripts/lab.sh setup NN`. This creates the namespace and any starting state the exercise needs, such as existing objects or a deliberately broken component.
+2. Read the exercise description and try the tasks without looking at the solution
 3. Use the hints if you're stuck
-4. Check your work with the verification steps
+4. Validate your result: `./scripts/lab.sh check NN` lists every requirement as ✓/✗
 5. Compare against the solution
-6. Run cleanup before moving to the next exercise
+6. Clean up before moving on: `./scripts/lab.sh cleanup NN`
+
+`./scripts/lab.sh list` shows which cluster each exercise runs on. Most use `cka-practice`. The control-plane labs (09, 10, 11, 29) use `cka-ops`, 27 uses `cka-cni`, and 18/26 use `cka-runtime`. Create those with `./scripts/init-cluster.sh --profile ops|cni|runtime`. YAML files you write inside `exercises/` are gitignored.
 
 Every exercise assumes you have a running cluster (kind, minikube, or kubeadm) and the aliases from [`scripts/exam-setup.sh`](../scripts/exam-setup.sh).

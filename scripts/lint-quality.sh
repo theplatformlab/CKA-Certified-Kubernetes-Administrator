@@ -19,8 +19,8 @@ lint_warnings=0
 
 # --- Utility functions ---
 lint_ok() { echo -e "${GREEN}✓${NC} $1"; }
-lint_error() { echo -e "${RED}✗${NC} $1"; ((lint_errors++)); }
-lint_warning() { echo -e "${YELLOW}⚠${NC} $1"; ((lint_warnings++)); }
+lint_error() { echo -e "${RED}✗${NC} $1"; lint_errors=$((lint_errors + 1)); }
+lint_warning() { echo -e "${YELLOW}⚠${NC} $1"; lint_warnings=$((lint_warnings + 1)); }
 print_section() { echo -e "\n${BLUE}=== $1 ===${NC}\n"; }
 
 # --- Exercise Content Quality Checks ---
@@ -39,7 +39,7 @@ for exercise_dir in "$EXERCISES_DIR"/[0-9]*-*/; do
   fi
 
   # Check for vague or incomplete task descriptions
-  if grep -q "TODO\|FIXME\|XXX\|...\|to be continued" "$readme" -i; then
+  if grep -qF -e TODO -e FIXME -e XXX -e "to be continued" "$readme" -i; then
     lint_warning "$exercise: Contains incomplete placeholders (TODO/FIXME/...)"
   fi
 
@@ -112,7 +112,7 @@ for exercise_dir in "$EXERCISES_DIR"/[0-9]*-*/; do
 
   if [ "$trap_mentions" -gt 0 ]; then
     lint_ok "$exercise: $trap_mentions trap concept(s) documented"
-    ((trap_coverage++))
+    trap_coverage=$((trap_coverage + 1))
     ((total_traps_detected += trap_mentions))
   else
     lint_warning "$exercise: No trap/gotcha concepts documented"
@@ -157,7 +157,7 @@ for exercise_dir in "$EXERCISES_DIR"/[0-9]*-*/; do
 
   if [ "$found_prereq" = true ]; then
     lint_ok "$exercise: Prerequisites/requirements documented"
-    ((prereq_coverage++))
+    prereq_coverage=$((prereq_coverage + 1))
   else
     lint_warning "$exercise: No prerequisites/requirements documented"
   fi
@@ -181,7 +181,7 @@ for exercise_dir in "$EXERCISES_DIR"/[0-9]*-*/; do
 
   # Check if uses consistent naming: kebab-case for resources
   if grep -q "^[[:space:]]*-\|^[[:space:]]*name:" "$readme"; then
-    ((naming_patterns++))
+    naming_patterns=$((naming_patterns + 1))
   fi
 done
 
@@ -207,7 +207,7 @@ for readme in "$EXERCISES_DIR"/[0-9]*-*/README.md; do
   open_count=$(grep -o '```' "$readme" | wc -l)
   if [ $((open_count % 2)) -ne 0 ]; then
     lint_error "$exercise: Unbalanced code blocks (backticks)"
-    ((markdown_errors++))
+    markdown_errors=$((markdown_errors + 1))
   fi
 
   # Check balanced details tags
@@ -215,7 +215,7 @@ for readme in "$EXERCISES_DIR"/[0-9]*-*/README.md; do
   details_close=$(grep -c '</details>' "$readme" || true)
   if [ "$details_open" -ne "$details_close" ]; then
     lint_error "$exercise: Unbalanced <details> tags"
-    ((markdown_errors++))
+    markdown_errors=$((markdown_errors + 1))
   fi
 done
 

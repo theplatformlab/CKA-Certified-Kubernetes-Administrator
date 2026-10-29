@@ -33,11 +33,11 @@ If this was useful, a star helps others find it.
 
 If you're time-pressured, here's the fast track:
 
-1. **Start a practice cluster** _(if needed)_ — if `kubectl` says connection refused or you don't have a local cluster yet: `bash scripts/init-cluster.sh`. This creates a kind-based k8s 1.35.1 cluster with one command. [Read more](#local-cluster-setup).
+1. **Start a practice cluster** _(if needed)_ — if `kubectl` says connection refused or you don't have a local cluster yet: `bash scripts/init-cluster.sh`. This creates a kind-based k8s 1.35.1 cluster (1 control plane + 2 workers) with one command. [Read more](#local-cluster-setup--practice-with-kind).
 2. **Run the setup script** — get your aliases and vim config right from day one: [scripts/exam-setup.sh](scripts/exam-setup.sh)
 3. **Do the exercises** — use the [exercise list](exercises/) to choose a domain-focused lab or supplemental practice.
 4. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md) for all skeleton YAML. Copy, paste, modify.
-5. **Do the mock exam** — practice under exam conditions with timed scenarios. See [mock-exams/README.md](mock-exams/README.md) for prep strategy and scoring.
+5. **Do the mock exam** — `./scripts/mock-exam.sh start 1` opens an exam-like environment: question panel, terminal, docs-only browser, timer and automatic grading. See [mock-exams/README.md](mock-exams/README.md).
 6. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
 7. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
 
@@ -83,16 +83,22 @@ CKA-Certified-Kubernetes-Administrator/
 │   └── 32-service-endpoints-troubleshooting/
 ├── TEMPLATES.md                       # All YAML templates in collapsible format
 ├── skeletons/                         # 23 YAML template files (see TEMPLATES.md)
-├── mock-exams/                        # Full practice exams (15 questions, 2 hours each)
+├── mock-exams/                        # Full practice exams (15-16 questions, 2 hours each)
 │   ├── MOCK-EXAM-01.md               # Practice questions
 │   ├── MOCK-EXAM-01-SOLUTIONS.md    # Complete solutions and explanations
 │   ├── MOCK-EXAM-02.md
-│   └── MOCK-EXAM-02-SOLUTIONS.md
+│   ├── MOCK-EXAM-02-SOLUTIONS.md
+│   └── exam-01/, exam-02/            # Per-question setup + validator scripts
 ├── cheatsheet/
 │   └── cka-cheatsheet.md              # One-page printable reference
 ├── troubleshooting/
 │   └── README.md                      # Symptom-based lookup playbook
 ├── scripts/
+│   ├── init-cluster.sh               # kind clusters (profiles in config/)
+│   ├── lab.sh                        # Exercise setup / check / cleanup
+│   ├── mock-exam.sh                  # Exam simulator with automatic grading
+│   ├── exam/                         # Question panel, docs-only proxy, ssh shim
+│   ├── lib/                          # Shared helpers for the validators
 │   ├── exam-setup.sh                 # Aliases, vim config, bash completion
 │   └── validate-local.sh             # Local YAML validation (run before pushing)
 ├── .github/
@@ -166,38 +172,62 @@ bash scripts/init-cluster.sh
 ```
 
 **What it does:**
-- ✅ Detects your OS and architecture (x86_64, aarch64, etc.)
 - ✅ Auto-installs `kind` if missing (v0.31.0)
 - ✅ Validates Docker is running
-- ✅ Creates a named cluster `cka-practice` with k8s 1.35.1
+- ✅ Creates cluster `cka-practice` (k8s 1.35.1, 1 control plane + 2 workers)
 - ✅ Configures kubeconfig automatically
 - ✅ Prints next steps on success
 
-### Detailed Setup (if needed manually)
+### Cluster Profiles
+
+Some exercises need a cluster you can break or rebuild. Each profile is a separate kind cluster with its own config in [`scripts/config/`](scripts/config/):
+
+| Profile | Cluster | Used for |
+|---|---|---|
+| `practice` (default) | `cka-practice` | Almost all exercises |
+| `ops` | `cka-ops` | kubeadm upgrade, static pods, broken control plane, etcd (09, 10, 11, 29). Every node has the pkgs.k8s.io apt repo for the **next** minor version, so `apt-get install kubeadm=1.36.x-*` + `kubeadm upgrade apply` work like on a real kubeadm cluster. etcdctl is installed. |
+| `cni` | `cka-cni` | Created without a CNI, so you install Calico yourself (27) |
+| `runtime` | `cka-runtime` | Docker Engine + cri-dockerd on a node (18, 26) |
+
+```bash
+bash scripts/init-cluster.sh                     # practice
+bash scripts/init-cluster.sh --profile ops       # ops (recreate it after each upgrade run)
+bash scripts/init-cluster.sh --profile ops --recreate
+bash scripts/init-cluster.sh --help
+```
 
 **Prerequisites:**
 - [Docker](https://docs.docker.com/get-docker/) — installed and running
 - `kubectl` — installed (via [official docs](https://kubernetes.io/docs/tasks/tools/) or `brew install kubectl`)
-- ~5 GB free disk space
-- ~2GB free RAM (kind cluster runs in that)
+- `jq` and `helm` for some validators, `tmux` and `python3` for the mock exam
+- ~5 GB free disk space, ~2 GB RAM per cluster
 
-**Script Options:**
+**Running several clusters:** each kind node uses inotify instances. If a second cluster fails with `too many open files` (containerd) or the kubelet never becomes healthy, raise the limits:
 
 ```bash
-# Create a new cluster (or use existing)
-bash scripts/init-cluster.sh
-
-# Recreate the cluster (wipe and start fresh)
-bash scripts/init-cluster.sh --recreate
-
-# Show help
-bash scripts/init-cluster.sh --help
+echo -e 'fs.inotify.max_user_instances=1024\nfs.inotify.max_user_watches=1048576' | sudo tee /etc/sysctl.d/99-kind.conf
+sudo sysctl --system
 ```
+
+If `kind create` fails with `no available IPv4 addresses`, your `kind` docker network has a small IP range. Put the extra clusters on their own network: `KIND_EXPERIMENTAL_DOCKER_NETWORK=kind-labs bash scripts/init-cluster.sh --profile ops`.
+
+### Exercise Setup and Validation
+
+Every exercise has a `lab.sh` with a setup step (namespace, pre-existing or deliberately broken objects) and a validator that checks the end state of your solution:
+
+```bash
+./scripts/lab.sh list          # exercises and the cluster each one uses
+./scripts/lab.sh setup 07      # prepare exercise 07
+./scripts/lab.sh check 07      # ✓/✗ per requirement, exit code 0 when everything passes
+./scripts/lab.sh cleanup 07
+```
+
+The runner always talks to the exercise's cluster (`--context kind-cka-practice`, `kind-cka-ops`, ...), whatever your current context is. Manifests you write inside `exercises/` are gitignored.
 
 **After setup:**
 1. Run the exam-setup script to configure aliases: `bash scripts/exam-setup.sh`
-2. Verify connection: `kubectl get nodes` — should show one node `cka-practice-control-plane`
-3. Start an exercise: `cd exercises/01-pod-basics && cat README.md`
+2. Verify connection: `kubectl get nodes` — should show `cka-practice-control-plane`, `cka-practice-worker` and `cka-practice-worker2`
+3. Start an exercise: `./scripts/lab.sh setup 01`, then follow `exercises/01-pod-basics/README.md`
 
 ### Using Your Own Cluster
 
@@ -3336,7 +3366,9 @@ Track your progress across all CKA domains.
 Two comprehensive practice exams matching real CKA format:
 
 - [Mock Exam 01](mock-exams/MOCK-EXAM-01.md) — 15 questions, 2 hours (answers in [MOCK-EXAM-01-SOLUTIONS.md](mock-exams/MOCK-EXAM-01-SOLUTIONS.md))
-- [Mock Exam 02](mock-exams/MOCK-EXAM-02.md) — 15 questions, 2 hours (answers in [MOCK-EXAM-02-SOLUTIONS.md](mock-exams/MOCK-EXAM-02-SOLUTIONS.md))
+- [Mock Exam 02](mock-exams/MOCK-EXAM-02.md) — 16 questions, 2 hours (answers in [MOCK-EXAM-02-SOLUTIONS.md](mock-exams/MOCK-EXAM-02-SOLUTIONS.md))
+
+Run them in the exam simulator: `./scripts/mock-exam.sh start 1`. It builds fresh exam clusters, prepares every question, and grades the cluster state automatically when you submit or the time runs out.
 
 Each exam:
 - Covers all 5 domains with realistic weight distribution

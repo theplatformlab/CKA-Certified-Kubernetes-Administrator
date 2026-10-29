@@ -28,12 +28,12 @@ print_ok() {
 
 print_error() {
   echo -e "${RED}✗${NC} $1"
-  ((errors++))
+  errors=$((errors + 1))
 }
 
 print_warning() {
   echo -e "${YELLOW}⚠${NC} $1"
-  ((warnings++))
+  warnings=$((warnings + 1))
 }
 
 # --- Check exercise structure ---
@@ -45,7 +45,7 @@ for exercise_dir in "$EXERCISES_DIR"/[0-9]*-*/; do
   fi
 
   exercise_name=$(basename "$exercise_dir")
-  ((checked++))
+  checked=$((checked + 1))
 
   # Check README.md exists
   if [ ! -f "$exercise_dir/README.md" ]; then
@@ -96,9 +96,9 @@ for yaml_file in "$REPO_ROOT/skeletons"/*.yaml; do
   fi
 
   filename=$(basename "$yaml_file")
-  if ! python3 -c "import yaml; yaml.safe_load(open('$yaml_file'))" 2>/dev/null; then
+  if ! python3 -c "import yaml; list(yaml.safe_load_all(open('$yaml_file')))" 2>/dev/null; then
     print_error "Skeleton: $filename has syntax errors"
-    ((skeleton_errors++))
+    skeleton_errors=$((skeleton_errors + 1))
   else
     print_ok "Skeleton: $filename"
   fi
@@ -119,7 +119,7 @@ for yaml_file in "$REPO_ROOT/skeletons"/*.yaml; do
   # Search for references in exercise README files
   if ! grep -r "$skeleton_name" "$EXERCISES_DIR" >/dev/null 2>&1; then
     print_warning "Skeleton '$filename' not referenced in any exercise"
-    ((unused++))
+    unused=$((unused + 1))
   fi
 done
 

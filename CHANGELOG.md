@@ -8,6 +8,20 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Exercise 32: troubleshoot a Service selector mismatch using EndpointSlices, DNS, and HTTP verification.
+- `scripts/lab.sh`: setup / check / cleanup for every exercise; validators check the end state on the live cluster.
+- Cluster profiles in `init-cluster.sh` (`practice`, `ops`, `cni`, `runtime`). The ops cluster has the next-minor pkgs.k8s.io repo on every node for real kubeadm upgrades.
+- `scripts/mock-exam.sh`: exam simulator with fresh clusters, per-question setup, tmux question panel and timer, a docs-only browser and automatic grading with partial credit.
+
+### Changed
+- Both mock exams rewritten: every question is precise, runs on kind and is graded automatically. Mock Exam 02 has 16 questions.
+- Exercise READMEs tightened: exact names, namespaces, images and ports; broken solutions fixed.
+- The practice cluster now has 1 control plane + 2 workers.
+
+### Removed
+- `scripts/run-mock-exam.sh`, replaced by `scripts/mock-exam.sh`.
+
+### Fixed
+- `validate-exercise-structure.sh`, `lint-quality.sh` and `validate-troubleshooting.sh` aborted at the first counter increment under `set -e`. Also fixed the troubleshooting README glob, multi-document skeleton parsing and the placeholder grep.
 
 ---
 

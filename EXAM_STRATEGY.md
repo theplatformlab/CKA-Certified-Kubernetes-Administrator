@@ -301,7 +301,7 @@ Based on pedagogical research and practical testing:
    - ROI: 90% better retention than watching videos
 
 2. **Run mock exams under time pressure**
-   - Use `bash scripts/run-mock-exam.sh 1 120` (sets timer + hides solutions)
+   - Use `./scripts/mock-exam.sh start 1` (exam-like environment, timer, automatic grading)
    - Take score seriously
    - Review wrong answers with GRADING.md rubric
 
@@ -354,7 +354,7 @@ If you see these during practice, you're likely to fail the real exam:
 - [DIAGNOSTICS.md](DIAGNOSTICS.md) — Troubleshooting decision trees by symptom
 - [DIAGNOSTICS.md](DIAGNOSTICS.md) — Troubleshooting flowcharts by symptom
 - [DOMAINS.md](DOMAINS.md) — Domain breakdown + official weights
-- `scripts/run-mock-exam.sh` — Timed mock exam with countdown timer
+- `scripts/mock-exam.sh` — Mock exam simulator with timer and automatic grading
 
 ---
 
