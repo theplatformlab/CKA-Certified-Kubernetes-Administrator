@@ -35,6 +35,8 @@ const (
 	scrHistory
 	scrStats
 	scrClusters
+	scrPaused // exam paused: question hidden, shell locked
+	scrHelp
 )
 
 type (
@@ -87,7 +89,8 @@ type model struct {
 	// current session
 	sess     *Session
 	cur      int
-	vp       viewport.Model
+	vp        viewport.Model
+	vpContent string // what was last put into vp (for Ctrl+F)
 	checking bool
 	armed    string // key that must be pressed twice ("s" solution, "S" submit, "F" finish)
 	saveTick int
@@ -97,6 +100,14 @@ type model struct {
 	detailIdx int
 
 	renderCache map[string]string
+
+	// help screen
+	helpFrom screen
+	// Ctrl+F in the question panel
+	finding   bool
+	findQuery string
+	findLast  string
+	findLine  int
 
 	// cached reads of the history (reloaded every few seconds)
 	cacheAt      time.Time
@@ -223,7 +234,33 @@ func (m *model) onKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	armed := m.armed
 	m.armed = ""
 
+	if m.finding {
+		return m.keyFind(k)
+	}
+	if key == "?" && m.scr != scrHelp && m.scr != scrBusy && m.scr != scrPaused {
+		m.helpFrom, m.scr = m.scr, scrHelp
+		m.vp.SetContent(m.markdown("help", keysHelp))
+		m.vp.GotoTop()
+		return m, nil
+	}
+
 	switch m.scr {
+	case scrHelp:
+		switch key {
+		case "esc", "q", "?":
+			m.scr = m.helpFrom
+			if m.scr == scrSession {
+				m.refreshViewport(false)
+			} else if m.scr == scrDetail {
+				m.refreshDetail()
+			}
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.vp, cmd = m.vp.Update(k)
+		return m, cmd
+	case scrPaused:
+		return m.keyPaused(key)
 	case scrMenu:
 		return m.keyMenu(key)
 	case scrPracticeCfg:
@@ -552,6 +589,7 @@ func switchContext(cluster string) {
 }
 
 func (m *model) resume(s *Session) (tea.Model, tea.Cmd) {
+	unlockShell()
 	m.sess, m.cur = s, 0
 	if s.Mode == "exam" && s.RemainingSec == 0 && time.Now().After(s.Deadline) {
 		m.startGrading()
@@ -589,12 +627,48 @@ func (m *model) resume(s *Session) (tea.Model, tea.Cmd) {
 }
 
 // pauseExam freezes the timer and stops the exam clusters to free memory.
-func (m *model) pauseExam() tea.Cmd {
+// softPause freezes the exam timer, hides the question and locks the shell.
+// The clusters keep running (x on the pause screen stops them too).
+func (m *model) softPause() {
 	s := m.sess
 	s.RemainingSec = max(1, int(time.Until(s.Deadline).Seconds()))
 	s.Status = StatusPaused
 	m.store.Save(s)
-	return m.runBusy("Pausing exam", scrMenu, func(log func(string)) error {
+	lockShell()
+	m.scr = scrPaused
+}
+
+func (m *model) unpause() {
+	s := m.sess
+	s.Deadline = time.Now().Add(time.Duration(s.RemainingSec) * time.Second)
+	s.RemainingSec = 0
+	s.Status = StatusActive
+	m.store.Save(s)
+	unlockShell()
+	m.scr = scrSession
+	m.refreshViewport(false)
+}
+
+func (m *model) keyPaused(key string) (tea.Model, tea.Cmd) {
+	switch key {
+	case "u", "U", "enter":
+		m.unpause()
+	case "x", "X":
+		unlockShell()
+		return m, m.stopExamClusters()
+	case "m", "M":
+		unlockShell()
+		m.scr, m.cursor = scrMenu, 0
+		m.invalidate()
+	}
+	return m, nil
+}
+
+// stopExamClusters shuts the paused exam's clusters down to free memory;
+// "Continue" in the menu starts them again.
+func (m *model) stopExamClusters() tea.Cmd {
+	s := m.sess
+	return m.runBusy("Shutting down the exam clusters", scrMenu, func(log func(string)) error {
 		browser("stop")
 		for _, p := range sessionProfiles(s, m.items) {
 			log("Stopping cluster " + s.Clusters[p] + " ...")
@@ -602,7 +676,7 @@ func (m *model) pauseExam() tea.Cmd {
 				return err
 			}
 		}
-		log(fmt.Sprintf("Paused with %s left. Continue from the menu.", fmtDur(time.Duration(s.RemainingSec)*time.Second)))
+		log(fmt.Sprintf("Exam paused with %s left. Continue from the menu.", fmtDur(time.Duration(s.RemainingSec)*time.Second)))
 		return nil
 	})
 }
@@ -728,13 +802,12 @@ func (m *model) keySession(k tea.KeyMsg, armed string) (tea.Model, tea.Cmd) {
 		si.SolutionViewed = true
 		m.store.Save(s)
 		m.refreshViewport(false)
+	case "ctrl+f":
+		m.finding, m.findQuery = true, ""
 	case "P":
 		if !practice {
-			if armed != "P" {
-				m.armed, m.flash = "P", "Press P again to pause: the timer stops and the exam clusters are shut down until you continue"
-				break
-			}
-			return m, m.pauseExam()
+			m.softPause()
+			break
 		}
 		s.Status = StatusPaused
 		m.store.Save(s)
@@ -826,6 +899,7 @@ func (m *model) refreshViewport(top bool) {
 		content += "\n" + renderChecks(si.Checks)
 	}
 	m.vp.SetContent(content)
+	m.vpContent = content
 	if top {
 		m.vp.GotoTop()
 	}
@@ -852,6 +926,50 @@ func renderChecks(checks []CheckResult) string {
 	}
 	return b.String()
 }
+
+// keyFind: typing a search term for Ctrl+F (Enter searches, Esc cancels;
+// Ctrl+F + Enter on an empty term jumps to the next match of the last one).
+func (m *model) keyFind(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch k.Type {
+	case tea.KeyEsc:
+		m.finding = false
+	case tea.KeyEnter:
+		m.finding = false
+		q := m.findQuery
+		if q == "" {
+			q = m.findLast
+		} else {
+			m.findLine = -1
+		}
+		if q == "" {
+			return m, nil
+		}
+		m.findLast = q
+		all := strings.Split(stripANSI(m.currentContent()), "\n")
+		for i := 1; i <= len(all); i++ {
+			n := (m.findLine + i) % len(all)
+			if strings.Contains(strings.ToLower(all[n]), strings.ToLower(q)) {
+				m.findLine = n
+				m.vp.SetYOffset(max(0, n-2))
+				m.flash = fmt.Sprintf("found %q (Ctrl+F, Enter: next)", q)
+				return m, nil
+			}
+		}
+		m.flash = fmt.Sprintf("%q not found", q)
+	case tea.KeyBackspace:
+		if r := []rune(m.findQuery); len(r) > 0 {
+			m.findQuery = string(r[:len(r)-1])
+		}
+	case tea.KeySpace:
+		m.findQuery += " "
+	case tea.KeyRunes:
+		m.findQuery += string(k.Runes)
+	}
+	return m, nil
+}
+
+// currentContent: the text in the question viewport.
+func (m *model) currentContent() string { return m.vpContent }
 
 // ---- Results ---------------------------------------------------------------------
 
@@ -965,7 +1083,7 @@ func (m *model) View() string {
 	var footer string
 	switch m.scr {
 	case scrMenu:
-		body, footer = m.viewMenu(), "↑/↓ select · enter open · q quit"
+		body, footer = m.viewMenu(), "↑/↓ select · enter open · ? keys · q quit"
 	case scrPracticeCfg:
 		body, footer = m.viewPracticeCfg(), "↑/↓ row · ←/→ change · enter start · esc back"
 	case scrPickItems:
@@ -979,6 +1097,10 @@ func (m *model) View() string {
 		}
 	case scrSession:
 		return m.viewSession()
+	case scrPaused:
+		return m.viewPaused()
+	case scrHelp:
+		return m.vp.View() + "\n" + stDim.Render("↑/↓ scroll · esc back")
 	case scrOverview:
 		body, footer = m.viewOverview(), "enter jump · esc back"
 	case scrResults:
@@ -1160,13 +1282,16 @@ func (m *model) viewSession() string {
 	gap := max(1, m.width-lipgloss.Width(left)-lipgloss.Width(right))
 	header := bar.Render(left + strings.Repeat(" ", gap) + right)
 
-	keys := "n/p · ↑/↓ · f flag · o overview · P P pause · S S submit · q menu (timer runs)"
+	keys := "n/p · ↑/↓ · ^F find · f flag · o overview · P pause · S S submit · ? keys"
 	if s.Mode == "practice" {
-		keys = "n/p · ↑/↓ · h hint · c check · s s solution · o overview · P pause · F F finish"
+		keys = "n/p · ↑/↓ · h hint · c check · s s solution · o overview · P pause · F F finish · ? keys"
 	}
 	footer := stDim.Render(keys)
 	if m.flash != "" {
 		footer = stWarn.Render(m.flash)
+	}
+	if m.finding {
+		footer = stSel.Render("find: " + m.findQuery + "▏") + stDim.Render("  (enter search · esc cancel)")
 	}
 	return header + "\n" + m.vp.View() + "\n" + footer
 }
@@ -1356,4 +1481,18 @@ func weightPercent(s *Session, si *SessionItem) int {
 		return 0
 	}
 	return (si.Weight*100 + total/2) / total
+}
+
+func (m *model) viewPaused() string {
+	s := m.sess
+	left := fmtDur(time.Duration(s.RemainingSec) * time.Second)
+	box := lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).Padding(1, 4).BorderForeground(lipgloss.Color("214"))
+	body := stTitle.Render("EXAM PAUSED") + "\n\n" +
+		fmt.Sprintf("Time left: %s (frozen)\n", left) +
+		"The question and the shell are hidden until you resume.\n\n" +
+		stSel.Render("u") + "  resume the exam\n" +
+		stSel.Render("x") + "  also shut down the exam clusters (frees memory; Continue from the menu starts them again)\n" +
+		stSel.Render("m") + "  back to the menu, clusters keep running, timer stays paused"
+	out := box.Width(min(m.width-4, 90)).Render(body)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, out)
 }

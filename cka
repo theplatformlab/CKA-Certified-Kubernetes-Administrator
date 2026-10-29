@@ -61,6 +61,18 @@ fi
 # server-wide option; 10 ms is what most vim users configure anyway.
 tmux set -s escape-time 10
 
+# Key behaviour of the real exam terminal (docs.linuxfoundation.org/tc-docs/
+# certification/tips-cka-and-ckad), only inside this session:
+#   Ctrl+W does nothing (on the exam it would close the browser tab),
+#   Ctrl+Alt+W deletes the previous word instead, the Insert key is disabled.
+# Mouse selections are copied to the system clipboard (OSC 52), so selecting
+# + Ctrl+Shift+V works like on the exam desktop.
+in_lab="#{==:#{session_name},$SESSION}"
+tmux bind -n C-w if -F "$in_lab" "" "send-keys C-w"
+tmux bind -n C-M-w if -F "$in_lab" "send-keys C-w" "send-keys C-M-w"
+tmux bind -n IC if -F "$in_lab" "" "send-keys IC"
+tmux set -s set-clipboard on
+
 if ! tmux list-panes -s -t "$SESSION" -F '#{pane_title}' | grep -qx cka-app; then
   tmux split-window -t "$SESSION:lab" -h -b -l 50% "$app_cmd"
   tmux select-pane -t "$SESSION:lab" -T cka-app

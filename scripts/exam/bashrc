@@ -8,6 +8,8 @@ EXAM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="$EXAM_DIR/bin:$PATH"
 
 alias k=kubectl
+# Key reference (exam environment, lab layout, question panel).
+alias exam-help="'$EXAM_DIR/../../bin/cka' keys"
 source <(kubectl completion bash)
 complete -o default -F __start_kubectl k
 

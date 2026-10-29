@@ -6,6 +6,7 @@
 //	cka gen exam [min] [questions]  preview a generated exam (nothing is created)
 //	cka gen practice [domain] [count]
 //	cka render <id>     print an item's task as the app shows it
+//	cka keys            the key reference (exam environment, lab, app)
 package main
 
 import (
@@ -31,7 +32,9 @@ func main() {
 	args := os.Args[1:]
 	if len(args) == 0 || args[0] == "ui" {
 		prog = tea.NewProgram(newModel(items, store), tea.WithAltScreen())
-		if _, err := prog.Run(); err != nil {
+		_, err := prog.Run()
+		unlockShell() // never leave the shell locked behind (exam pause screen)
+		if err != nil {
 			fail(err)
 		}
 		return
@@ -74,6 +77,8 @@ func main() {
 			fail(err)
 		}
 		fmt.Print(describePicks(picks))
+	case "keys":
+		fmt.Print(keysHelp)
 	case "render":
 		if len(args) < 2 {
 			fail(fmt.Errorf("usage: cka render <item-id>"))
@@ -97,7 +102,7 @@ func main() {
 		}
 		fmt.Printf("\n--- solution: %d chars, notes: %d chars ---\n", len(doc.Solution), len(doc.Notes))
 	default:
-		fail(fmt.Errorf("unknown command %q (ui, list, gen, render)", args[0]))
+		fail(fmt.Errorf("unknown command %q (ui, list, gen, render, keys)", args[0]))
 	}
 }
 
