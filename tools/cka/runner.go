@@ -246,6 +246,29 @@ func clusterContainers(name string) (first, rest []string) {
 	return first, rest
 }
 
+// clusterStates returns "running" or "stopped" for every kind cluster, from a
+// single docker call (asking per cluster took seconds on the Clusters screen).
+func clusterStates() map[string]string {
+	out, err := exec.Command("docker", "ps", "-a", "--filter", "label=io.x-k8s.kind.cluster",
+		"--format", `{{.Label "io.x-k8s.kind.cluster"}} {{.State}}`).Output()
+	states := map[string]string{}
+	if err != nil {
+		return states
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		name, state, ok := strings.Cut(line, " ")
+		if !ok {
+			continue
+		}
+		if state == "running" {
+			states[name] = "running"
+		} else if states[name] == "" {
+			states[name] = "stopped"
+		}
+	}
+	return states
+}
+
 // clusterRunning: true if the cluster exists and its containers are up.
 func clusterRunning(name string) bool {
 	out, err := exec.Command("docker", "ps", "--filter", "label=io.x-k8s.kind.cluster="+name, "-q").Output()

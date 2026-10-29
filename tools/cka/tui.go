@@ -129,15 +129,7 @@ func (m *model) openSession() *Session {
 }
 
 func (m *model) refreshClusters() {
-	m.clusterState = map[string]string{}
-	for _, r := range clusterRows() {
-		switch {
-		case clusterRunning(r.name):
-			m.clusterState[r.name] = "running"
-		case clusterExists(r.name):
-			m.clusterState[r.name] = "stopped"
-		}
-	}
+	m.clusterState = clusterStates()
 }
 
 var counts = []int{1, 3, 5, 10}
@@ -1313,7 +1305,7 @@ func (m *model) viewClusters() string {
 		case "stopped":
 			state = stWarn.Render("stopped")
 		}
-		b.WriteString(cursorLine(i == m.cursor, fmt.Sprintf("%-14s %-9s %s", r.name, r.profile, state)) + "\n")
+		b.WriteString(cursorLine(i == m.cursor, fmt.Sprintf("%-18s %-9s %s", r.name, r.profile, state)) + "\n")
 	}
 	b.WriteString("\n" + stDim.Render("Stopped clusters keep their state and use no memory. Sessions start or create\nthe clusters they need; exams always recreate cka-exam*. Pausing an exam stops them."))
 	return b.String()
