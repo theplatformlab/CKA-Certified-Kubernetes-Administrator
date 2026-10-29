@@ -44,8 +44,11 @@ spec:
   - port: 80
     targetPort: 80
 EOF
-  if ! kc get pod netcheck -n "$NS" >/dev/null 2>&1; then
-    kc run netcheck -n "$NS" --image=busybox:1.37 --restart=Never --command -- sleep 86400
+  # restartPolicy Always (kubectl run's default): the pod must survive the
+  # node restarts of a paused and resumed exam. A dead one is replaced.
+  if [[ "$(jp -n "$NS" pod netcheck '{.status.phase}')" != Running ]]; then
+    kc delete pod netcheck -n "$NS" --ignore-not-found --wait=true >/dev/null
+    kc run netcheck -n "$NS" --image=busybox:1.37 --command -- sleep 86400
   fi
   kc rollout status deployment/payments -n "$NS" --timeout=120s
   kc wait pod/netcheck -n "$NS" --for=condition=Ready --timeout=120s
