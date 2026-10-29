@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 var repoRoot string
@@ -223,6 +224,89 @@ func createCluster(profile, name, network string, recreate bool, out io.Writer) 
 	return cmd.Run()
 }
 
+// Cluster containers by role: load balancer and control planes first when
+// starting (the API server must come up before the kubelets reconnect).
+func clusterContainers(name string) (first, rest []string) {
+	out, err := exec.Command("docker", "ps", "-a", "--filter", "label=io.x-k8s.kind.cluster="+name,
+		"--format", `{{.Names}} {{.Label "io.x-k8s.kind.role"}}`).Output()
+	if err != nil {
+		return nil, nil
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		f := strings.Fields(line)
+		if len(f) == 0 {
+			continue
+		}
+		if len(f) > 1 && (f[1] == "control-plane" || f[1] == "external-load-balancer") {
+			first = append(first, f[0])
+		} else {
+			rest = append(rest, f[0])
+		}
+	}
+	return first, rest
+}
+
+// clusterRunning: true if the cluster exists and its containers are up.
+func clusterRunning(name string) bool {
+	out, err := exec.Command("docker", "ps", "--filter", "label=io.x-k8s.kind.cluster="+name, "-q").Output()
+	return err == nil && len(bytes.TrimSpace(out)) > 0
+}
+
+// stopCluster stops the node containers (state is kept, memory is freed).
+func stopCluster(name string) error {
+	first, rest := clusterContainers(name)
+	all := append(rest, first...)
+	if len(all) == 0 {
+		return nil
+	}
+	return exec.Command("docker", append([]string{"stop", "-t", "20"}, all...)...).Run()
+}
+
+// startCluster starts a stopped cluster and waits until the API server answers
+// and all nodes are Ready again.
+func startCluster(name string, log func(string)) error {
+	first, rest := clusterContainers(name)
+	if len(first)+len(rest) == 0 {
+		return fmt.Errorf("cluster %s does not exist", name)
+	}
+	log("Starting cluster " + name + " ...")
+	if err := exec.Command("docker", append([]string{"start"}, first...)...).Run(); err != nil {
+		return err
+	}
+	if len(rest) > 0 {
+		if err := exec.Command("docker", append([]string{"start"}, rest...)...).Run(); err != nil {
+			return err
+		}
+	}
+	ctx := "kind-" + name
+	for i := 0; i < 90; i++ {
+		if exec.Command("kubectl", "--context", ctx, "--request-timeout=5s", "get", "--raw", "/readyz").Run() == nil {
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+	err := exec.Command("kubectl", "--context", ctx, "wait", "--for=condition=Ready", "nodes", "--all", "--timeout=180s").Run()
+	if err != nil {
+		return fmt.Errorf("cluster %s did not become ready", name)
+	}
+	log("Cluster " + name + " is up")
+	return nil
+}
+
+// Profiles used by a session's items.
+func sessionProfiles(s *Session, items []*Item) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, si := range s.Items {
+		if it := findItem(items, si.ItemID); it != nil && !seen[it.Cluster] {
+			seen[it.Cluster] = true
+			out = append(out, it.Cluster)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func deleteCluster(name string, out io.Writer) error {
 	cmd := exec.Command("kind", "delete", "cluster", "--name", name)
 	cmd.Stdout, cmd.Stderr = out, out
@@ -262,7 +346,13 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 			return fmt.Errorf("no cluster for profile %s", p)
 		}
 		if !fresh && clusterExists(name) {
-			log(fmt.Sprintf("Cluster %s is up", name))
+			if !clusterRunning(name) {
+				if err := startCluster(name, log); err != nil {
+					return err
+				}
+			} else {
+				log(fmt.Sprintf("Cluster %s is up", name))
+			}
 			continue
 		}
 		log(fmt.Sprintf("Creating cluster %s (profile %s) — takes 1-2 minutes ...", name, p))

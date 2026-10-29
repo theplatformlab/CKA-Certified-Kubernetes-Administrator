@@ -101,7 +101,7 @@ type model struct {
 	cacheAt      time.Time
 	cacheStats   map[string]ItemStat
 	cacheList    []*Session
-	clusterState map[string]bool
+	clusterState map[string]string // name -> running | stopped | ""
 }
 
 func (m *model) invalidate() { m.cacheAt = time.Time{} }
@@ -128,9 +128,14 @@ func (m *model) openSession() *Session {
 }
 
 func (m *model) refreshClusters() {
-	m.clusterState = map[string]bool{}
+	m.clusterState = map[string]string{}
 	for _, r := range clusterRows() {
-		m.clusterState[r.name] = clusterExists(r.name)
+		switch {
+		case clusterRunning(r.name):
+			m.clusterState[r.name] = "running"
+		case clusterExists(r.name):
+			m.clusterState[r.name] = "stopped"
+		}
 	}
 }
 
@@ -335,6 +340,17 @@ func (m *model) menuEntries() []menuEntry {
 	var e []menuEntry
 	if open := m.openSession(); open != nil {
 		label := fmt.Sprintf("Continue %s session (%d items, started %s)", open.Mode, len(open.Items), open.Created.Format("Jan 2 15:04"))
+		if open.Mode == "exam" {
+			left := time.Until(open.Deadline)
+			if open.RemainingSec > 0 {
+				left = time.Duration(open.RemainingSec) * time.Second
+				label += fmt.Sprintf(" — paused, %s left", fmtDur(left))
+			} else if left > 0 {
+				label += fmt.Sprintf(" — running, %s left", fmtDur(left))
+			} else {
+				label += " — time is up, grade it"
+			}
+		}
 		e = append(e, menuEntry{label, func() (tea.Model, tea.Cmd) { return m.resume(open) }})
 	}
 	e = append(e,
@@ -537,15 +553,56 @@ func switchContext(cluster string) {
 
 func (m *model) resume(s *Session) (tea.Model, tea.Cmd) {
 	m.sess, m.cur = s, 0
-	s.Status = StatusActive
-	m.store.Save(s)
-	if s.Mode == "exam" && time.Now().After(s.Deadline) {
+	if s.Mode == "exam" && s.RemainingSec == 0 && time.Now().After(s.Deadline) {
 		m.startGrading()
 		return m, nil
 	}
-	m.scr = scrSession
-	m.refreshViewport(true)
-	return m, nil
+	return m, m.runBusy("Resuming "+s.Mode+" session", scrSession, func(log func(string)) error {
+		// Paused sessions may have stopped clusters (exam pause stops them).
+		for _, p := range sessionProfiles(s, m.items) {
+			name := s.Clusters[p]
+			if !clusterExists(name) {
+				return fmt.Errorf("cluster %s no longer exists — the session can't be resumed", name)
+			}
+			if !clusterRunning(name) {
+				if err := startCluster(name, log); err != nil {
+					return err
+				}
+			}
+		}
+		if s.Mode == "exam" && s.RemainingSec > 0 {
+			s.Deadline = time.Now().Add(time.Duration(s.RemainingSec) * time.Second)
+			s.RemainingSec = 0
+			if os.Getenv("CKA_NO_BROWSER") == "" {
+				if err := browser("start"); err != nil {
+					log("Docs browser not started: " + err.Error())
+				}
+			}
+		}
+		switchContext(s.Clusters["practice"])
+		s.Status = StatusActive
+		m.store.Save(s)
+		return nil
+	})
+}
+
+// pauseExam freezes the timer and stops the exam clusters to free memory.
+func (m *model) pauseExam() tea.Cmd {
+	s := m.sess
+	s.RemainingSec = max(1, int(time.Until(s.Deadline).Seconds()))
+	s.Status = StatusPaused
+	m.store.Save(s)
+	return m.runBusy("Pausing exam", scrMenu, func(log func(string)) error {
+		browser("stop")
+		for _, p := range sessionProfiles(s, m.items) {
+			log("Stopping cluster " + s.Clusters[p] + " ...")
+			if err := stopCluster(s.Clusters[p]); err != nil {
+				return err
+			}
+		}
+		log(fmt.Sprintf("Paused with %s left. Continue from the menu.", fmtDur(time.Duration(s.RemainingSec)*time.Second)))
+		return nil
+	})
 }
 
 // runBusy runs fn in the background and shows its log; on success the app
@@ -567,6 +624,13 @@ func (m *model) startGrading() {
 	s.Status = StatusPaused // not "active": the timer must stop while grading
 	m.viewSess = s
 	cmd := m.runBusy("Grading ...", scrResults, func(log func(string)) error {
+		for _, p := range sessionProfiles(s, m.items) {
+			if name := s.Clusters[p]; clusterExists(name) && !clusterRunning(name) {
+				if err := startCluster(name, log); err != nil {
+					return err
+				}
+			}
+		}
 		for i, si := range s.Items {
 			it := findItem(m.items, si.ItemID)
 			if it == nil {
@@ -661,8 +725,11 @@ func (m *model) keySession(k tea.KeyMsg, armed string) (tea.Model, tea.Cmd) {
 		m.refreshViewport(false)
 	case "P":
 		if !practice {
-			m.flash = "An exam can't be paused"
-			break
+			if armed != "P" {
+				m.armed, m.flash = "P", "Press P again to pause: the timer stops and the exam clusters are shut down until you continue"
+				break
+			}
+			return m, m.pauseExam()
 		}
 		s.Status = StatusPaused
 		m.store.Save(s)
@@ -843,6 +910,22 @@ func (m *model) keyClusters(key, armed string) (tea.Model, tea.Cmd) {
 			log("Done")
 			return nil
 		})
+	case "s":
+		row := rows[m.cursor]
+		if m.clusterState[row.name] != "running" {
+			return m, nil
+		}
+		return m, m.runBusy("Stopping "+row.name, scrClusters, func(log func(string)) error {
+			return stopCluster(row.name)
+		})
+	case "u":
+		row := rows[m.cursor]
+		if m.clusterState[row.name] != "stopped" {
+			return m, nil
+		}
+		return m, m.runBusy("Starting "+row.name, scrClusters, func(log func(string)) error {
+			return startCluster(row.name, log)
+		})
 	case "d":
 		row := rows[m.cursor]
 		if armed != "d" {
@@ -901,7 +984,7 @@ func (m *model) View() string {
 	case scrStats:
 		body, footer = m.viewStats(), "esc back"
 	case scrClusters:
-		body, footer = m.viewClusters(), "c create · r recreate · d delete · esc back"
+		body, footer = m.viewClusters(), "c create · u start · s stop · r recreate · d delete · esc back"
 	}
 	if m.flash != "" {
 		footer = stWarn.Render(m.flash)
@@ -1056,7 +1139,7 @@ func (m *model) viewSession() string {
 	gap := max(1, m.width-lipgloss.Width(left)-lipgloss.Width(right))
 	header := bar.Render(left + strings.Repeat(" ", gap) + right)
 
-	keys := "n/p next/prev · ↑/↓ scroll · f flag · o overview · S S submit · q menu"
+	keys := "n/p · ↑/↓ · f flag · o overview · P P pause · S S submit · q menu (timer runs)"
 	if s.Mode == "practice" {
 		keys = "n/p · ↑/↓ · h hint · c check · s s solution · o overview · P pause · F F finish"
 	}
@@ -1199,12 +1282,15 @@ func (m *model) viewClusters() string {
 	b.WriteString(stTitle.Render("Clusters") + "\n\n")
 	for i, r := range clusterRows() {
 		state := stDim.Render("not created")
-		if m.clusterState[r.name] {
+		switch m.clusterState[r.name] {
+		case "running":
 			state = stOK.Render("running")
+		case "stopped":
+			state = stWarn.Render("stopped")
 		}
 		b.WriteString(cursorLine(i == m.cursor, fmt.Sprintf("%-14s %-9s %s", r.name, r.profile, state)) + "\n")
 	}
-	b.WriteString("\n" + stDim.Render("Practice sessions create missing clusters automatically; exams always recreate cka-exam*."))
+	b.WriteString("\n" + stDim.Render("Stopped clusters keep their state and use no memory. Sessions start or create\nthe clusters they need; exams always recreate cka-exam*. Pausing an exam stops them."))
 	return b.String()
 }
 

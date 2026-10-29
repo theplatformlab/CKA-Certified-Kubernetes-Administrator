@@ -16,7 +16,7 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 | Selection | N items (1/3/5/10), optionally from one domain, or items you pick yourself | Generated, weighted like the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10% |
 | Time | Soft: each item shows its recommended time next to your time on it | Hard countdown (120/90/60 min); grading starts automatically at 0 |
 | Help | Hints one at a time (`h`), check any time (`c`), solution on demand (`s s`) | None. Only the docs-only browser (kubernetes.io, helm.sh, gateway-api.sigs.k8s.io) |
-| Pause | `P` pauses, and the menu offers "Continue" later. Clusters keep their state | No pause; `q` leaves the panel while the timer keeps running |
+| Pause | `P` pauses; the menu offers "Continue" later, and clusters keep running | `P P` freezes the timer and stops the exam clusters, freeing memory. "Continue" starts them again (~1 min) and the timer resumes. `q` leaves the panel with the timer still running |
 | Clusters | Persistent `cka-practice`, `cka-ops`, `cka-cni`, `cka-runtime`, `cka-ha`, created on demand | Fresh `cka-exam`, `cka-exam-ops`, and `cka-exam-cni/-runtime/-ha` when an item needs one; built in parallel on their own docker network |
 | End | `F F` grades all items, then cleans them up | `S S` submits; the exam clusters stay up so you can inspect them |
 
@@ -41,7 +41,7 @@ Session panel:
 | `s s` | show the solution (practice; recorded as "solution viewed") |
 | `f` | flag the item |
 | `o` | overview of all items |
-| `P` | pause (practice) |
+| `P` / `P P` | pause (practice) / pause the exam: timer frozen, clusters stopped |
 | `F F` / `S S` | finish the practice session / submit the exam |
 | `q` | back to the menu |
 
@@ -50,7 +50,7 @@ In the shell pane, `k` and kubectl completion are set up. `ssh <node>` opens a r
 The menu also has:
 - **History:** every session with its score. Open one to see each item's checks, the task with your values, and the solution. Paused sessions can be resumed from there.
 - **Statistics:** new, failed and passed items per domain, plus your last exam scores.
-- **Clusters:** create, recreate or delete the lab and exam clusters.
+- **Clusters:** create, start, stop, recreate or delete the lab and exam clusters. A stopped cluster keeps its state and uses no memory.
 
 History is stored in `~/.local/share/cka-lab/sessions/` (one JSON file per session).
 

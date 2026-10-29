@@ -73,6 +73,8 @@ type Session struct {
 	DurationMin int               `json:"durationMin,omitempty"`
 	Deadline    time.Time         `json:"deadline,omitempty"`
 	ElapsedSec  int               `json:"elapsedSec"`
+	// RemainingSec freezes an exam's timer while it is paused.
+	RemainingSec int              `json:"remainingSec,omitempty"`
 	Clusters    map[string]string `json:"clusters"`
 	Network     string            `json:"network,omitempty"`
 	Items       []*SessionItem    `json:"items"`
