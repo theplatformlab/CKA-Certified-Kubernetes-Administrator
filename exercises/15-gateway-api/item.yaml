@@ -1,0 +1,8 @@
+title: Gateway API
+domain: networking
+difficulty: 2
+minutes: 20
+weight: 10
+modes: [practice, exam]
+namespaces: [exercise-15]
+conflicts: [gateway-api-crds]

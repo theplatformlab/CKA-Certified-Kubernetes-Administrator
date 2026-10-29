@@ -1,0 +1,8 @@
+title: Node maintenance
+domain: architecture
+difficulty: 1
+minutes: 6
+weight: 6
+modes: [practice, exam]
+namespaces: [maintenance]
+conflicts: [worker2-drain]

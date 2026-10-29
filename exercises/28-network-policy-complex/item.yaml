@@ -1,0 +1,7 @@
+title: Complex NetworkPolicy
+domain: networking
+difficulty: 3
+minutes: 25
+weight: 12
+modes: [practice, exam]
+namespaces: [frontend, backend, database]

@@ -1,0 +1,7 @@
+title: Install a local Helm chart
+domain: architecture
+difficulty: 1
+minutes: 8
+weight: 7
+modes: [practice, exam]
+namespaces: [monitoring]

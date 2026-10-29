@@ -1,0 +1,7 @@
+title: Pod Security Standards
+domain: architecture
+difficulty: 2
+minutes: 8
+weight: 7
+modes: [practice, exam]
+namespaces: [restricted]

@@ -1,0 +1,8 @@
+title: Node Drain & Cordon
+domain: architecture
+difficulty: 1
+minutes: 10
+weight: 5
+modes: [practice, exam]
+namespaces: [exercise-08]
+conflicts: [worker2-drain]

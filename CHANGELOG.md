@@ -10,15 +10,17 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Exercise 32: troubleshoot a Service selector mismatch using EndpointSlices, DNS, and HTTP verification.
 - `scripts/lab.sh`: setup / check / cleanup for every exercise; validators check the end state on the live cluster.
 - Cluster profiles in `init-cluster.sh` (`practice`, `ops`, `cni`, `runtime`). The ops cluster has the next-minor pkgs.k8s.io repo on every node for real kubeadm upgrades.
-- `scripts/mock-exam.sh`: exam simulator with fresh clusters, per-question setup, tmux question panel and timer, a docs-only browser and automatic grading with partial credit.
+- `./cka` (Go app in `tools/cka`): practice sessions and generated mock exams from one item pool (exercises + `questions/`). Curriculum-weighted selection that prefers unseen and failed items, parametrized items, hints and checks on demand, pause/resume, history and statistics in `~/.local/share/cka-lab`.
+- `questions/`: the former Mock Exam 01/02 questions as pool items with hints, plus new items for curriculum gaps.
+- `ha` cluster profile (3 control planes) for highly-available control plane tasks.
 
 ### Changed
-- Both mock exams rewritten: every question is precise, runs on kind and is graded automatically. Mock Exam 02 has 16 questions.
+- Fixed mock exams replaced by generated exams; the old questions were rewritten to be precise, kind-compatible and gradable.
 - Exercise READMEs tightened: exact names, namespaces, images and ports; broken solutions fixed.
 - The practice cluster now has 1 control plane + 2 workers.
 
 ### Removed
-- `scripts/run-mock-exam.sh`, replaced by `scripts/mock-exam.sh`.
+- `scripts/run-mock-exam.sh` and the fixed `mock-exams/`, replaced by `./cka`.
 
 ### Fixed
 - `validate-exercise-structure.sh`, `lint-quality.sh` and `validate-troubleshooting.sh` aborted at the first counter increment under `set -e`. Also fixed the troubleshooting README glob, multi-document skeleton parsing and the placeholder grep.

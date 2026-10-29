@@ -1,0 +1,7 @@
+title: CNI Tigera/Calico Install
+domain: architecture
+difficulty: 3
+minutes: 30
+weight: 12
+modes: [practice, exam]
+namespaces: [exercise-27]

@@ -38,6 +38,10 @@ __pycache__/
 # Your own exercise solutions (manifests you write while working on a lab)
 exercises/**/*.yaml
 exercises/**/*.yml
+!exercises/*/item.yaml
 
 # Mock exam runtime state (timer, browser profile, proxy logs)
 .exam-runtime/
+
+# Built lab app (./cka builds it from tools/cka)
+bin/

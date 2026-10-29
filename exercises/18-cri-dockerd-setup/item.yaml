@@ -1,0 +1,8 @@
+title: CRI-dockerd Setup
+domain: architecture
+difficulty: 2
+minutes: 15
+weight: 8
+modes: [practice, exam]
+namespaces: [exercise-18]
+conflicts: [docker-on-worker]

@@ -1,0 +1,7 @@
+title: Pod Security Admission
+domain: architecture
+difficulty: 2
+minutes: 8
+weight: 6
+modes: [practice, exam]
+namespaces: [secure-apps]

@@ -1,0 +1,8 @@
+title: Pods stuck in Pending
+domain: troubleshooting
+difficulty: 2
+minutes: 10
+weight: 8
+modes: [practice, exam]
+namespaces: [default]
+conflicts: [scheduler-manifest]

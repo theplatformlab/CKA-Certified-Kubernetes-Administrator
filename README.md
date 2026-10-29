@@ -6,7 +6,7 @@
 [![Lab version](https://img.shields.io/badge/Lab%20version-v1.35-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/releases/)
 [![Exercises](https://img.shields.io/badge/Exercises-32-blue)](exercises/)
 [![Skeletons](https://img.shields.io/badge/YAML%20Skeletons-23-blue)](skeletons/)
-[![Mock Exams](https://img.shields.io/badge/Mock%20Exams-2-success)](mock-exams/)
+[![Mock Exams](https://img.shields.io/badge/Mock%20Exams-generated-success)](LAB.md)
 [![GitHub stars](https://img.shields.io/github/stars/theplatformlab/CKA-Certified-Kubernetes-Administrator?style=social)](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator)
 
 **Disclaimer:** This is a study and practice resource. It contains practice exercises and training materials designed to help prepare for the CKA exam. It does not include, share, or reproduce actual CKA exam questions. All exercises are independently designed training scenarios. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for policies.
@@ -37,7 +37,7 @@ If you're time-pressured, here's the fast track:
 2. **Run the setup script** — get your aliases and vim config right from day one: [scripts/exam-setup.sh](scripts/exam-setup.sh)
 3. **Do the exercises** — use the [exercise list](exercises/) to choose a domain-focused lab or supplemental practice.
 4. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md) for all skeleton YAML. Copy, paste, modify.
-5. **Do the mock exam** — `./scripts/mock-exam.sh start 1` opens an exam-like environment: question panel, terminal, docs-only browser, timer and automatic grading. See [mock-exams/README.md](mock-exams/README.md).
+5. **Practise and take mock exams with `./cka`.** Practice sessions and mock exams are drawn from a pool of exercises and exam-style questions. Mock exams are weighted like the curriculum, and every result is graded automatically and tracked. See [LAB.md](LAB.md).
 6. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
 7. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
 
@@ -83,12 +83,9 @@ CKA-Certified-Kubernetes-Administrator/
 │   └── 32-service-endpoints-troubleshooting/
 ├── TEMPLATES.md                       # All YAML templates in collapsible format
 ├── skeletons/                         # 23 YAML template files (see TEMPLATES.md)
-├── mock-exams/                        # Full practice exams (15-16 questions, 2 hours each)
-│   ├── MOCK-EXAM-01.md               # Practice questions
-│   ├── MOCK-EXAM-01-SOLUTIONS.md    # Complete solutions and explanations
-│   ├── MOCK-EXAM-02.md
-│   ├── MOCK-EXAM-02-SOLUTIONS.md
-│   └── exam-01/, exam-02/            # Per-question setup + validator scripts
+├── questions/                         # Exam-style pool questions (task, hints, solution, setup + validator)
+├── cka                                # Lab launcher: practice sessions and generated mock exams (LAB.md)
+├── tools/cka/                         # The lab app (Go)
 ├── cheatsheet/
 │   └── cka-cheatsheet.md              # One-page printable reference
 ├── troubleshooting/
@@ -96,8 +93,7 @@ CKA-Certified-Kubernetes-Administrator/
 ├── scripts/
 │   ├── init-cluster.sh               # kind clusters (profiles in config/)
 │   ├── lab.sh                        # Exercise setup / check / cleanup
-│   ├── mock-exam.sh                  # Exam simulator with automatic grading
-│   ├── exam/                         # Question panel, docs-only proxy, ssh shim
+│   ├── exam/                         # Docs-only browser proxy, ssh shim, shell rc
 │   ├── lib/                          # Shared helpers for the validators
 │   ├── exam-setup.sh                 # Aliases, vim config, bash completion
 │   └── validate-local.sh             # Local YAML validation (run before pushing)
@@ -211,18 +207,20 @@ sudo sysctl --system
 
 If `kind create` fails with `no available IPv4 addresses`, your `kind` docker network has a small IP range. Put the extra clusters on their own network: `KIND_EXPERIMENTAL_DOCKER_NETWORK=kind-labs bash scripts/init-cluster.sh --profile ops`.
 
-### Exercise Setup and Validation
+### Practice Sessions, Mock Exams and Validation
 
-Every exercise has a `lab.sh` with a setup step (namespace, pre-existing or deliberately broken objects) and a validator that checks the end state of your solution:
+`./cka` opens the lab: practice sessions with hints and on-demand checks, and mock exams generated from the pool and weighted like the curriculum. Results are tracked, and items you haven't done or failed come first. See [LAB.md](LAB.md).
+
+Every item can also be run by hand. Each one has a setup step (namespace, pre-existing or deliberately broken objects) and a validator that checks the end state of your solution:
 
 ```bash
-./scripts/lab.sh list          # exercises and the cluster each one uses
-./scripts/lab.sh setup 07      # prepare exercise 07
-./scripts/lab.sh check 07      # ✓/✗ per requirement, exit code 0 when everything passes
+./scripts/lab.sh list                    # all items and the cluster each one uses
+./scripts/lab.sh setup 07                # exercise 07 (questions are addressed by id)
+./scripts/lab.sh check 07                # ✓/✗ per requirement, exit code 0 when everything passes
 ./scripts/lab.sh cleanup 07
 ```
 
-The runner always talks to the exercise's cluster (`--context kind-cka-practice`, `kind-cka-ops`, ...), whatever your current context is. Manifests you write inside `exercises/` are gitignored.
+The runner always talks to the item's cluster (`--context kind-cka-practice`, `kind-cka-ops`, ...), whatever your current context is. Manifests you write inside `exercises/` are gitignored.
 
 **After setup:**
 1. Run the exam-setup script to configure aliases: `bash scripts/exam-setup.sh`
@@ -3363,22 +3361,15 @@ Track your progress across all CKA domains.
 
 ## Mock Exams — Final Preparation
 
-Two comprehensive practice exams matching real CKA format:
+There are no fixed mock exams. `./cka` → **Mock exam** generates a new one from the [question pool](questions/) and the exercises each time:
 
-- [Mock Exam 01](mock-exams/MOCK-EXAM-01.md) — 15 questions, 2 hours (answers in [MOCK-EXAM-01-SOLUTIONS.md](mock-exams/MOCK-EXAM-01-SOLUTIONS.md))
-- [Mock Exam 02](mock-exams/MOCK-EXAM-02.md) — 16 questions, 2 hours (answers in [MOCK-EXAM-02-SOLUTIONS.md](mock-exams/MOCK-EXAM-02-SOLUTIONS.md))
+- Weighted like the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10%.
+- Questions you haven't taken come first, then the ones you failed.
+- Fresh exam clusters, a hard timer, a docs-only browser and `ssh` to the nodes, as on the real exam.
+- Graded automatically against the cluster state, with partial credit per check. 66% passes.
+- Every exam stays in the history with its checks, your values and the solutions.
 
-Run them in the exam simulator: `./scripts/mock-exam.sh start 1`. It builds fresh exam clusters, prepares every question, and grades the cluster state automatically when you submit or the time runs out.
-
-Each exam:
-- Covers all 5 domains with realistic weight distribution
-- Requires 7-10 minutes per question (like real exam)
-- Has separate question and solution files (don't look at solutions until done)
-- Focuses on integration across domains, not single-domain skills
-
-Scoring: 10+ correct (66%) = pass. 12+ = strong. 15/15 = ready for the real exam.
-
-Study approach: Work through the exercises relevant to your preparation, then take both mock exams under timed conditions. Track weak areas and review the corresponding exercises before your exam.
+Details: [LAB.md](LAB.md).
 
 ---
 

@@ -1,0 +1,9 @@
+title: Troubleshoot etcd Endpoint
+domain: troubleshooting
+difficulty: 3
+minutes: 20
+weight: 10
+modes: [practice, exam]
+namespaces: [exercise-29]
+conflicts: [apiserver-manifest]
+order: late

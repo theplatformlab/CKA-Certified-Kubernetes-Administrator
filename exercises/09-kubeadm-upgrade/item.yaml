@@ -1,0 +1,8 @@
+title: kubeadm Upgrade
+domain: architecture
+difficulty: 3
+minutes: 25
+weight: 12
+modes: [practice, exam]
+namespaces: [exercise-09]
+conflicts: [cluster-version, apiserver-manifest, scheduler-manifest, controller-manager-manifest, worker-kubelet, pki]

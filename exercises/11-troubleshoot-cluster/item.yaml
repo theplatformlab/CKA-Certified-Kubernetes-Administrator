@@ -1,0 +1,9 @@
+title: Troubleshoot Cluster
+domain: troubleshooting
+difficulty: 3
+minutes: 25
+weight: 12
+modes: [practice]
+namespaces: [exercise-11]
+conflicts: [worker-kubelet, coredns, kube-proxy, apiserver-manifest]
+order: late

@@ -1,0 +1,7 @@
+title: Kubelet and container runtime
+domain: troubleshooting
+difficulty: 2
+minutes: 8
+weight: 8
+modes: [practice, exam]
+conflicts: [worker-kubelet]

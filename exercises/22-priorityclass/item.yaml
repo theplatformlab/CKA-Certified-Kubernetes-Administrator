@@ -1,0 +1,7 @@
+title: PriorityClass
+domain: workloads
+difficulty: 2
+minutes: 15
+weight: 8
+modes: [practice, exam]
+namespaces: [exercise-22]

@@ -172,7 +172,7 @@ Your repository addresses these community insights through:
 - **Exercise READMEs:** "What tripped me up" gotchas per topic
 - **EXAM_STRATEGY.md:** Personalized study path based on weakness areas
 - **cka-cheatsheet.md:** Quick reference for commands
-- **mock-exam.sh:** Exam-like practice environment with automatic grading
+- **./cka:** Practice sessions and generated mock exams with automatic grading
 
 ---
 

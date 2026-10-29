@@ -1,0 +1,7 @@
+title: Renew control plane certificates
+domain: architecture
+difficulty: 2
+minutes: 10
+weight: 8
+modes: [practice, exam]
+conflicts: [pki, apiserver-manifest-restart]

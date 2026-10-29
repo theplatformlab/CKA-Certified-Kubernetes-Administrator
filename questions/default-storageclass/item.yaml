@@ -1,0 +1,8 @@
+title: StorageClass and default class
+domain: storage
+difficulty: 2
+minutes: 9
+weight: 8
+modes: [practice, exam]
+namespaces: [storage]
+conflicts: [default-storageclass]

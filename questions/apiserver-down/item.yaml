@@ -1,0 +1,8 @@
+title: API server is down
+domain: troubleshooting
+difficulty: 3
+minutes: 12
+weight: 9
+modes: [practice, exam]
+conflicts: [apiserver-manifest]
+order: late

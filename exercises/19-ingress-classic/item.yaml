@@ -1,0 +1,8 @@
+title: Classic Ingress
+domain: networking
+difficulty: 2
+minutes: 15
+weight: 8
+modes: [practice, exam]
+namespaces: [exercise-19]
+conflicts: [ingressclass-nginx]

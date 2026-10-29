@@ -1,0 +1,7 @@
+title: API server audit logging
+domain: architecture
+difficulty: 3
+minutes: 12
+weight: 7
+modes: [practice, exam]
+conflicts: [apiserver-manifest]

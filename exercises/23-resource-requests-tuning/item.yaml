@@ -1,0 +1,8 @@
+title: Resource Requests Tuning
+domain: workloads
+difficulty: 3
+minutes: 20
+weight: 10
+modes: [practice]
+namespaces: [exercise-23]
+conflicts: [worker1-capacity]

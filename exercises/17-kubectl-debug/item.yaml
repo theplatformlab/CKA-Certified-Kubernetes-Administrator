@@ -1,0 +1,7 @@
+title: kubectl debug
+domain: troubleshooting
+difficulty: 2
+minutes: 15
+weight: 8
+modes: [practice]
+namespaces: [exercise-17]

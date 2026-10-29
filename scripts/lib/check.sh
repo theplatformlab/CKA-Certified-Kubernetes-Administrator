@@ -4,6 +4,8 @@
 #
 # Every helper prints one ✓/✗ line and updates the counters; none of them
 # abort on failure, so a check function always runs to the end.
+# If CKA_RESULTS_FILE is set, every result is also appended to it as
+# "PASS<TAB>description" or "FAIL<TAB>description<TAB>detail" (read by ./cka).
 
 CHECK_PASS=0
 CHECK_FAIL=0
@@ -16,11 +18,14 @@ _pass() {
   # allowed" style checks when the task wasn't attempted).
   if [[ -n "$CHECK_GATE" ]]; then _fail "$1" "not graded: requires '$CHECK_GATE'"; return 0; fi
   CHECK_PASS=$((CHECK_PASS + 1)); echo -e "  ${GREEN}✓${NC} $1"
+  [[ -n "${CKA_RESULTS_FILE:-}" ]] && printf 'PASS\t%s\n' "$1" >>"$CKA_RESULTS_FILE"
+  return 0
 }
 _fail() {
   CHECK_FAIL=$((CHECK_FAIL + 1))
   echo -e "  ${RED}✗${NC} $1"
   [[ -n "${2:-}" ]] && echo -e "      ${YELLOW}$2${NC}"
+  [[ -n "${CKA_RESULTS_FILE:-}" ]] && printf 'FAIL\t%s\t%s\n' "$1" "${2:-}" >>"$CKA_RESULTS_FILE"
   return 0
 }
 

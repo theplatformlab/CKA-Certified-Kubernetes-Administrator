@@ -1,0 +1,8 @@
+title: PriorityClasses
+domain: workloads
+difficulty: 1
+minutes: 7
+weight: 5
+modes: [practice, exam]
+namespaces: [priority]
+conflicts: [priorityclass-workload]

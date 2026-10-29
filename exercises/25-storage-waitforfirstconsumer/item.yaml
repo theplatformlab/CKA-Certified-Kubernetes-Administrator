@@ -1,0 +1,7 @@
+title: Storage WaitForFirstConsumer
+domain: storage
+difficulty: 3
+minutes: 20
+weight: 10
+modes: [practice, exam]
+namespaces: [exercise-25]
