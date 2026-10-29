@@ -6,14 +6,19 @@ Drain a worker node for maintenance, then bring it back. This tests your underst
 
 ## Tasks
 
-1. List all nodes and identify a worker node
-2. Cordon the worker node (mark it unschedulable)
-3. Verify the node shows `SchedulingDisabled`
-4. Create a Deployment with 3 replicas and observe where pods are scheduled
-5. Drain the worker node — handle DaemonSets and local data
-6. Verify all non-DaemonSet pods have been evicted from the node
-7. Uncordon the node
-8. Scale the deployment to 6 replicas and verify pods get scheduled on the uncordoned node
+Work in namespace `exercise-08` (`./scripts/lab.sh setup 08` creates it). Setup also creates the Deployment `drain-test` (3 replicas, `nginx:1.27`, with an `emptyDir` volume) spread across both workers.
+
+The node to maintain is the worker `cka-practice-worker2` (on another practice cluster name: `<cluster>-worker2`).
+
+1. List all nodes and find out which `drain-test` pods run on `cka-practice-worker2`
+2. Cordon `cka-practice-worker2` (mark it unschedulable)
+3. Verify the node shows `SchedulingDisabled` and that the `drain-test` pods on it are still running (cordon does not evict)
+4. Drain `cka-practice-worker2` — handle DaemonSets and the `emptyDir` data
+5. Verify that no non-DaemonSet pods are left on the node and `drain-test` is back to 3 ready replicas on the other worker
+6. Uncordon the node
+7. Scale `drain-test` to 6 replicas and verify new pods get scheduled on `cka-practice-worker2` again
+
+Validate with `./scripts/lab.sh check 08`.
 
 ## Hints
 
@@ -33,64 +38,62 @@ You honestly don't need hints for this one. `k drain --help` tells you everythin
 ## Verify
 
 ```bash
-# After cordon
+./scripts/lab.sh check 08
+```
+
+Manual checks:
+
+```bash
+# After cordon: the worker shows SchedulingDisabled
 k get nodes
-# Worker should show SchedulingDisabled
 
-# After drain
-k get pods -o wide
-# No pods on the drained node (except DaemonSets)
+# After drain: only DaemonSet pods (kindnet, kube-proxy) left on the node
+k get pods -A -o wide --field-selector spec.nodeName=cka-practice-worker2
 
-# After uncordon + scale
-k get pods -o wide
-# Pods should spread across nodes again
+# After uncordon + scale: pods spread across both workers again
+k -n exercise-08 get pods -o wide
 ```
 
 ## Cleanup
 
 ```bash
-k uncordon <node-name>
-k delete deployment drain-test
+./scripts/lab.sh cleanup 08     # also uncordons cka-practice-worker2
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-# List nodes
+# List nodes and current pod placement
 k get nodes
-# Pick a worker node, e.g., worker-1
+k -n exercise-08 get pods -o wide
 
 # Cordon
-k cordon worker-1
+k cordon cka-practice-worker2
 k get nodes
-# worker-1 should show SchedulingDisabled
+# cka-practice-worker2 should show Ready,SchedulingDisabled
+k -n exercise-08 get pods -o wide
+# The drain-test pods on cka-practice-worker2 are still Running
 
-# Create deployment
-k create deployment drain-test --image=nginx:1.27 --replicas=3
-
-# Check pod placement
-k get pods -o wide
-
-# Drain
-k drain worker-1 --ignore-daemonsets --delete-emptydir-data
+# Drain (fails without both flags: DaemonSet pods and emptyDir data)
+k drain cka-practice-worker2 --ignore-daemonsets --delete-emptydir-data
 
 # Verify eviction
-k get pods -o wide
-# All drain-test pods should be on other nodes
-
-# Check node
-k get pods -A --field-selector spec.nodeName=worker-1
+k -n exercise-08 get pods -o wide
+# All 3 drain-test pods now run on cka-practice-worker
+k get pods -A --field-selector spec.nodeName=cka-practice-worker2
 # Only DaemonSet pods should remain
 
 # Uncordon
-k uncordon worker-1
+k uncordon cka-practice-worker2
 k get nodes
-# worker-1 should be Ready (no SchedulingDisabled)
+# cka-practice-worker2 should be Ready (no SchedulingDisabled)
 
-# Scale up — new pods should land on worker-1 too
-k scale deployment drain-test --replicas=6
-k get pods -o wide
+# Scale up — new pods should land on cka-practice-worker2 too
+k -n exercise-08 scale deployment drain-test --replicas=6
+k -n exercise-08 get pods -o wide
 ```
+
+Note: uncordoning does not move the existing pods back. Only new pods (here from the scale-up) use the node again.
 
 </details>

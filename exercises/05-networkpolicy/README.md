@@ -6,17 +6,21 @@ Create NetworkPolicies to control pod-to-pod traffic. Watch out for the DNS gotc
 
 ## Tasks
 
-1. Create a namespace called `exercise-05`
-2. Deploy two pods:
+Work in namespace `exercise-05` (`./scripts/lab.sh setup 05` creates it).
+
+1. Deploy two pods in `exercise-05`:
    - `frontend` with image `nginx:1.27` and label `role=frontend`
    - `backend` with image `nginx:1.27` and label `role=backend`
-3. Verify that `frontend` can reach `backend` on port 80 (should work before any policy)
-4. Create a NetworkPolicy named `backend-policy` that:
+2. Verify that `frontend` can reach `backend` on port 80 (should work before any policy)
+3. Create a NetworkPolicy named `backend-policy` in `exercise-05` that:
    - Applies to pods with label `role=backend`
-   - Allows ingress only from pods with label `role=frontend` on port 80
-   - Allows egress to DNS (UDP port 53) — if you skip this, DNS breaks
-5. Verify that `frontend` can still reach `backend`
-6. Create a third pod `attacker` with label `role=attacker` and verify it cannot reach `backend`
+   - Has both policy types, `Ingress` and `Egress`
+   - Allows ingress only from pods with label `role=frontend` on TCP port 80
+   - Allows egress only to DNS (UDP port 53) — if you skip this, DNS breaks; all other egress from `backend` is denied
+4. Verify that `frontend` can still reach `backend`
+5. Create a third pod `attacker` with image `nginx:1.27` and label `role=attacker` and verify it cannot reach `backend`
+
+Validate with `./scripts/lab.sh check 05`.
 
 ## Hints
 
@@ -36,6 +40,14 @@ Create NetworkPolicies to control pod-to-pod traffic. Watch out for the DNS gotc
 > AND vs OR tripped me up too. Two selectors in the *same* `from` block = AND (must match both). Two separate `from` blocks = OR (match either). I had `podSelector` and `namespaceSelector` in separate blocks when they should have been in the same one — it allowed traffic from any pod in the right namespace OR any pod with the right label in any namespace.
 
 ## Verify
+
+```bash
+./scripts/lab.sh check 05
+```
+
+The check tests real traffic: a `role=frontend` test pod must reach `backend:80`, a `role=attacker` test pod must not, and `backend` must still resolve DNS names but not open other connections.
+
+Manual checks:
 
 ```bash
 # Get backend IP
@@ -131,14 +143,14 @@ k exec frontend -n exercise-05 -- nslookup kubernetes.default
 ## Cleanup
 
 ```bash
-k delete ns exercise-05
+./scripts/lab.sh cleanup 05
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-k create ns exercise-05
+k create ns exercise-05     # or: ./scripts/lab.sh setup 05
 
 # Create pods
 k run frontend -n exercise-05 --image=nginx:1.27 --labels=role=frontend

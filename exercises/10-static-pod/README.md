@@ -6,14 +6,17 @@ Create a static pod by placing a manifest in the kubelet's static pod directory.
 
 ## Tasks
 
-1. Find the static pod manifest directory on the node
-2. Create a static pod manifest file for a pod named `static-web` with:
-   - Image: `nginx:1.27`
-   - Port: 80
-3. Verify the static pod appears in `k get pods` (it will have the node name appended)
-4. Try to delete the static pod with `kubectl` — observe what happens
-5. Delete the static pod by removing the manifest file
-6. Verify the pod is gone
+Work in namespace `exercise-10` (`./scripts/lab.sh setup 10` creates it) on the ops cluster (`./scripts/init-cluster.sh --profile ops`). The static pod runs on the worker node `cka-ops-worker`. Open a shell on it with `docker exec -it cka-ops-worker bash` — the kind equivalent of `ssh cka-ops-worker` in the exam.
+
+1. On `cka-ops-worker`, find the static pod manifest directory in the kubelet config
+2. Create the manifest `static-web.yaml` in that directory for a pod named `static-web` in namespace `exercise-10`:
+   - label `app=static-web`
+   - one container named `web`, image `nginx:1.27`, containerPort `80`
+3. Verify the static pod appears in `k get pods -n exercise-10` as `static-web-cka-ops-worker` (the node name is appended) and is Running
+4. Try to delete the pod with `kubectl` — observe that it comes back
+5. Leave the static pod running and validate with `./scripts/lab.sh check 10`
+
+Removing the manifest (the only way to really delete a static pod) is part of [Cleanup](#cleanup).
 
 ## Hints
 
@@ -24,23 +27,34 @@ Create a static pod by placing a manifest in the kubelet's static pod directory.
 - Check kubelet config: `cat /var/lib/kubelet/config.yaml | grep staticPodPath`
 - Static pods show up in `kubectl` but can't be deleted through the API — the kubelet recreates them
 - The pod name will be `static-web-<node-name>`
+- Put `namespace: exercise-10` in the manifest's metadata — without it the pod lands in `default`; the mirror pod only shows up if the namespace exists
 
 </details>
 
 ## Verify
 
 ```bash
-# Should show static-web-<node>
-k get pods -A | grep static-web
+./scripts/lab.sh check 10
+```
 
-# Describe should show the static pod
-k describe pod static-web-<node> -n default
+Manual checks:
+
+```bash
+# Should show static-web-cka-ops-worker
+k get pods -n exercise-10 -o wide
+
+# ownerReferences point to the Node: this is the read-only mirror of a static pod
+k get pod static-web-cka-ops-worker -n exercise-10 -o jsonpath='{.metadata.ownerReferences[0].kind}{"\n"}'
 ```
 
 ## Cleanup
 
+Delete the static pod the only way that works — remove the manifest on the node — and watch it disappear:
+
 ```bash
-sudo rm /etc/kubernetes/manifests/static-web.yaml
+docker exec cka-ops-worker rm /etc/kubernetes/manifests/static-web.yaml
+k get pods -n exercise-10        # gone after a few seconds
+./scripts/lab.sh cleanup 10      # removes the manifest (if still there) and the namespace
 ```
 
 ## What tripped me up
@@ -69,16 +83,20 @@ sudo rm /etc/kubernetes/manifests/static-web.yaml
 <summary>Solution</summary>
 
 ```bash
+# Open a shell on the worker node (exam: ssh cka-ops-worker)
+docker exec -it cka-ops-worker bash
+
 # Step 1: Find static pod path
-cat /var/lib/kubelet/config.yaml | grep staticPodPath
-# Usually: staticPodPath: /etc/kubernetes/manifests
+grep staticPodPath /var/lib/kubelet/config.yaml
+# staticPodPath: /etc/kubernetes/manifests
 
 # Step 2: Create the manifest
-sudo tee /etc/kubernetes/manifests/static-web.yaml <<EOF
+tee /etc/kubernetes/manifests/static-web.yaml <<EOF
 apiVersion: v1
 kind: Pod
 metadata:
   name: static-web
+  namespace: exercise-10
   labels:
     app: static-web
 spec:
@@ -88,21 +106,19 @@ spec:
     ports:
     - containerPort: 80
 EOF
+exit
 
 # Step 3: Verify (wait a few seconds for kubelet to pick it up)
-k get pods | grep static-web
-# Output: static-web-<node-name>   1/1   Running
+k get pods -n exercise-10
+# static-web-cka-ops-worker   1/1   Running
 
 # Step 4: Try to delete via kubectl
-k delete pod static-web-<node-name>
-# The pod will reappear — kubelet recreates it
+k delete pod static-web-cka-ops-worker -n exercise-10
+k get pods -n exercise-10
+# The pod is back — kubelet recreates the mirror pod from the manifest
 
-# Step 5: Actually delete it
-sudo rm /etc/kubernetes/manifests/static-web.yaml
-
-# Step 6: Verify it's gone
-k get pods | grep static-web
-# No output — pod is gone
+# Step 5: Validate
+./scripts/lab.sh check 10
 ```
 
 </details>

@@ -20,23 +20,26 @@ Before debugging, understand the trap architecture:
 
 ## Tasks
 
+Work in namespace `exercise-17` (`./scripts/lab.sh setup 17` creates it).
+
 ### Part A: Debug a pod
 
-1. Create a namespace called `exercise-17`
-2. Create a pod named `broken-app` with image `nginx:1.27`
-3. Attach a debug container to the running pod using `kubectl debug`:
+1. Create a pod named `broken-app` with image `nginx:1.27` in `exercise-17`
+2. Attach a debug container to the running pod using `kubectl debug`:
    - Image: `busybox:1.36`
    - Target the `broken-app` container to share process namespace
-4. From inside the debug container, list the processes (you should see the nginx process)
-5. Check the filesystem and network from the debug container
-6. Exit the debug session
+3. From inside the debug container, list the processes (you should see the nginx process)
+4. Check the filesystem and network from the debug container
+5. Exit the debug session — `broken-app` must keep running
 
 ### Part B: Debug a node
 
-7. Run `kubectl debug` against a node to get a shell with host filesystem access
-8. Use `chroot /host` to access the real node root
-9. Check kubelet status from the debug session
-10. Exit the debug session
+6. Run `kubectl debug` against the worker node `cka-practice-worker` (on another practice cluster name: `<cluster>-worker`) with image `busybox:1.36`, creating the debugger pod in namespace `exercise-17` (`-n exercise-17`)
+7. Use `chroot /host` to access the real node root
+8. Check kubelet status from the debug session
+9. Exit the debug session
+
+Validate with `./scripts/lab.sh check 17`. The check looks at what the sessions leave behind: the ephemeral container stays in the `broken-app` spec, and the node debugger pod stays in the namespace after you exit.
 
 ## Hints
 
@@ -47,6 +50,7 @@ Before debugging, understand the trap architecture:
 - Node debug: `k debug node/<node-name> -it --image=busybox:1.36`
 - The `--target` flag shares process namespace with the target container
 - Node debug mounts the host filesystem at `/host`
+- kubectl 1.35 warns that the default `--profile=legacy` is deprecated; `--profile=general` works the same for this exercise
 - Use `chroot /host` to run node commands directly
 
 </details>
@@ -68,6 +72,12 @@ Before debugging, understand the trap architecture:
 ## Verify
 
 ```bash
+./scripts/lab.sh check 17
+```
+
+Manual checks:
+
+```bash
 # Part A: process list should show nginx
 # Inside debug container:
 ps aux
@@ -75,12 +85,16 @@ ps aux
 # Part B: kubelet check
 # Inside node debug (after chroot /host):
 systemctl status kubelet
+
+# Afterwards: the traces the check looks at
+k -n exercise-17 get pod broken-app -o jsonpath='{.spec.ephemeralContainers[*].targetContainerName}'
+k -n exercise-17 get pods        # node-debugger-cka-practice-worker-xxxxx (Completed)
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns exercise-17
+./scripts/lab.sh cleanup 17
 ```
 
 <details>
@@ -89,8 +103,6 @@ k delete ns exercise-17
 ### Part A
 
 ```bash
-k create ns exercise-17
-
 k run broken-app -n exercise-17 --image=nginx:1.27
 
 # Wait for running
@@ -109,11 +121,11 @@ exit
 ### Part B
 
 ```bash
-# Get a node name
+# Get the node name
 k get nodes
-# e.g., node-1
+# cka-practice-worker
 
-k debug node/node-1 -it --image=busybox:1.36
+k debug node/cka-practice-worker -n exercise-17 -it --image=busybox:1.36
 
 # Inside:
 chroot /host

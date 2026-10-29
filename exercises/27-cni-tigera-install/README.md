@@ -6,19 +6,19 @@ Install a full CNI plugin using the Tigera Operator for Calico, including networ
 
 ## Tasks
 
-1. Verify cluster CIDR from kube-controller-manager
-2. Install Tigera Operator:
-   - Apply operator manifest
-   - Wait for operator deployment
-3. Create custom resource for Calico configuration:
-   - Set cluster CIDR matching kube-controller-manager
-   - Configure networking mode (VXLAN or BGP)
-4. Apply Calico installation manifest
-5. Wait for calico-system pods to be Ready
-6. Verify node networking is operational:
-   - Nodes can ping each other
-   - Pods on different nodes can communicate
-7. Test NetworkPolicy blocking works
+This exercise requires the cni cluster (`./scripts/init-cluster.sh --profile cni`). It is created **without** a CNI plugin: both nodes are `NotReady` and CoreDNS is `Pending`. Run `./scripts/lab.sh setup 27` — it creates namespace `exercise-27`.
+
+1. Find the cluster's pod CIDR from the kube-controller-manager (`--cluster-cidr`) or the `kubeadm-config` ConfigMap
+2. Install the Tigera Operator, Calico **v3.33.0**:
+   - Create the operator CRDs (`operator-crds.yaml`) and the operator (`tigera-operator.yaml`)
+   - Wait for Deployment `tigera-operator` in namespace `tigera-operator`
+3. Create the Calico configuration: an `Installation` named `default` with one IPv4 pool whose CIDR matches the pod CIDR from step 1, VXLAN encapsulation (`VXLANCrossSubnet`)
+4. Wait until `k get tigerastatus` shows `calico` Available and all `calico-system` pods are Ready
+5. Verify node networking is operational: both nodes `Ready`, CoreDNS running
+6. In namespace `exercise-27`, create Deployment `web` (2 replicas, image `nginx:1.28`, label `app=web`) and a Service `web` on port `80`; confirm that a pod on the other node (the control plane) can reach a `web` pod by its IP
+7. Create NetworkPolicy `web-allow-access` in `exercise-27`: pods `app=web` accept ingress on TCP `80` only from pods labelled `access=true`. Test that it actually blocks a pod without that label
+
+Validate with `./scripts/lab.sh check 27`.
 
 ## Key Learning
 
@@ -27,17 +27,21 @@ Install a full CNI plugin using the Tigera Operator for Calico, including networ
 - Cluster CIDR alignment is critical — mismatch breaks networking
 - Exam provides the Tigera installation link
 - Installation can take 2-3 minutes
+- A NetworkPolicy only does something if the CNI enforces it — Calico does
 
 ## Hints
 
 <details>
 <summary>Stuck? Click to reveal hints</summary>
 
-- Get cluster CIDR: `k describe cm kubeadm-config -n kube-system | grep pod-network-cidr`
-- Alternative: `ps aux | grep kube-controller-manager | grep cidr`
+- Get cluster CIDR: `k -n kube-system get cm kubeadm-config -o yaml | grep -i podSubnet`
+- Alternative: `k -n kube-system get pod -l component=kube-controller-manager -o yaml | grep cluster-cidr` (in the exam: `ps aux | grep kube-controller-manager | grep cidr` on the control plane)
 - Tigera docs: `https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises`
+- Use `k create -f` for the operator manifests, not `k apply`: the CRDs are too large for the last-applied annotation
+- `custom-resources.yaml` from the same release is a ready-made `Installation` — download it, check the `cidr`, then create it
 - Wait for pods: `k get pods -n calico-system -w`
-- Test pod networking: `k run test --image=busybox:1.36 --rm -it -- ping <pod-ip>`
+- Test pod networking: `k run test --image=busybox:1.37 --rm -it --restart=Never -- wget -qO- -T 5 <pod-ip>`
+- To put a test pod on the control plane: `--overrides='{"spec":{"nodeName":"cka-cni-control-plane","tolerations":[{"operator":"Exists"}]}}'`
 
 </details>
 
@@ -48,50 +52,62 @@ Install a full CNI plugin using the Tigera Operator for Calico, including networ
 ## Verify
 
 ```bash
+./scripts/lab.sh check 27
+```
+
+Manual checks:
+
+```bash
 # Operator is running
 k get deployment -n tigera-operator
 
-# Calico system pods are Ready
-k get pods -n calico-system
+# Calico reports Available
+k get tigerastatus
+k get installation default -o jsonpath='{.spec.calicoNetwork.ipPools[*].cidr}{"\n"}'
 
-# Nodes have calico agents
-k get pods -n calico-system -l k8s-app=calico-node
+# Calico system pods are Ready, one calico-node per node
+k get pods -n calico-system -o wide
+k get nodes
 
-# Test pod networking (create pods on different nodes)
-k run pod1 --image=busybox:1.36 --rm -it -- sleep 3600
-k run pod2 --image=busybox:1.36 --rm -it -- sleep 3600
-# From pod1: ping pod2 IP (should succeed)
+# Cross-node: web pods run on the worker, the test pod on the control plane
+k -n exercise-27 get pods -o wide
+k -n exercise-27 run x --image=busybox:1.37 --rm -it --restart=Never -l access=true \
+  --overrides='{"spec":{"nodeName":"cka-cni-control-plane","tolerations":[{"operator":"Exists"}]}}' \
+  -- wget -qO- -T 5 <web-pod-ip>
 
 # NetworkPolicy works
-k apply -f <networkpolicy>
+k -n exercise-27 run ok  --image=busybox:1.37 --rm -it --restart=Never -l access=true -- wget -qO- -T 5 web   # HTML
+k -n exercise-27 run bad --image=busybox:1.37 --rm -it --restart=Never -- wget -qO- -T 5 web                 # timeout
 ```
 
 ## Cleanup
 
 ```bash
-# Remove CNI (optional, usually left on cluster)
-k delete -f tigera-manifests/
+./scripts/lab.sh cleanup 27
 ```
+
+This removes namespace `exercise-27`. Calico stays: removing a CNI from a running cluster leaves the nodes broken. To practise the installation again, recreate the cluster with `./scripts/init-cluster.sh --profile cni --recreate`.
 
 <details>
 <summary>Solution</summary>
 
 ```bash
 # 1. Get cluster CIDR
-k describe cm kubeadm-config -n kube-system | grep -i cidr
-# Output: pod-network-cidr=10.244.0.0/16
+k -n kube-system get cm kubeadm-config -o yaml | grep -i podSubnet
+# Output: podSubnet: 192.168.0.0/16
+k -n kube-system get pod -l component=kube-controller-manager -o yaml | grep cluster-cidr
+# Output: - --cluster-cidr=192.168.0.0/16
 
-# 2. Download Tigera operator
-curl https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml -o tigera-operator.yaml
+# 2. Install the operator CRDs and the operator (create, not apply)
+k create -f https://raw.githubusercontent.com/projectcalico/calico/v3.33.0/manifests/operator-crds.yaml
+k create -f https://raw.githubusercontent.com/projectcalico/calico/v3.33.0/manifests/tigera-operator.yaml
 
-# 3. Install operator
-k apply -f tigera-operator.yaml
-
-# 4. Wait for operator to be ready
+# 3. Wait for operator to be ready
 k wait --for=condition=available --timeout=300s deployment/tigera-operator -n tigera-operator
 
-# 5. Create Calico Installation resource with correct CIDR
-cat <<EOF | k apply -f -
+# 4. Create Calico Installation resource with correct CIDR
+#    (same as the Installation in .../v3.33.0/manifests/custom-resources.yaml)
+cat <<EOF | k create -f -
 apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
@@ -99,36 +115,59 @@ metadata:
 spec:
   calicoNetwork:
     ipPools:
-    - blockSize: 26
-      cidr: 10.244.0.0/16  # Must match your cluster CIDR
+    - name: default-ipv4-ippool
+      blockSize: 26
+      cidr: 192.168.0.0/16  # Must match your cluster CIDR
       encapsulation: VXLANCrossSubnet
       natOutgoing: Enabled
       nodeSelector: all()
-  variant: Calico
-pointerSize: Felix
 EOF
 
-# 6. User custom resource (if needed)
-# Usually not needed unless Tigera docs specify
-
-# 7. Wait for Calico to be ready
-k wait --for=condition=available --timeout=300s deployment -n calico-system -l k8s-app=calico-node
-
-# 8. Check installation
+# 5. Wait for Calico to be ready (2-3 minutes)
+until k get tigerastatus calico >/dev/null 2>&1; do sleep 5; done   # the operator creates it after a few seconds
+k wait --for=condition=Available --timeout=300s tigerastatus/calico
 k get pods -n calico-system
-# Should show calico-node, calico-kube-controllers, calico-typha
+# Should show calico-node (one per node), calico-kube-controllers, calico-typha, csi-node-driver
+k get nodes                       # both Ready
+k -n kube-system get pods -l k8s-app=kube-dns
 
-# 9. Test networking
-k run test1 --image=busybox:1.36 -- sleep 3600
-k run test2 --image=busybox:1.36 -- sleep 3600
+# 6. Test workload + cross-node networking
+k -n exercise-27 create deployment web --image=nginx:1.28 --replicas=2
+k -n exercise-27 expose deployment web --port=80
+k -n exercise-27 rollout status deployment web
+k -n exercise-27 get pods -o wide # IPs from 192.168.0.0/16, on cka-cni-worker
 
-# Get IPs
-POD1=$(k get pod test1 -o jsonpath='{.status.podIP}')
-POD2=$(k get pod test2 -o jsonpath='{.status.podIP}')
+POD_IP=$(k -n exercise-27 get pod -l app=web -o jsonpath='{.items[0].status.podIP}')
+k -n exercise-27 run x --image=busybox:1.37 --rm -it --restart=Never \
+  --overrides='{"spec":{"nodeName":"cka-cni-control-plane","tolerations":[{"operator":"Exists"}]}}' \
+  -- wget -qO- -T 5 $POD_IP
+# Should print the nginx welcome page
 
-# Test connectivity
-k exec deploy/test1 -- ping -c 1 $POD2
-# Should succeed
+# 7. NetworkPolicy
+cat <<EOF | k apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-allow-access
+  namespace: exercise-27
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          access: "true"
+    ports:
+    - protocol: TCP
+      port: 80
+EOF
+
+k -n exercise-27 run ok  --image=busybox:1.37 --rm -it --restart=Never -l access=true -- wget -qO- -T 5 web   # works
+k -n exercise-27 run bad --image=busybox:1.37 --rm -it --restart=Never -- wget -qO- -T 5 web                 # times out
 ```
 
 Reference: https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises

@@ -16,21 +16,24 @@ The CKA focuses on HPA, but understanding VPA helps with cluster resource effici
 
 ## Tasks (HPA)
 
-1. Create a namespace called `exercise-16`
-2. Verify the metrics-server is running in the cluster
-3. Create a Deployment named `load-app` with:
-   - Image: `registry.k8s.io/hpa-example` (or `nginx:1.27` with resource requests)
+Work in namespace `exercise-16` (`./scripts/lab.sh setup 16` creates it). kind clusters have no metrics-server, so setup also installs metrics-server v0.9.0 with `--kubelet-insecure-tls` (kind's kubelet serving certificates are self-signed).
+
+1. Verify the metrics-server is running in the cluster (`k top nodes` returns data)
+2. Create a Deployment named `load-app` with:
+   - Image: `nginx:1.27`, container port 80, pod label `app=load-app`
    - 1 replica
    - CPU request: 50m
    - CPU limit: 100m
-4. Expose it with a ClusterIP Service named `load-svc` on port 80
-5. Create an HPA targeting `load-app`:
+3. Expose it with a ClusterIP Service named `load-svc` on port 80
+4. Create an HPA named `load-app` targeting the Deployment `load-app`:
    - Min replicas: 1
    - Max replicas: 5
    - **Target CPU utilization: 50%** (must be specified as `type: Utilization` with `averageUtilization: 50`)
-6. Verify the HPA YAML has correct structure (target type is `Utilization`, not `AverageValue`)
-7. Generate load against the service and observe the HPA scaling up
-8. Stop the load and observe the HPA scaling back down
+5. Verify the HPA YAML has correct structure (target type is `Utilization`, not `AverageValue`)
+6. Generate load against the service and observe the HPA scaling up (a single `wget` loop pushes nginx above 50% of its 50m request)
+7. Stop the load and observe the HPA scaling back down
+
+Validate with `./scripts/lab.sh check 16` (it also checks that the HPA reads a current CPU value and has scaled at least once).
 
 ## Hints
 
@@ -38,19 +41,19 @@ The CKA focuses on HPA, but understanding VPA helps with cluster resource effici
 <summary>Stuck? Click to reveal hints</summary>
 
 - `k top pods -n exercise-16` to check if metrics-server is working
-- `k autoscale deployment load-app --cpu-percent=50 --min=1 --max=5` creates a basic HPA
+- `k autoscale deployment load-app --cpu=50% --min=1 --max=5` creates a basic HPA (`--cpu-percent` is deprecated in kubectl 1.35)
 - **Verify HPA structure:** After creating the HPA, run `k get hpa -n exercise-16 -o yaml` and check that:
   - `spec.metrics[0].type` == `Resource`
   - `spec.metrics[0].resource.target.type` == `Utilization` (not `AverageValue`)
   - `spec.metrics[0].resource.target.averageUtilization` == 50
-- Load generation: `k run load-gen --image=busybox:1.36 --rm -it -- sh -c "while true; do wget -q -O- http://load-svc.exercise-16; done"`
+- Load generation: `k run load-gen -n exercise-16 --image=busybox:1.36 --rm -it --restart=Never -- sh -c "while true; do wget -q -O- http://load-svc.exercise-16 >/dev/null; done"`
 - Scale down takes a few minutes after load stops (by design, to avoid flapping)
 
 **HPA Pre-Flight Checklist (Reddit: This solves 80% of HPA issues)**
 ```bash
 # 1. Is metrics-server running?
 k get deployment -n kube-system metrics-server
-# If not running: might be missing from cluster; install via init-cluster.sh
+# If not running: missing from the cluster; ./scripts/lab.sh setup 16 installs it
 
 # 2. Does `kubectl top` work?
 k top nodes
@@ -65,7 +68,7 @@ k get deployment load-app -n exercise-16 -o json | jq '.spec.template.spec.conta
 # 4. Is HPA watching the right target.type?
 k get hpa -n exercise-16 -o yaml | grep -A5 "metrics:"
 # Must show: type: Utilization (NOT AverageValue or cpu)
-# If wrong: recreate HPA with: k autoscale deployment load-app --cpu-percent=50
+# If wrong: recreate HPA with: k autoscale deployment load-app --cpu=50%
 
 # 5. Is HPA showing valid metrics?
 k get hpa -n exercise-16
@@ -104,6 +107,12 @@ k get hpa -n exercise-16
 ## Verify
 
 ```bash
+./scripts/lab.sh check 16
+```
+
+Manual checks:
+
+```bash
 # HPA created
 k get hpa -n exercise-16
 
@@ -117,16 +126,14 @@ k get pods -n exercise-16 -w
 ## Cleanup
 
 ```bash
-k delete ns exercise-16
+./scripts/lab.sh cleanup 16     # also removes metrics-server if setup installed it
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-k create ns exercise-16
-
-# Check metrics-server
+# Check metrics-server (installed by ./scripts/lab.sh setup 16)
 k get pods -n kube-system | grep metrics-server
 k top nodes   # should return data
 ```
@@ -167,7 +174,7 @@ k apply -f deployment.yaml
 k expose deployment load-app -n exercise-16 --port=80 --target-port=80 --name=load-svc
 
 # Option 1: Create HPA imperatively
-k autoscale deployment load-app -n exercise-16 --cpu-percent=50 --min=1 --max=5
+k autoscale deployment load-app -n exercise-16 --cpu=50% --min=1 --max=5
 
 # Option 2: Create HPA declaratively (to verify structure)
 k apply -f - <<EOF
@@ -198,10 +205,10 @@ k get hpa -n exercise-16 -o yaml
 # Check: metrics[0].resource.target.averageUtilization should be 50
 
 # Generate load (run in a separate terminal)
-k run load-gen -n exercise-16 --image=busybox:1.36 --rm -it -- sh -c \
-  "while true; do wget -q -O- http://load-svc.exercise-16; done"
+k run load-gen -n exercise-16 --image=busybox:1.36 --rm -it --restart=Never -- sh -c \
+  "while true; do wget -q -O- http://load-svc.exercise-16 >/dev/null; done"
 
-# Watch scaling in another terminal
+# Watch scaling in another terminal (TARGETS climbs above 50%, REPLICAS goes up within ~1-2 min)
 k get hpa -n exercise-16 -w
 k get pods -n exercise-16 -w
 

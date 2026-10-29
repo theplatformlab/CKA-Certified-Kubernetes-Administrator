@@ -6,24 +6,31 @@ Create PersistentVolumes, PersistentVolumeClaims, and mount them into pods. This
 
 ## Tasks
 
-1. Create a namespace called `exercise-12`
+Work in namespace `exercise-12` (`./scripts/lab.sh setup 12` creates it).
+
+The practice cluster has two workers, and a hostPath volume lives on one node only, so the PV is pinned to the worker `cka-practice-worker` (on another practice cluster name: `<cluster>-worker`).
+
+1. Create the directory `/data/exercise-12` on node `cka-practice-worker` (kind nodes are containers: `docker exec cka-practice-worker mkdir -p /data/exercise-12`; on a real cluster you would `ssh` to the node)
 2. Create a PersistentVolume named `my-pv` with:
    - Capacity: 1Gi
    - AccessMode: ReadWriteOnce
    - StorageClass: `manual`
    - hostPath: `/data/exercise-12`
    - Reclaim policy: Retain
+   - nodeAffinity: `kubernetes.io/hostname` In `cka-practice-worker`
 3. Create a PersistentVolumeClaim named `my-pvc` in namespace `exercise-12`:
    - Request: 500Mi
    - AccessMode: ReadWriteOnce
    - StorageClass: `manual`
-4. Create a pod named `storage-consumer` that mounts `my-pvc` at `/data`
+4. Create a pod named `storage-consumer` (image `busybox:1.35`, command `sleep 3600`) that mounts `my-pvc` at `/data`
 5. Verify:
    - The PVC is **Bound** to the PV
-   - The Pod is **Running** (not stuck Pending) — the consumer Pod proves the storage is actually usable
-6. Write a test file inside the mounted volume from the Pod
+   - The Pod is **Running** (not stuck Pending) on `cka-practice-worker` — the consumer Pod proves the storage is actually usable
+6. From the Pod, write `data persists` into `/data/test.txt`
 7. Delete the pod, create a new pod with the same PVC, and verify the file persists
-8. Delete the PVC and check PV status (should be **Released**, not Available, because policy is Retain)
+8. Delete the pod and the PVC and check PV status (should be **Released**, not Available, because policy is Retain)
+
+Validate with `./scripts/lab.sh check 12` (it checks the final state after step 8: `my-pv` Released, `my-pvc` gone, `test.txt` still on the node).
 
 ## Hints
 
@@ -123,7 +130,13 @@ Create PersistentVolumes, PersistentVolumeClaims, and mount them into pods. This
 >
 > Always validate with `k get pv`, `k get pvc`, `k get pod`, and `k get events` before concluding the storage setup is healthy.
 
-## Verify + Cleanup
+## Verify
+
+```bash
+./scripts/lab.sh check 12
+```
+
+Manual checks along the way:
 
 ```bash
 # Step 1: Verify PV exists and is available (pre-PVC-binding)
@@ -140,25 +153,27 @@ k get pods -n exercise-12
 # Step 4: Verify file persists after pod recreation
 k exec storage-consumer -n exercise-12 -- cat /data/test.txt
 
-# Step 5: After deleting PVC, PV status should be Released (not Available)
-k delete pvc my-pvc -n exercise-12
+# Step 5: After deleting pod and PVC, PV status should be Released (not Available)
 k get pv my-pv
 # Status should be: Released
 
-# Cleanup
-k delete ns exercise-12
-k delete pv my-pv
-sudo rm -rf /data/exercise-12
+# The data is still on the node
+docker exec cka-practice-worker cat /data/exercise-12/test.txt
+```
+
+## Cleanup
+
+```bash
+./scripts/lab.sh cleanup 12     # namespace, my-pv and /data/exercise-12 on the node
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-k create ns exercise-12
-
-# Create the host directory (on the node)
-sudo mkdir -p /data/exercise-12
+# Create the host directory on the node (kind: the node is a container;
+# on a real cluster: ssh cka-practice-worker 'sudo mkdir -p /data/exercise-12')
+docker exec cka-practice-worker mkdir -p /data/exercise-12
 ```
 
 ```yaml
@@ -176,6 +191,14 @@ spec:
   storageClassName: manual
   hostPath:
     path: /data/exercise-12
+  nodeAffinity:              # hostPath data exists on this node only
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - cka-practice-worker
 ```
 
 ```yaml
@@ -227,11 +250,10 @@ k get pvc my-pvc -n exercise-12
 k apply -f pod.yaml
 
 # Wait for Pod to be Running (proves PVC is usable)
-k get pods -n exercise-12 storage-consumer
-# Should show: storage-consumer 1/1 Running
+k get pods -n exercise-12 storage-consumer -o wide
+# Should show: storage-consumer 1/1 Running on cka-practice-worker
 
 # Write a test file
-k exec storage-consumer -n exercise-12 -- touch /data/test.txt
 k exec storage-consumer -n exercise-12 -- sh -c 'echo "data persists" > /data/test.txt'
 
 # Delete and recreate pod to verify persistence

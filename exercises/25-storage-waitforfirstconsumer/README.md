@@ -6,27 +6,31 @@ Create a StorageClass with `WaitForFirstConsumer` binding mode, and understand w
 
 ## Tasks
 
-1. Create a namespace called `exercise-25`
-2. Create a StorageClass named `local-storage` with:
+Work in namespace `exercise-25` (`./scripts/lab.sh setup 25` creates it). Setup also prepares the "local disk": the directory `/mnt/disks/vol1` on node `cka-practice-worker` (on another practice cluster name: `<cluster>-worker`). A `local` PV needs its path to exist on the node.
+
+1. Create a StorageClass named `local-storage` with:
    - Provisioner: `kubernetes.io/no-provisioner` (local volumes)
    - Binding mode: `WaitForFirstConsumer`
-3. Create a PersistentVolume (PV) with:
+2. Create a PersistentVolume (PV) with:
    - Name: `local-pv-1`
    - Size: 1Gi
    - AccessMode: ReadWriteOnce
    - StorageClassName: `local-storage`
-   - Local path: `/tmp/k8s-pv` (or any valid node path)
-4. Create a PersistentVolumeClaim (PVC) with:
+   - Local path: `/mnt/disks/vol1`
+   - nodeAffinity: `kubernetes.io/hostname` In `cka-practice-worker` (required for `local` volumes)
+3. Create a PersistentVolumeClaim (PVC) in `exercise-25` with:
    - Name: `local-pvc`
-   - Size: 1Gi
-   - StorageClassName: `local-storage`
-5. Observe: PVC remains Pending (not Bound) — WHY?
-6. Create a Pod that uses the PVC:
-   - Image: `busybox:1.36`
+   - Size: 1Gi, AccessMode ReadWriteOnce
+   - StorageClassName: `local-storage` (the cluster's default class is `standard`, so set it explicitly)
+4. Observe: PVC remains Pending (not Bound) — WHY?
+5. Create a Pod `app-pod` in `exercise-25` that uses the PVC:
+   - Image: `busybox:1.36`, command `sleep 3600`
    - Mount PVC at `/data`
-7. Observe: Now PVC transitions to Bound
-   - Pod schedules on the node where the PV exists
-8. Verify data persistence by writing to the volume
+6. Observe: Now PVC transitions to Bound
+   - Pod schedules on `cka-practice-worker`, the node where the PV exists
+7. Verify data persistence: from the pod, write `hello` into `/data/test.txt` and find it in `/mnt/disks/vol1` on the node
+
+Validate with `./scripts/lab.sh check 25`.
 
 ## Key Learning
 
@@ -56,6 +60,12 @@ Create a StorageClass with `WaitForFirstConsumer` binding mode, and understand w
 ## Verify
 
 ```bash
+./scripts/lab.sh check 25
+```
+
+Manual checks:
+
+```bash
 # Initially: PVC should be Pending
 k get pvc -n exercise-25
 
@@ -65,29 +75,24 @@ k get pvc -n exercise-25
 # Pod should be Running
 k get pod -n exercise-25
 
-# Verify mount inside pod
-k exec -it <pod> -n exercise-25 -- ls /data
+# Pod runs on the PV's node
+k get pod app-pod -n exercise-25 -o wide
 
-# Write test data
-k exec -it <pod> -n exercise-25 -- sh -c 'echo "test data" > /data/test.txt'
-
-# Read it back
-k exec -it <pod> -n exercise-25 -- cat /data/test.txt
+# Read the test file back, in the pod and on the node
+k exec app-pod -n exercise-25 -- cat /data/test.txt
+docker exec cka-practice-worker cat /mnt/disks/vol1/test.txt
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns exercise-25
-k delete pv local-pv-1
-k delete storageclass local-storage
+./scripts/lab.sh cleanup 25     # namespace, PV, StorageClass and /mnt/disks on the node
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-k create ns exercise-25
 kn exercise-25
 
 # Create StorageClass with WaitForFirstConsumer
@@ -113,7 +118,7 @@ spec:
     - ReadWriteOnce
   storageClassName: local-storage
   local:
-    path: /tmp/k8s-pv
+    path: /mnt/disks/vol1
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -121,11 +126,8 @@ spec:
         - key: kubernetes.io/hostname
           operator: In
           values:
-          - <node-name>  # Replace with actual node name
+          - cka-practice-worker
 EOF
-
-# Get node name if needed
-k get nodes -o jsonpath='{.items[0].metadata.name}'
 
 # Verify PV created
 k get pv
@@ -174,17 +176,13 @@ EOF
 k get pvc -w
 # Watch it change from Pending to Bound
 
-# Verify pod is running
-k get pod
+# Verify pod is running on cka-practice-worker
+k get pod -o wide
 
 # Test write
 k exec app-pod -n exercise-25 -- sh -c 'echo "hello" > /data/test.txt'
 k exec app-pod -n exercise-25 -- cat /data/test.txt
-
-# Cleanup
-k delete ns exercise-25
-k delete pv local-pv-1
-k delete storageclass local-storage
+docker exec cka-practice-worker cat /mnt/disks/vol1/test.txt   # same file on the node
 ```
 
 </details>

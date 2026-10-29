@@ -16,17 +16,21 @@ On the exam, you'll create PriorityClasses and assign them to pods. You need to 
 
 ## Tasks
 
-1. Create a PriorityClass named `high-priority` with value 1000 and preemptionPolicy set to `PreemptLowerPriority`.
+Work in namespace `exercise-22` (`./scripts/lab.sh setup 22` creates it). PriorityClasses themselves are cluster-scoped.
 
-2. Create a PriorityClass named `low-priority` with value 10 and preemptionPolicy set to `Never`.
+1. Create a PriorityClass named `high-priority` with value 1000 and preemptionPolicy set to `PreemptLowerPriority` (not the global default).
 
-3. Create a Pod named `critical-app` using `nginx:1.28` and assign it to the `high-priority` class.
+2. Create a PriorityClass named `low-priority` with value 10 and preemptionPolicy set to `Never` (not the global default).
 
-4. Create a Pod named `background-job` using `busybox:1.37` to run `sleep 3600` and assign it to the `low-priority` class.
+3. Create a Pod named `critical-app` in `exercise-22` using `nginx:1.28` and assign it to the `high-priority` class.
+
+4. Create a Pod named `background-job` in `exercise-22` using `busybox:1.37` to run `sleep 3600` and assign it to the `low-priority` class.
 
 5. Verify both pods are running. Check their priority values with `kubectl get pod -o json` and filter for `priority` and `priorityClassName`.
 
-6. If possible, drain a node to trigger preemption and observe which pod gets evicted.
+6. Optional: drain a node to trigger preemption and observe which pod gets evicted (uncordon it afterwards; not validated).
+
+Validate with `./scripts/lab.sh check 22`.
 
 ---
 
@@ -37,7 +41,7 @@ On the exam, you'll create PriorityClasses and assign them to pods. You need to 
 
 - **Priority values**: Higher number = higher priority. System pods use 2000000000 (reserved by Kubernetes). Use 1-1000 for application priorities to stay safe.
 - **preemptionPolicy: PreemptLowerPriority**: Allow this priority class to evict lower-priority pods if resources are scarce.
-- **preemptionPolicy: Never**: This priority class will not evict or be evicted, even if it can't fit. It'll just wait.
+- **preemptionPolicy: Never**: Pods of this class never evict other pods; if they can't fit, they just wait (ahead of lower-priority pods in the queue). They can still be preempted by higher-priority pods.
 - Default priority is 0. Pods without an explicit PriorityClass use priority 0.
 - You must create a PriorityClass with `kind: PriorityClass` (not a built-in). PriorityClasses are cluster-wide, not namespaced.
 - Preemption only happens when the scheduler can't fit a pod and has eviction candidates. It's not automatic.
@@ -52,29 +56,35 @@ I thought higher priority pods always run first. They do — but only when the s
 
 I also confused priority (user-defined) with QoS (Quality of Service: Guaranteed, Burstable, BestEffort), which is automatic based on resource limits. They're different and work together.
 
-Creating a Pod with a nonexistent PriorityClass doesn't fail — it just fails to schedule (pending forever). No error message. You have to check the events: `kubectl describe pod <name>`.
+Typo in `priorityClassName`? I expected the pod to sit in Pending, but the Priority admission plugin rejects it right away: `no PriorityClass with name ... was found`. Read the error — and remember to create the PriorityClass before the Pod.
 
 ---
 
 ## Verify
 
 ```bash
+./scripts/lab.sh check 22
+```
+
+Manual checks:
+
+```bash
 # Check PriorityClasses exist
 k get priorityclass -o wide
 
 # Check pod priority
-k get pod -o wide
+k -n exercise-22 get pod -o wide
 
 # Fast priority check (all pods in one table)
-k get pod -o custom-columns=NAME:.metadata.name,CLASS:.spec.priorityClassName,PRIORITY:.spec.priority
+k -n exercise-22 get pod -o custom-columns=NAME:.metadata.name,CLASS:.spec.priorityClassName,PRIORITY:.spec.priority
 
 # Single pod checks (exam-safe, no jq needed)
-k get pod critical-app -o jsonpath='{.spec.priorityClassName}{" "}{.spec.priority}{"\n"}'
-k get pod background-job -o jsonpath='{.spec.priorityClassName}{" "}{.spec.priority}{"\n"}'
+k -n exercise-22 get pod critical-app -o jsonpath='{.spec.priorityClassName}{" "}{.spec.priority}{"\n"}'
+k -n exercise-22 get pod background-job -o jsonpath='{.spec.priorityClassName}{" "}{.spec.priority}{"\n"}'
 
 # Check pod scheduling
-k describe pod critical-app
-k describe pod background-job
+k -n exercise-22 describe pod critical-app
+k -n exercise-22 describe pod background-job
 
 # Monitor preemption (if draining a node)
 k get events --sort-by='.lastTimestamp'
@@ -85,10 +95,7 @@ k get events --sort-by='.lastTimestamp'
 ## Cleanup
 
 ```bash
-k delete pod critical-app
-k delete pod background-job
-k delete priorityclass high-priority
-k delete priorityclass low-priority
+./scripts/lab.sh cleanup 22    # namespace, both PriorityClasses, uncordons all nodes
 ```
 
 ---
@@ -120,6 +127,7 @@ description: "Low priority for background jobs"
 
 ```bash
 k apply -f priorityclasses.yaml
+k create ns exercise-22     # or: ./scripts/lab.sh setup 22
 ```
 
 Verify:
@@ -137,6 +145,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: critical-app
+  namespace: exercise-22
 spec:
   priorityClassName: high-priority
   containers:
@@ -147,6 +156,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: background-job
+  namespace: exercise-22
 spec:
   priorityClassName: low-priority
   containers:
@@ -162,14 +172,14 @@ k apply -f pods.yaml
 **Step 3: Verify Priority**
 
 ```bash
-k get pod -o wide
-k get pod critical-app -o json | jq '.spec.priorityClassName'
+k -n exercise-22 get pod -o wide
+k -n exercise-22 get pod critical-app -o json | jq '.spec.priorityClassName'
 # "high-priority"
 
-k get pod critical-app -o json | jq '.spec.priority'
+k -n exercise-22 get pod critical-app -o json | jq '.spec.priority'
 # 1000
 
-k get pod background-job -o json | jq '.spec.priority'
+k -n exercise-22 get pod background-job -o json | jq '.spec.priority'
 # 10
 ```
 
@@ -178,7 +188,9 @@ k get pod background-job -o json | jq '.spec.priority'
 If you have a multi-node cluster, drain a node:
 
 ```bash
-k drain <node> --ignore-daemonsets --delete-emptydir-data
+k drain <node> --ignore-daemonsets --delete-emptydir-data --force   # --force: the pods are unmanaged
+# afterwards
+k uncordon <node>
 ```
 
 Monitor with:
@@ -186,13 +198,12 @@ Monitor with:
 k get events --sort-by='.lastTimestamp'
 ```
 
-The `background-job` pod should be evicted (assuming resources force it), and `critical-app` should remain running because it has higher priority.
+Careful: drain itself ignores priority — it evicts every pod on the node, and bare pods like these are gone for good (no controller recreates them, so re-apply `pods.yaml` before running the check). Preemption is done by the scheduler: it happens when a pending higher-priority pod can't fit anywhere, and then the lowest-priority pods (`background-job`) are evicted first.
 
 **Step 5: Cleanup**
 
 ```bash
-k delete pod critical-app background-job
-k delete priorityclass high-priority low-priority
+./scripts/lab.sh cleanup 22
 ```
 
 </details>

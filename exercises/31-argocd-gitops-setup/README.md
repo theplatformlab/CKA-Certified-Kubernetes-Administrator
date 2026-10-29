@@ -4,29 +4,34 @@
 >
 > Related: [README — Deployments](../../README.md#domain-3--workloads--scheduling-15)
 
-Install Argo CD and configure it to deploy applications from a Git repository. Tests GitOps concepts and custom resource management.
+Install Argo CD from a Helm chart template and configure it to deploy applications from a Git repository. Tests Helm templating, CRD handling and GitOps concepts.
 
 ## Tasks
 
-1. Install Argo CD in cluster:
-   - Create `argocd` namespace
-   - Apply Argo CD manifests (WITHOUT CRDs if specified)
-2. Generate Kubernetes manifest template:
-   - Define an Application resource
-   - Point to a Git repository
-   - Specify deployment target namespace
-   - Do NOT install CRDs — let Argo CD install them
-3. Save generated Application manifest to file
-4. Verify Argo CD server is Running
-5. Apply the Application manifest
-6. Verify application deployment syncs
+This exercise requires `helm` on your workstation and runs on the practice cluster. Run `./scripts/lab.sh setup 31` first: it pre-installs the Argo CD v3.5.6 CRDs (`applications`, `applicationsets`, `appprojects` in `argoproj.io`), like an exam environment where "the CRDs are already installed". The Application deploys into namespace `exercise-31`; Argo CD creates it.
+
+1. Add the official Argo CD Helm repository under the name `argo`: `https://argoproj.github.io/argo-helm`
+2. Generate a template of chart `argo/argo-cd` version **10.11.6** (Argo CD v3.5.6) with release name `argocd` for namespace `argocd`:
+   - Configure the chart to NOT install CRDs — they already exist
+   - Save the output to `~/argo-helm.yaml`
+3. Create namespace `argocd` and apply `~/argo-helm.yaml` to it
+4. Verify all Argo CD components are Running (`argocd-server`, `argocd-repo-server`, `argocd-application-controller`, ...)
+5. Create an Application `guestbook` in namespace `argocd`:
+   - project `default`
+   - source: repo `https://github.com/argoproj/argocd-example-apps.git`, revision `HEAD`, path `guestbook`
+   - destination: `https://kubernetes.default.svc`, namespace `exercise-31`
+   - automated sync with `prune` and `selfHeal`, sync option `CreateNamespace=true`
+6. Verify the application is `Synced` and `Healthy` and that Deployment and Service `guestbook-ui` exist in `exercise-31`
 7. Create a port-forward to Argo CD UI (optional testing)
+
+Validate with `./scripts/lab.sh check 31`.
 
 ## Key Learning
 
 - GitOps: cluster state matches Git repository
 - Argo CD Application resource is a CRD
-- CRDs are NOT in base manifests — error if you apply before Argo CD
+- The argo-cd chart renders its CRDs as normal templates — `helm template` includes them unless `crds.install=false`
+- Applying the Application before the CRD exists fails with `no matches for kind "Application"`
 - Application must specify repoURL, path, destination
 - Exam tests CRD understanding and GitOps workflow
 
@@ -35,8 +40,10 @@ Install Argo CD and configure it to deploy applications from a Git repository. T
 <details>
 <summary>Stuck? Click to reveal hints</summary>
 
-- Argo CD install: `k create ns argocd` + apply base manifests
-- Don't install CRDs separately — Argo CD operator does it
+- `helm repo add argo https://argoproj.github.io/argo-helm && helm repo update`
+- Chart versions: `helm search repo argo/argo-cd --versions | head` (CHART VERSION ≠ APP VERSION)
+- Find the CRD switch: `helm show values argo/argo-cd --version 10.11.6 | grep -A3 '^crds:'`
+- `helm template` only prints; nothing is installed until you `k apply` the file
 - Wait for server to start: `k get pod -n argocd -l app.kubernetes.io/name=argocd-server`
 - Application spec needs: `repoURL`, `path`, `destination.namespace`
 - Sync status: `k get application -A`
@@ -50,6 +57,15 @@ Install Argo CD and configure it to deploy applications from a Git repository. T
 ## Verify
 
 ```bash
+./scripts/lab.sh check 31
+```
+
+Manual checks:
+
+```bash
+# The template has no CRDs
+grep -c '^kind: CustomResourceDefinition' ~/argo-helm.yaml     # 0
+
 # Argo CD is running
 k get pod -n argocd
 
@@ -59,43 +75,54 @@ k port-forward -n argocd svc/argocd-server 8080:443
 # Application resource exists and is in sync
 k get application -A
 
-# Get application sync status
-k get application -n <namespace> <app-name> -o jsonpath='{.status.sync.status}'
-# Should show: Synced
+# Get application sync and health status
+k get application -n argocd guestbook -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}'
+# Should show: Synced Healthy
 
 # Check deployed resources
-k get deployment,service -n <app-namespace>
+k get deployment,service -n exercise-31
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns argocd
-k delete -f application.yaml
+./scripts/lab.sh cleanup 31
 ```
+
+This deletes the Application, namespaces `exercise-31` and `argocd`, the Argo CD ClusterRoles/Bindings and CRDs, and `~/argo-helm.yaml`.
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-# 1. Create Argo CD namespace
+# 1. Add the Helm repository
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+helm search repo argo/argo-cd --versions | head -3
+
+# 2. Render the chart without CRDs (they are pre-installed)
+helm show values argo/argo-cd --version 10.11.6 | grep -A3 '^crds:'
+helm template argocd argo/argo-cd --version 10.11.6 \
+  --namespace argocd \
+  --set crds.install=false \
+  > ~/argo-helm.yaml
+grep -c '^kind: CustomResourceDefinition' ~/argo-helm.yaml   # 0
+
+# 3. Create the namespace and apply the template
 k create namespace argocd
+k apply -n argocd -f ~/argo-helm.yaml
 
-# 2. Install Argo CD (check https://argo-cd.readthedocs.io/en/stable/getting_started/)
-# Use specific version, e.g., v2.10.3
-k apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.10.3/manifests/install.yaml
+# 4. Wait for Argo CD to be ready
+k -n argocd wait --for=condition=available --timeout=300s deployment --all
+k -n argocd rollout status statefulset argocd-application-controller --timeout=300s
+k get pod -n argocd
 
-# Note: Don't apply -f manifests/crds.yaml separately
-
-# 3. Wait for Argo CD to be ready
-k wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-
-# 4. Create an Application manifest (GitOps)
+# 5. Create an Application manifest (GitOps)
 cat <<EOF > application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: my-app
+  name: guestbook
   namespace: argocd
 spec:
   project: default
@@ -105,7 +132,7 @@ spec:
     path: guestbook
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: exercise-31
   syncPolicy:
     automated:
       prune: true
@@ -114,17 +141,14 @@ spec:
       - CreateNamespace=true
 EOF
 
-# 5. Apply the Application
+# 6. Apply the Application
 k apply -f application.yaml
 
-# 6. Watch sync status
+# 7. Watch sync status (Synced / Healthy after ~1 minute)
 k get application -n argocd -w
 
-# 7. Check deployment status
-k get pod -n default
-
 # 8. Verify resources created by Argo CD
-k get all -n default
+k get deployment,service -n exercise-31
 
 # 9. Access Argo CD UI (optional)
 k port-forward -n argocd svc/argocd-server 8080:443
@@ -133,12 +157,13 @@ k port-forward -n argocd svc/argocd-server 8080:443
 # Get password: k get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
 
 # 10. View application sync status
-k get application my-app -n argocd -o jsonpath='{.status.sync.status}'
+k get application guestbook -n argocd -o jsonpath='{.status.sync.status}'
 # Output: Synced
 ```
 
 References:
 - Argo CD Docs: https://argo-cd.readthedocs.io/
+- Argo CD Helm chart: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
 - Application CRD: https://argo-cd.readthedocs.io/en/stable/declarative-setup/
 
 </details>

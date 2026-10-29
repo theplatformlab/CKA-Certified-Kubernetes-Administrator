@@ -8,28 +8,24 @@ A ClusterIP Service named `payments` is not routing traffic to its Deployment. S
 
 ## Setup
 
-Create the namespace, Deployment, and Service, then introduce one selector mismatch:
+Run setup first:
 
 ```bash
-k create namespace exercise-32
-k create deployment payments --image=nginx:1.28 --replicas=2 -n exercise-32
-k expose deployment payments --name=payments --port=80 --target-port=80 -n exercise-32
-k patch service payments -n exercise-32 --type=merge \
-  -p '{"spec":{"selector":{"app":"payment"}}}'
-k run netcheck -n exercise-32 --image=busybox:1.36 --restart=Never \
-  --command -- sleep 3600
-k rollout status deployment/payments -n exercise-32 --timeout=90s
-k wait pod/netcheck -n exercise-32 --for=condition=Ready --timeout=90s
+./scripts/lab.sh setup 32
 ```
 
-Wait for the Deployment and test Pod to become Ready before starting the task.
+It creates namespace `exercise-32` with the Deployment `payments` (`nginx:1.28`, 2 replicas), the ClusterIP Service `payments` (port 80) and the test Pod `netcheck` (`busybox:1.37`), and waits until they are Ready. Something in it is broken — that is the task.
 
 ## Tasks
+
+Work in namespace `exercise-32`.
 
 1. Check the `payments` Service and its EndpointSlices. Find why it has no usable backends.
 2. Inspect the Service selector and the Deployment's Pod labels. Fix the Service without changing the Deployment.
 3. Confirm the EndpointSlices contain both ready Pod IPs.
-4. From `netcheck`, resolve `payments.exercise-32.svc.cluster.local` and make an HTTP request to the Service.
+4. From `netcheck`, resolve `payments.exercise-32.svc.cluster.local` and make an HTTP request to the Service (port 80).
+
+Validate with `./scripts/lab.sh check 32`.
 
 ## Hints
 
@@ -44,6 +40,12 @@ Wait for the Deployment and test Pod to become Ready before starting the task.
 </details>
 
 ## Verify
+
+```bash
+./scripts/lab.sh check 32
+```
+
+Manual checks:
 
 ```bash
 # The EndpointSlice should list two ready endpoints
@@ -61,12 +63,12 @@ k exec netcheck -n exercise-32 -- \
 
 ## Optional Challenge
 
-After the main task works, change the Service `targetPort` to `8080`. Check whether EndpointSlices still contain ready endpoints, then diagnose why the HTTP request fails. Restore `targetPort: 80` afterward.
+After the main task works, change the Service `targetPort` to `8080`. Check whether EndpointSlices still contain ready endpoints, then diagnose why the HTTP request fails. Restore `targetPort: 80` afterward — the check expects port 80 -> targetPort 80.
 
 ## Cleanup
 
 ```bash
-k delete namespace exercise-32
+./scripts/lab.sh cleanup 32
 ```
 
 <details>

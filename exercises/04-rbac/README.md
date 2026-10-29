@@ -6,23 +6,26 @@ Set up Role-Based Access Control with Roles, ClusterRoles, and bindings. This is
 
 ## Tasks
 
-1. Create a namespace called `exercise-04`
-2. Create a ServiceAccount named `dev-sa` in namespace `exercise-04`
-3. Create a Role named `pod-manager` in namespace `exercise-04` that allows:
+Work in namespace `exercise-04` (`./scripts/lab.sh setup 04` creates it).
+
+1. Create a ServiceAccount named `dev-sa` in namespace `exercise-04`
+2. Create a Role named `pod-manager` in namespace `exercise-04` that allows exactly:
    - `get`, `list`, `watch`, `create`, `delete` on `pods`
    - `get`, `list` on `services`
-4. Create a RoleBinding named `dev-pod-access` that binds `pod-manager` to `dev-sa`
-5. Verify that `dev-sa` can list pods in `exercise-04`
-6. Verify that `dev-sa` cannot list pods in `default` namespace
-7. Create a ClusterRole named `node-viewer` that allows `get`, `list` on `nodes`
-8. Create a ClusterRoleBinding named `dev-node-access` binding `node-viewer` to `dev-sa`
-9. Verify that `dev-sa` can now list nodes
+3. Create a RoleBinding named `dev-pod-access` in `exercise-04` that binds `pod-manager` to `dev-sa`
+4. Verify that `dev-sa` can list pods in `exercise-04`
+5. Verify that `dev-sa` cannot list pods in `default` namespace
+6. Create a ClusterRole named `node-viewer` that allows `get`, `list` on `nodes`
+7. Create a ClusterRoleBinding named `dev-node-access` binding `node-viewer` to `dev-sa`
+8. Verify that `dev-sa` can now list nodes (but not delete them)
+
+Validate with `./scripts/lab.sh check 04`.
 
 ## Additional Real-Exam Scenarios
 
-10. A developer reports they cannot delete a deployment in `exercise-04`. Use `k auth can-i` to debug why
-11. Test what `dev-sa` can do with deployments (should return "no")
-12. List all permissions granted to `dev-sa` in the `exercise-04` namespace
+9. A developer reports they cannot delete a deployment in `exercise-04`. Use `k auth can-i` to debug why
+10. Test what `dev-sa` can do with deployments (should return "no")
+11. List all permissions granted to `dev-sa` in the `exercise-04` namespace
 
 ## Hints
 
@@ -66,6 +69,12 @@ Set up Role-Based Access Control with Roles, ClusterRoles, and bindings. This is
 ## Verify
 
 ```bash
+./scripts/lab.sh check 04
+```
+
+Manual checks:
+
+```bash
 # Should return "yes"
 k auth can-i list pods -n exercise-04 --as=system:serviceaccount:exercise-04:dev-sa
 
@@ -91,16 +100,14 @@ k auth can-i --list --as=system:serviceaccount:exercise-04:dev-sa -n exercise-04
 ## Cleanup
 
 ```bash
-k delete ns exercise-04
-k delete clusterrole node-viewer
-k delete clusterrolebinding dev-node-access
+./scripts/lab.sh cleanup 04    # namespace plus the cluster-scoped node-viewer / dev-node-access
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-k create ns exercise-04
+k create ns exercise-04     # or: ./scripts/lab.sh setup 04
 
 # ServiceAccount
 k create sa dev-sa -n exercise-04

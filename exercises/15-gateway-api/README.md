@@ -8,19 +8,21 @@ Gateway API is GA in v1.35 and replaces classic Ingress for modern traffic manag
 
 ## Tasks
 
-1. Create a namespace called `exercise-15`
-2. Verify a GatewayClass exists in the cluster (depends on your CNI/controller)
-3. Create a Gateway named `web-gateway` in namespace `exercise-15`:
+Work in namespace `exercise-15` (`./scripts/lab.sh setup 15` creates it, installs the Gateway API v1.6.3 standard CRDs and a GatewayClass). The lab cluster runs no Gateway controller, so the check validates the object specs and the backend Service — not traffic through the Gateway.
+
+1. Find the GatewayClass that exists in the cluster (in the exam it depends on the installed controller)
+2. Create a Gateway named `web-gateway` in namespace `exercise-15`:
    - Reference the existing GatewayClass
-   - Listen on port 80, protocol HTTP
-4. Create a Deployment named `web` with image `nginx:1.28` and 2 replicas
-5. Expose it with a ClusterIP Service named `web-svc` on port 80
-6. Create an HTTPRoute named `web-route` that:
+   - One listener named `http` on port 80, protocol HTTP
+3. Create a Deployment named `web` with image `nginx:1.28` and 2 replicas
+4. Expose it with a ClusterIP Service named `web-svc` on port 80
+5. Create an HTTPRoute named `web-route` that:
    - References `web-gateway` as the parent
    - Matches path prefix `/`
    - Routes to `web-svc` on port 80
-7. Verify the Gateway status shows `Programmed: True`
-8. Verify the HTTPRoute is attached to the Gateway
+6. Inspect the Gateway and HTTPRoute status. With a real controller the Gateway shows `Programmed: True` and the HTTPRoute lists `web-gateway` under `status.parents`; in this lab no controller reconciles the class, so the status stays `Unknown` ("Waiting for controller")
+
+Validate with `./scripts/lab.sh check 15`.
 
 ## Hints
 
@@ -44,31 +46,39 @@ Gateway API is GA in v1.35 and replaces classic Ingress for modern traffic manag
 ## Verify
 
 ```bash
-# Gateway ready
+./scripts/lab.sh check 15
+```
+
+Manual checks:
+
+```bash
+# Gateway: CLASS cka-lab (PROGRAMMED stays Unknown without a controller)
 k get gateway web-gateway -n exercise-15
 
-# HTTPRoute accepted
-k get httproute web-route -n exercise-15
+# HTTPRoute: parentRefs and backendRefs
+k get httproute web-route -n exercise-15 -o yaml
 
-# Backend pods running
+# Backend pods running and reachable
 k get pods -n exercise-15
+k -n exercise-15 run t --image=busybox:1.37 --rm -it --restart=Never -- \
+  wget -qO- web-svc.exercise-15.svc.cluster.local
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns exercise-15
+./scripts/lab.sh cleanup 15
 ```
+
+Cleanup also deletes the `cka-lab` GatewayClass and the Gateway API CRDs (if no other Gateway API objects are left).
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-k create ns exercise-15
-
 # Check GatewayClass
 k get gatewayclass
-# Note the name, e.g., "eg" for Envoy Gateway or "cilium" for Cilium
+# In this lab: cka-lab. In other clusters e.g. "eg" for Envoy Gateway or "cilium" for Cilium
 ```
 
 ```yaml
@@ -79,7 +89,7 @@ metadata:
   name: web-gateway
   namespace: exercise-15
 spec:
-  gatewayClassName: eg    # replace with your GatewayClass name
+  gatewayClassName: cka-lab    # the GatewayClass from k get gatewayclass
   listeners:
   - name: http
     port: 80

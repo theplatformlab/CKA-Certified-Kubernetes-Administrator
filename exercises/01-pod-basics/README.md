@@ -6,16 +6,19 @@ Create a pod with specific resource requests, labels, and verify it's running.
 
 ## Tasks
 
-1. Create a namespace called `exercise-01`
-2. Create a pod named `web` in namespace `exercise-01` with these specs:
+Work in namespace `exercise-01` (`./scripts/lab.sh setup 01` creates it).
+
+1. Create a pod named `web` in namespace `exercise-01` with these specs:
    - Image: `nginx:1.27`
    - Labels: `app=web`, `tier=frontend`
-   - Resource requests: 64Mi memory, 100m CPU
-   - Resource limits: 128Mi memory, 250m CPU
-3. Verify the pod is running and has the correct labels
-4. Get the pod's IP address using `-o wide`
-5. Add a new label `version=v1` to the running pod
-6. Remove the `tier` label from the pod
+   - Resource requests: `64Mi` memory, `100m` CPU
+   - Resource limits: `128Mi` memory, `250m` CPU
+2. Verify the pod is running and has the correct labels
+3. Get the pod's IP address using `-o wide`
+4. Add a new label `version=v1` to the running pod
+5. Remove the `tier` label from the pod
+
+Validate with `./scripts/lab.sh check 01`.
 
 ## Hints
 
@@ -37,6 +40,12 @@ Create a pod with specific resource requests, labels, and verify it's running.
 ## Verify
 
 ```bash
+./scripts/lab.sh check 01
+```
+
+Manual checks:
+
+```bash
 # Pod should be Running
 k get pod web -n exercise-01
 
@@ -50,18 +59,18 @@ k get pod web -n exercise-01 -o wide
 ## Cleanup
 
 ```bash
-k delete ns exercise-01
+./scripts/lab.sh cleanup 01
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-# Create namespace
+# Namespace (or: ./scripts/lab.sh setup 01)
 k create ns exercise-01
 
 # Generate pod YAML
-k run web -n exercise-01 --image=nginx:1.28 --labels=app=web,tier=frontend $do > pod.yaml
+k run web -n exercise-01 --image=nginx:1.27 --labels=app=web,tier=frontend $do > pod.yaml
 ```
 
 Edit `pod.yaml` to add resources:

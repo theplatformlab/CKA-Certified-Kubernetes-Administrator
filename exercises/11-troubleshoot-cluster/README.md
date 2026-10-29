@@ -20,37 +20,48 @@ Before working through these scenarios, understand the trap architecture:
 
 ## Tasks
 
+This exercise runs on the ops cluster (`./scripts/init-cluster.sh --profile ops`). `./scripts/lab.sh setup 11` breaks the cluster in four places at once — one fault per scenario below. Run setup first and don't look at what it changes; the tasks only describe symptoms. Work in namespace `exercise-11` (setup creates it).
+
+Nodes are `cka-ops-control-plane` and `cka-ops-worker`. Open a shell on a node with `docker exec -it <node> bash` — the kind equivalent of `ssh <node>` in the exam.
+
+`./scripts/lab.sh check 11` reports each scenario separately (`[A]` ... `[D]`), so you can fix them in any order. Faults can mask each other: a symptom may change after you fix another scenario — re-test after every fix.
+
 ### Scenario A: Broken kubelet
 
-1. SSH to a worker node
-2. Stop the kubelet service
-3. From the control plane, observe the node status change to `NotReady`
-4. SSH back to the worker and check kubelet logs
-5. Restart kubelet and verify the node comes back to `Ready`
+1. `k get nodes` shows `cka-ops-worker` as `NotReady`
+2. Open a shell on the worker and check the kubelet service status and logs
+3. Fix it so the node returns to `Ready` — and stays fixed after the node reboots
 
 ### Scenario B: CoreDNS troubleshooting
 
-1. Create a pod and try to resolve a service name — should fail if CoreDNS is broken
+1. From a test pod, resolving `kubernetes.default.svc.cluster.local` fails
 2. Check CoreDNS pods in `kube-system`
 3. Check CoreDNS logs for errors
 4. Verify the CoreDNS ConfigMap for misconfigurations
 5. Check that the `kube-dns` service has endpoints
-6. Fix any issues and verify DNS resolution works
+6. Fix any issues and verify DNS resolution works from a pod
 
 ### Scenario C: kube-proxy
+
+The Service `web` in `exercise-11` has a Ready backend pod, but nothing answers on its ClusterIP.
 
 1. Check if kube-proxy pods are running on all nodes
 2. Check kube-proxy logs
 3. Verify kube-proxy ConfigMap
-4. Check iptables rules on a node
+4. Check iptables rules for the Service on a node
+5. Fix it: `wget -qO- http://<ClusterIP of web>` from a test pod returns the nginx page
 
 ### Scenario D: API Server audit logs (Kubernetes 1.35 troubleshooting)
 
+The API server writes an audit log. A ServiceAccount tried to delete the Secret `db-credentials` in `exercise-11` and was denied by RBAC.
+
 1. Find where audit logs are stored on the control plane node
 2. Check the audit policy configuration in the apiserver manifest
-3. Look for failed authentication attempts in the audit log
-4. Find requests that were denied by RBAC
-5. Correlate user identity to request details
+3. Find requests that were denied by RBAC (there is more than one)
+4. Find the identity whose *delete* of Secret `db-credentials` was denied
+5. Write its full username exactly as the audit log shows it (`system:serviceaccount:<namespace>:<name>`) to `/opt/exercise-11/denied-user.txt` on `cka-ops-control-plane`
+
+Validate with `./scripts/lab.sh check 11`.
 
 ## Hints
 
@@ -61,9 +72,11 @@ Before working through these scenarios, understand the trap architecture:
 - CoreDNS pods run as a Deployment in `kube-system`
 - `k exec <pod> -- nslookup kubernetes` to test DNS
 - kube-proxy runs as a DaemonSet in `kube-system`
-- `iptables-save | grep <service-name>` to check kube-proxy rules
+- `iptables-save | grep <service-name>` to check kube-proxy rules (kube-proxy comments its rules with `<namespace>/<service>`)
+- A ConfigMap change only reaches kube-proxy when its pods restart
 - Audit logs typically at `/var/log/audit/audit.log` or `/var/log/kubernetes/audit/audit.log`
 - Check `/etc/kubernetes/manifests/kube-apiserver.yaml` for `--audit-log-path` and `--audit-policy-file`
+- `jq` is installed on the control plane node
 - Look for `"verb":"delete"` or `"user":{"username":"system:admin"}` in audit logs to find specific operations
 
 </details>
@@ -72,7 +85,7 @@ Before working through these scenarios, understand the trap architecture:
 
 > **Kubelet Trap:** My first instinct when a node is NotReady was to run `kubectl describe node` from the control plane. That gives you conditions but not the root cause. The real answer is almost always in `journalctl -u kubelet` on the broken node itself. SSH first, check kubelet logs, then work backwards. I wasted 7 minutes on practice exam questions by troubleshooting from the wrong machine.
 >
-> **Kubelet Gotcha (Red Herring):** In k8s 1.35, the systemd service is `kubelet`, but the process might have a different PID if running in a container. Don't assume `ps aux | grep kubelet` shows the main process. Always use `systemctl status kubelet` for authoritative state.
+> **Kubelet Gotcha (Red Herring):** In k8s v1.35, the systemd service is `kubelet`, but the process might have a different PID if running in a container. Don't assume `ps aux | grep kubelet` shows the main process. Always use `systemctl status kubelet` for authoritative state.
 >
 > **CoreDNS Trap:** `nslookup` failing doesn't always mean CoreDNS is broken. Check `resolv.conf` inside the pod first — I had a case where the pod's DNS config was pointing to the wrong IP because of a network policy blocking UDP 53 to the kube-dns service. The CoreDNS pods were fine; the traffic just couldn't reach them. Verify: `k exec <pod> -- cat /etc/resolv.conf`
 >
@@ -85,21 +98,35 @@ Before working through these scenarios, understand the trap architecture:
 ## Verify
 
 ```bash
+./scripts/lab.sh check 11
+```
+
+Manual checks:
+
+```bash
 # All nodes Ready
 k get nodes
 
 # DNS works
-k run test-dns --image=busybox:1.36 --rm -it -- nslookup kubernetes
+k -n exercise-11 run test-dns --image=busybox:1.37 --rm -it --restart=Never -- \
+  nslookup kubernetes.default.svc.cluster.local
 
 # Services are routable
-k get endpoints -n kube-system
+k -n exercise-11 get svc web
+k -n exercise-11 run test-web --image=busybox:1.37 --rm -it --restart=Never -- \
+  wget -qO- http://<ClusterIP of web>
+
+# Your audit answer
+docker exec cka-ops-control-plane cat /opt/exercise-11/denied-user.txt
 ```
 
 ## Cleanup
 
 ```bash
-k delete pod test-dns --force 2>/dev/null
+./scripts/lab.sh cleanup 11
 ```
+
+Cleanup repairs whatever is still broken (kubelet, CoreDNS, kube-proxy), removes the audit logging from the API server and deletes the namespace.
 
 <details>
 <summary>Solution</summary>
@@ -107,90 +134,114 @@ k delete pod test-dns --force 2>/dev/null
 ### Scenario A: kubelet
 
 ```bash
-# SSH to worker
-ssh worker-1
-
-# Stop kubelet
-sudo systemctl stop kubelet
-
-# From control plane (different terminal)
 k get nodes
-# worker-1 shows NotReady after ~40 seconds
+# cka-ops-worker   NotReady
 
-# Back on worker — check why
-sudo systemctl status kubelet
-sudo journalctl -u kubelet --no-pager -l | tail -30
+# Shell on the worker (exam: ssh cka-ops-worker)
+docker exec -it cka-ops-worker bash
 
-# Fix: restart kubelet
-sudo systemctl start kubelet
+# Check why
+systemctl status kubelet
+# Loaded: ... kubelet.service; disabled ...   Active: inactive (dead)
+journalctl -u kubelet --no-pager | tail -30
+# Nothing crashed: the service was stopped and disabled
 
-# Back on control plane
+# Fix: start it AND enable it, so it comes back after a reboot
+systemctl enable --now kubelet
+exit
+
 k get nodes
-# worker-1 should be Ready again
+# cka-ops-worker should be Ready again after a few seconds
 ```
 
 ### Scenario B: CoreDNS
 
 ```bash
-# Check CoreDNS pods
-k get pods -n kube-system -l k8s-app=kube-dns
+# Test DNS
+k -n exercise-11 run test-dns --image=busybox:1.37 --rm -it --restart=Never -- \
+  nslookup kubernetes.default.svc.cluster.local
+# NXDOMAIN (or a timeout while kube-proxy is still broken — Scenario C)
 
-# Check logs
+# Check CoreDNS pods and logs
+k get pods -n kube-system -l k8s-app=kube-dns
 k logs -n kube-system -l k8s-app=kube-dns
+
+# Check endpoints
+k get endpointslices -n kube-system -l kubernetes.io/service-name=kube-dns
+# Should show IPs of CoreDNS pods — they are fine
 
 # Check ConfigMap
 k get configmap coredns -n kube-system -o yaml
+# kubernetes cluster.lcoal in-addr.arpa ip6.arpa {   <- typo: the zone must be cluster.local
 
-# Check endpoints
-k get endpoints kube-dns -n kube-system
-# Should show IPs of CoreDNS pods
+# Fix the typo and restart CoreDNS (the reload plugin would pick it up too, but slower)
+k edit configmap coredns -n kube-system
+k -n kube-system rollout restart deployment coredns
+k -n kube-system rollout status deployment coredns
 
-# Test DNS
-k run test-dns --image=busybox:1.37 --rm -it -- nslookup kubernetes.default.svc.cluster.local
+# Test DNS again
+k -n exercise-11 run test-dns --image=busybox:1.37 --rm -it --restart=Never -- \
+  nslookup kubernetes.default.svc.cluster.local
 ```
 
 ### Scenario C: kube-proxy
 
 ```bash
-# Check DaemonSet
+# Check DaemonSet and pods
 k get ds kube-proxy -n kube-system
-
-# Check pods
 k get pods -n kube-system -l k8s-app=kube-proxy -o wide
+# 0/1 CrashLoopBackOff on every node
 
 # Check logs
 k logs -n kube-system -l k8s-app=kube-proxy | tail -20
+# "command failed" err="failed validate: KubeProxyConfiguration.Mode.ProxyMode: Invalid value: \"iptable\" ..."
 
-# Check ConfigMap
-k get configmap kube-proxy -n kube-system -o yaml
+# On a node, there are no rules for the Service web (created after kube-proxy died)
+docker exec cka-ops-worker iptables-save | grep exercise-11/web
 
-# On a node, check iptables
-sudo iptables-save | grep -c KUBE
+# Fix the ConfigMap: mode: iptables
+k edit configmap kube-proxy -n kube-system
+
+# Restart the pods so they read the new config
+k -n kube-system delete pod -l k8s-app=kube-proxy
+k -n kube-system rollout status ds kube-proxy
+
+# Rules exist now and the ClusterIP answers
+docker exec cka-ops-worker iptables-save | grep -c exercise-11/web
+k -n exercise-11 run test-web --image=busybox:1.37 --rm -it --restart=Never -- \
+  wget -qO- http://$(k -n exercise-11 get svc web -o jsonpath='{.spec.clusterIP}')
 ```
 
 ### Scenario D: API Server audit logs
 
 ```bash
-# SSH to control plane node
-ssh control-plane
+# Shell on the control plane (exam: ssh cka-ops-control-plane)
+docker exec -it cka-ops-control-plane bash
 
 # Check apiserver manifest for audit configuration
-sudo cat /etc/kubernetes/manifests/kube-apiserver.yaml | grep -i audit
-
-# Find audit log file (look for --audit-log-path flag)
-sudo cat /var/log/audit/audit.log | jq . | head -50
-
-# Find failed authentication attempts
-sudo cat /var/log/audit/audit.log | jq 'select(.user.username=="unknown" or .status.code>=400)' | head -20
-
-# Find specific user actions (e.g., resource deletion)
-sudo tail -100 /var/log/audit/audit.log | jq 'select(.verb=="delete")'
+grep -i audit /etc/kubernetes/manifests/kube-apiserver.yaml
+# --audit-policy-file=/etc/kubernetes/audit/policy.yaml
+# --audit-log-path=/var/log/kubernetes/audit/audit.log
+cat /etc/kubernetes/audit/policy.yaml
 
 # Check request count by verb
-sudo cat /var/log/audit/audit.log | jq -r '.verb' | sort | uniq -c | sort -rn
+jq -r '.verb' /var/log/kubernetes/audit/audit.log | sort | uniq -c | sort -rn
 
-# Search for RBAC denials
-sudo cat /var/log/audit/audit.log | jq 'select(.stage=="ResponseComplete" and .status.code>=400)'
+# All requests denied by RBAC (403) — there is a denied get as a red herring
+jq -c 'select(.responseStatus.code==403) | [.user.username, .verb, .objectRef.resource, .objectRef.name]' \
+  /var/log/kubernetes/audit/audit.log
+
+# The denied delete of Secret db-credentials
+jq -r 'select(.verb=="delete" and .objectRef.resource=="secrets"
+              and .objectRef.name=="db-credentials" and .responseStatus.code==403)
+       | .user.username' /var/log/kubernetes/audit/audit.log | sort -u
+
+# Write the answer
+mkdir -p /opt/exercise-11
+echo "system:serviceaccount:exercise-11:<name from the query above>" > /opt/exercise-11/denied-user.txt
+exit
+
+./scripts/lab.sh check 11
 ```
 
 </details>

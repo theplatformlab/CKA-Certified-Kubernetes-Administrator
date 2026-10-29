@@ -13,7 +13,7 @@ Understanding PSS troubleshooting trap patterns:
 - **Validation Criteria:** Your answer is correct if:
   - Restricted namespace rejects non-compliant pods with error message (not Pending)
   - Baseline namespace allows configurable pods but rejects privileged containers
-  - Audit mode allows pods but shows annotations in `k describe pod`
+  - Audit/warn namespace allows the pod, kubectl prints a warning (warn) and the violation is recorded in the API server audit log (audit)
   - All label formats use full `pod-security.kubernetes.io/` prefix
 - **Scoring:** Full credit for all 3 modes working + correct label syntax. Partial for partial enforcement.
 
@@ -29,15 +29,19 @@ In Kubernetes 1.35, Pod Security Standards are part of the standard admission co
 
 ## Tasks
 
-1. Create a namespace called `exercise-20`
-2. Label it with Pod Security Standards at `restricted` level in `enforce` mode
-3. Attempt to run a pod with a privileged container in `exercise-20`—it should be rejected
-4. Create a second namespace `exercise-20-baseline` with `baseline` PSS level
-5. Run a pod with `runAsNonRoot: true` in the baseline namespace—it should succeed
-6. Run a pod with `privileged: true` in the baseline namespace—it should be rejected
-7. Create a third namespace `exercise-20-audit` with `restricted` level but in `audit` mode
-8. Run a privileged pod in audit mode—it should succeed but be logged as a violation
-9. Check the audit annotations on the pod that ran in audit mode
+Work in namespaces `exercise-20`, `exercise-20-baseline` and `exercise-20-audit` (`./scripts/lab.sh setup 20` creates them, without any Pod Security labels).
+
+1. Label `exercise-20` with Pod Security Standards at `restricted` level in `enforce` mode
+2. Attempt to run a privileged pod `rogue` (`nginx:1.28`) in `exercise-20` — it should be rejected
+3. Create a restricted-compliant pod `secure-pod` (image `nginx:1.28`) in `exercise-20` and get it Running
+4. Label `exercise-20-baseline` with `baseline` level in `enforce` mode
+5. Run a pod `baseline-pod` (`nginx:1.28`, no securityContext) in the baseline namespace — it should succeed (baseline allows root, it only blocks privileged features)
+6. Run a pod `priv-pod` with `privileged: true` in the baseline namespace — it should be rejected
+7. Label `exercise-20-audit` with `restricted` level in `audit` and `warn` mode only (no `enforce` label)
+8. Run a privileged pod `audit-pod` (`nginx:1.28`) in the audit namespace — it should succeed, but kubectl prints a `Warning: would violate PodSecurity "restricted:latest"`
+9. Understand where the violation went: `warn` returns it to the client, `audit` writes it to the API server audit log (the pod itself gets no annotation; kind has no audit log configured)
+
+Validate with `./scripts/lab.sh check 20` (it also asks the API server, via `--dry-run=server`, which pods each namespace admits).
 
 ## Hints
 
@@ -48,8 +52,9 @@ In Kubernetes 1.35, Pod Security Standards are part of the standard admission co
 - Three modes: `enforce` (deny), `audit` (allow but log), `warn` (allow but show warning)
 - Pod security levels: `privileged` (no restrictions), `baseline` (minimal restrictions), `restricted` (modern hardening)
 - `k label ns <namespace> pod-security.kubernetes.io/enforce=restricted` to add PSS labels
-- `k get pods -o yaml` shows audit annotations in `metadata.annotations` when violations occur
-- A "restricted" level pod must have: `runAsNonRoot=true`, `allowPrivilegeEscalation=false`, `readOnlyRootFilesystem=true`
+- `k run x --image=nginx:1.28 -n <ns> --dry-run=server` tells you whether a pod would be admitted, without creating it
+- A "restricted" level pod must have: `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]` and `seccompProfile.type: RuntimeDefault` (`readOnlyRootFilesystem` is good practice, but not required by PSS)
+- nginx as non-root: run it as user `101` (the image's `nginx` user) and give it writable `emptyDir`s for `/var/cache/nginx`, `/var/run` and `/tmp`
 
 </details>
 
@@ -59,7 +64,7 @@ In Kubernetes 1.35, Pod Security Standards are part of the standard admission co
 >
 > **Retroactive Enforcement Trap:** I labeled a namespace with `enforce=restricted`, then a non-compliant pod was already running. I expected kubectl to reject it retroactively — it didn't. PSS labels only apply to NEW pods. Already-running pods keep running. You must delete and re-create to test. This is a common exam gotcha: the policy looks wrong because old pods don't get enforced.
 >
-> **Audit vs Enforce Mode Confusion:** In `audit` mode, pods run even if they violate policies. The difference: `audit` pods succeed but get annotated, `enforce` pods are rejected outright. I thought audit mode was broken because the non-compliant pod succeeded. That's correct behavior — audit is observe-only. Check: `k describe pod <name> | grep security` for violations in annotations.
+> **Audit vs Enforce Mode Confusion:** In `audit` mode, pods run even if they violate policies. The difference: `audit` pods succeed and the violation is written to the API server audit log (not to the pod), `enforce` pods are rejected outright. I thought audit mode was broken because the non-compliant pod succeeded. That's correct behavior — audit is observe-only. Add `warn` next to `audit` so kubectl shows you the violation as a `Warning:` right away.
 >
 > **May 2026 Gotcha (PSS Versions):** In k8s 1.35, PSS levels are tied to specific Kubernetes API versions in the audit output. When checking audit logs, violations show a k8s version (`1.35.1`). If your audit policy and actual cluster version mismatch, some `restricted` requirements might not be enforced uniformly. Always check: `k version` to ensure cluster version matches your PSS policy expectations.
 >
@@ -72,63 +77,47 @@ In Kubernetes 1.35, Pod Security Standards are part of the standard admission co
 ## Verify
 
 ```bash
-# Create restricted namespace
-k create ns exercise-20
-k label ns exercise-20 pod-security.kubernetes.io/enforce=restricted
+./scripts/lab.sh check 20
+```
 
-# Try to run privileged pod (should fail)
-k run rogue --image=nginx:1.28 --privileged -n exercise-20
-# Expected: Pod is rejected with error
+Manual checks:
 
-# Create baseline namespace
-k create ns exercise-20-baseline
-k label ns exercise-20-baseline pod-security.kubernetes.io/enforce=baseline
+```bash
+# Labels use the full pod-security.kubernetes.io/ prefix
+k get ns exercise-20 exercise-20-baseline exercise-20-audit --show-labels
 
-# Try baseline pod with non-root (should succeed)
-k run safe-pod --image=nginx:1.28 -n exercise-20-baseline
-k get pods -n exercise-20-baseline
+# Restricted namespace: privileged pod rejected, compliant pod running
+k run rogue --image=nginx:1.28 --privileged -n exercise-20 --dry-run=server   # Forbidden
+k get pod secure-pod -n exercise-20
 
-# Try privileged in baseline (should fail)
-k run priv-pod --image=nginx:1.28 --privileged -n exercise-20-baseline
-# Expected: Pod rejected
+# Baseline namespace: plain pod runs, privileged pod rejected
+k get pod baseline-pod -n exercise-20-baseline
+k run priv-pod --image=nginx:1.28 --privileged -n exercise-20-baseline --dry-run=server   # Forbidden
 
-# Create audit namespace
-k create ns exercise-20-audit
-k label ns exercise-20-audit pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/audit=restricted
-
-# Run pod in audit mode (should succeed but log violation)
-k run audit-pod --image=nginx:1.28 -n exercise-20-audit
-k describe pod audit-pod -n exercise-20-audit
-# Check annotations for security violations
+# Audit/warn namespace: privileged pod runs, kubectl warns
+k get pod audit-pod -n exercise-20-audit
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns exercise-20 exercise-20-baseline exercise-20-audit
+./scripts/lab.sh cleanup 20
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-# Create and label namespaces with PSS
-k create ns exercise-20
+# Label namespaces with PSS
 k label ns exercise-20 pod-security.kubernetes.io/enforce=restricted
-
-k create ns exercise-20-baseline
 k label ns exercise-20-baseline pod-security.kubernetes.io/enforce=baseline
-
-k create ns exercise-20-audit
 k label ns exercise-20-audit \
-  pod-security.kubernetes.io/enforce=restricted \
   pod-security.kubernetes.io/audit=restricted \
   pod-security.kubernetes.io/warn=restricted
 
-# Test restricted enforcement
-# This command will fail:
-kubectl run restricted-test --image=nginx:1.28 -n exercise-20 --dry-run=server
-# Error: pods "restricted-test" is forbidden: violates PodSecurity "restricted:latest": ...
+# Test restricted enforcement — this fails:
+k run rogue --image=nginx:1.28 --privileged -n exercise-20
+# Error: pods "rogue" is forbidden: violates PodSecurity "restricted:latest": ...
 
 # Create compliant pod for restricted namespace
 cat <<EOF | k apply -f -
@@ -140,8 +129,11 @@ metadata:
 spec:
   securityContext:
     runAsNonRoot: true
-    runAsUser: 1000
-    fsGroup: 2000
+    runAsUser: 101        # the nginx user of the image
+    runAsGroup: 101
+    fsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
   containers:
   - name: nginx
     image: nginx:1.28
@@ -156,21 +148,29 @@ spec:
       mountPath: /tmp
     - name: cache
       mountPath: /var/cache/nginx
+    - name: run
+      mountPath: /var/run
   volumes:
   - name: tmp
     emptyDir: {}
   - name: cache
     emptyDir: {}
+  - name: run
+    emptyDir: {}
 EOF
+k get pod secure-pod -n exercise-20     # Running
 
 # Test baseline
-kubectl run baseline-pod --image=nginx:1.28 -n exercise-20-baseline
+k run baseline-pod --image=nginx:1.28 -n exercise-20-baseline
+k run priv-pod --image=nginx:1.28 --privileged -n exercise-20-baseline
+# Error: violates PodSecurity "baseline:latest": privileged ...
 k get pods -n exercise-20-baseline
 
-# Test audit mode
-kubectl run audit-test --image=nginx:1.28 -n exercise-20-audit
-k describe pod audit-test -n exercise-20-audit
-# Look for pod-security.kubernetes.io/restricted annotation showing violations
+# Test audit/warn mode
+k run audit-pod --image=nginx:1.28 --privileged -n exercise-20-audit
+# Warning: would violate PodSecurity "restricted:latest": privileged ...
+# pod/audit-pod created
+k get pod audit-pod -n exercise-20-audit
 
 # Verify labels were applied correctly
 k get ns exercise-20 exercise-20-baseline exercise-20-audit -o json | jq '.items[].metadata.labels'

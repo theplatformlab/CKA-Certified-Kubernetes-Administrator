@@ -16,17 +16,21 @@ On the exam, you'll create both and understand backoff limits, completions, and 
 
 ## Tasks
 
+Work in namespace `exercise-21` (`./scripts/lab.sh setup 21` creates it).
+
 1. Create a Job named `cleanup-job` that runs the image `busybox:1.37` with command `echo "Cleanup complete"`. Set it to run 3 times (completions=3) serially (parallelism=1).
 
 2. Verify the Job runs to completion (status should show 3/3). Check the pod logs.
 
-3. Create a CronJob named `hourly-backup` that runs `backup-script.sh` every hour. Use the same busybox image. Let it keep 3 successful job histories (successfulJobsHistoryLimit=3).
+3. Create a CronJob named `hourly-backup` that runs every hour at minute 0 (`0 * * * *`). Use the same busybox image with command `sh -c 'echo "Backup at $(date)"'` (stand-in for a backup script). Let it keep 3 successful job histories (successfulJobsHistoryLimit=3).
 
-4. List CronJobs and check the next scheduled time.
+4. List CronJobs and check the schedule and the LAST SCHEDULE column.
 
-5. Manually trigger the CronJob once (create a Job from it).
+5. Manually trigger the CronJob once: create a Job named `hourly-backup-manual-1` from it.
 
-6. Verify the manual Job ran and logged output.
+6. Verify the manual Job ran and logged `Backup at <date>`.
+
+Validate with `./scripts/lab.sh check 21`.
 
 ---
 
@@ -35,12 +39,12 @@ On the exam, you'll create both and understand backoff limits, completions, and 
 <details>
 <summary>Stuck? Click to reveal hints</summary>
 
-- **completions=3**: The Job must run 3 times successfully before completion.
+- **completions=3**: The Job must run 3 times successfully before completion. `completions` is immutable — set it before the Job is created (`k create job ... --dry-run=client -o yaml`, then edit).
 - **parallelism=1**: Run one pod at a time, serially.
 - **backoffLimit=3**: Retry failed pods up to 3 times, then give up.
 - **historyLimit**: Keep this many job history records. Default is 3 for success and 1 for failure.
 - For CronJobs, use `spec.schedule` with standard cron syntax (e.g., `0 * * * *` = every hour).
-- `kubectl get cronjob` shows the next scheduled time in the LAST SCHEDULE column.
+- `kubectl get cronjob` shows when it last ran in the LAST SCHEDULE column (`<none>` until the first run); the next run follows from the schedule.
 - To manually trigger a CronJob: `kubectl create job <jobname> --from=cronjob/<cronname>`.
 
 </details>
@@ -60,21 +64,27 @@ When a Job fails, the pod isn't deleted unless the Job's `ttlSecondsAfterFinishe
 ## Verify
 
 ```bash
+./scripts/lab.sh check 21
+```
+
+Manual checks:
+
+```bash
 # Check Job completion
-k get job cleanup-job -o wide
-k get pod -l job-name=cleanup-job
+k -n exercise-21 get job cleanup-job -o wide
+k -n exercise-21 get pod -l job-name=cleanup-job
 
 # Check logs
-k logs -l job-name=cleanup-job --all-containers=true
+k -n exercise-21 logs -l job-name=cleanup-job --all-containers=true
 
 # Check CronJob
-k get cronjob hourly-backup
+k -n exercise-21 get cronjob hourly-backup
 
-# Check if CronJob created a Job
-k get job -l cronjob-name=hourly-backup
+# Jobs owned by the CronJob (Jobs carry no cronjob label — look at the owner)
+k -n exercise-21 get job -o custom-columns=NAME:.metadata.name,OWNER:.metadata.ownerReferences[0].name
 
 # Check triggered Job
-k logs -l job-name=<triggered-job-name> --all-containers=true
+k -n exercise-21 logs job/hourly-backup-manual-1
 ```
 
 ---
@@ -82,10 +92,10 @@ k logs -l job-name=<triggered-job-name> --all-containers=true
 ## Cleanup
 
 ```bash
-k delete job cleanup-job
-k delete cronjob hourly-backup
-k delete job --selector cronjob-name=hourly-backup
+./scripts/lab.sh cleanup 21
 ```
+
+Deleting the CronJob also deletes the Jobs it owns, including the manually triggered one.
 
 ---
 
@@ -95,24 +105,22 @@ k delete job --selector cronjob-name=hourly-backup
 **Step 1: Create the Job**
 
 ```bash
-k create job cleanup-job \
-  --image=busybox:1.37 \
-  --command -- echo "Cleanup complete" 
+k create ns exercise-21     # or: ./scripts/lab.sh setup 21
 
-# This creates a Job that runs once. For 3 completions:
-k patch job cleanup-job --type json -p '[
-  {"op": "replace", "path": "/spec/completions", "value": 3},
-  {"op": "replace", "path": "/spec/parallelism", "value": 1}
-]'
+# k create job has no --completions flag (the Job it creates runs once), and
+# completions can't be patched afterwards (immutable).
+# Generate the YAML, add completions/parallelism, then apply:
+k create job cleanup-job -n exercise-21 \
+  --image=busybox:1.37 $do \
+  -- echo "Cleanup complete" > job.yaml
 ```
-
-Or using a declarative YAML:
 
 ```yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: cleanup-job
+  namespace: exercise-21
 spec:
   completions: 3
   parallelism: 1
@@ -129,14 +137,16 @@ spec:
 **Step 2: Verify Job runs**
 
 ```bash
-k get job cleanup-job -w
+k apply -f job.yaml
+
+k -n exercise-21 get job cleanup-job -w
 # Watch until Completions shows 3/3
 
-k get pod -l job-name=cleanup-job
+k -n exercise-21 get pod -l job-name=cleanup-job
 # Should show 3 pods
 
-k logs job/cleanup-job --all-containers=true
-# Shows all pod logs from the Job
+k -n exercise-21 logs -l job-name=cleanup-job
+# Logs of all 3 pods (k logs job/cleanup-job shows only one pod)
 ```
 
 **Step 3: Create CronJob**
@@ -146,6 +156,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: hourly-backup
+  namespace: exercise-21
 spec:
   schedule: "0 * * * *"  # Every hour at :00
   successfulJobsHistoryLimit: 3
@@ -157,7 +168,7 @@ spec:
           containers:
           - name: backup
             image: busybox:1.37
-            command: ["echo", "Backup at $(date)"]
+            command: ["sh", "-c", "echo \"Backup at $(date)\""]  # sh expands $(date)
           restartPolicy: OnFailure
 ```
 
@@ -168,22 +179,23 @@ k apply -f cronjob.yaml
 **Step 4: List CronJobs**
 
 ```bash
-k get cronjob hourly-backup
-# SCHEDULE      SUSPEND   ACTIVE   LAST SCHEDULE   AGE
-# 0 * * * *     False     0        <none>          20s
+k -n exercise-21 get cronjob hourly-backup
+# NAME            SCHEDULE    TIMEZONE   SUSPEND   ACTIVE   LAST SCHEDULE   AGE
+# hourly-backup   0 * * * *   <none>     False     0        <none>          20s
 ```
 
 **Step 5: Manually trigger**
 
 ```bash
-k create job hourly-backup-manual-1 --from=cronjob/hourly-backup
+k -n exercise-21 create job hourly-backup-manual-1 --from=cronjob/hourly-backup
 ```
 
 **Step 6: Verify manual Job**
 
 ```bash
-k get job -l cronjob-name=hourly-backup
-k logs job/hourly-backup-manual-1
+k -n exercise-21 get job hourly-backup-manual-1
+k -n exercise-21 logs job/hourly-backup-manual-1
+# Backup at Wed Oct 28 21:00:03 UTC 2026
 ```
 
 </details>

@@ -13,23 +13,25 @@ Trap architecture for this exercise:
 - **Validation Criteria:** Your answer is correct if:
   - API server pod transitions from `CrashLoopBackOff` to `Running` within 30 seconds
   - `k get nodes` and `k get pods -A` execute successfully
-  - etcd connection string matches `/etc/kubernetes/manifests/etcd.yaml` exactly
+  - `--etcd-servers` matches one of etcd's `--listen-client-urls` in `/etc/kubernetes/manifests/etcd.yaml` exactly
 - **Scoring:** Full credit for fix + explanation of root cause. Partial for fix alone.
 
 ## Tasks
 
-1. Cluster is broken: API server won't start
-2. Check kube-apiserver pod logs
-3. Find the error: incorrect etcd endpoint IP or port
-4. SSH into control plane node
-5. Edit `/etc/kubernetes/manifests/kube-apiserver.yaml`
-6. Correct the etcd endpoint in `--etcd-servers=` flag
-7. Verify IP/port matches `/etc/kubernetes/manifests/etcd.yaml`
-8. Save and wait for API server to restart
-9. Verify cluster is healthy:
-   - `k get nodes` works
+This exercise runs on the ops cluster (`./scripts/init-cluster.sh --profile ops`). `./scripts/lab.sh setup 29` breaks it — run setup first, and don't look at what it changes. The control plane node is `cka-ops-control-plane`; open a shell on it with `docker exec -it cka-ops-control-plane bash` (the kind equivalent of `ssh cka-ops-control-plane` in the exam).
+
+1. Cluster is broken: `k get nodes` no longer answers — the API server won't start
+2. Open a shell on the control plane node
+3. Find the API server container and read its logs (with the API down, `k logs` can't help — use the container runtime on the node)
+4. Find the root cause in the API server's static pod manifest in `/etc/kubernetes/manifests/`
+5. Verify the correct value against the configuration of the component the API server depends on — don't guess
+6. Fix the manifest in place and wait for the kubelet to restart the API server
+7. Verify cluster is healthy:
+   - `k get nodes` works and all nodes are `Ready`
    - `k get pods -A` works
-   - API server is Running
+   - the `kube-apiserver-cka-ops-control-plane` pod is Running and Ready
+
+Validate with `./scripts/lab.sh check 29`.
 
 ## Key Learning
 
@@ -44,12 +46,13 @@ Trap architecture for this exercise:
 <details>
 <summary>Stuck? Click to reveal hints</summary>
 
-- Check kube-apiserver logs: `k logs -n kube-system kube-apiserver-<node>` (if APIserver partially runs)
-- If logs unavailable, SSH to node and check: `journalctl -u kubelet -f`
+- With the API down, `k logs` fails. On the node: `crictl ps -a | grep kube-apiserver`, then `crictl logs <container-id>`
+- The same logs are on disk: `/var/log/pods/kube-system_kube-apiserver-*/kube-apiserver/`
+- `journalctl -u kubelet -f` shows the kubelet (re)starting the static pod
 - Get correct etcd endpoint: `grep "\-\-listen-client-urls" /etc/kubernetes/manifests/etcd.yaml`
-- Edit manifest: `sudo vi /etc/kubernetes/manifests/kube-apiserver.yaml`
+- Edit manifest: `vi /etc/kubernetes/manifests/kube-apiserver.yaml`
 - Look for line: `--etcd-servers=https://...`
-- After fix, wait 10-15 seconds for pod to restart
+- After the fix, wait 30-60 seconds for the pod to restart and become Ready
 
 </details>
 
@@ -61,18 +64,24 @@ Trap architecture for this exercise:
 >
 > **Certificate Gotcha (v1.35):** In k8s 1.35, etcd certificate validation is stricter. If switching etcd endpoints, verify both use the same certificate scheme (self-signed vs CA-signed). A mismatch causes `x509: certificate signed by unknown authority` errors. Check: `grep "client-cert-auth" /etc/kubernetes/manifests/etcd.yaml` must match the connection string security flags.
 >
-> **Port Gotcha:** etcd default is `2379` (client port), not `2384` (peer port). Common mistake: `--etcd-servers=https://127.0.0.1:2384` (peer port) instead of `2379`. Always verify in the etcd manifest: `grep "listen-client-urls" /etc/kubernetes/manifests/etcd.yaml`.
+> **Port Gotcha:** etcd default is `2379` (client port), not `2380` (peer port). Common mistake: `--etcd-servers=https://127.0.0.1:2380` (peer port) instead of `2379`. Always verify in the etcd manifest: `grep "listen-client-urls" /etc/kubernetes/manifests/etcd.yaml`.
 >
 > **Hostname vs IP Trap:** Some clusters use etcd hostnames (e.g., `etcd-0`) instead of IPs. If the manifest says `--etcd-servers=https://etcd-0:2379` but the error says "name resolution failed", this is actually correct — DNS isn't working because the API server pod is broken. Don't try to change hostname to IP (that breaks HA clusters). Instead, fix the connection string format.
 
 ## Verify
 
 ```bash
-# Check no errors in logs
-k logs -n kube-system kube-apiserver-<node-name> | tail -20
+./scripts/lab.sh check 29
+```
 
-# API server is Running
-k get pod -n kube-system kube-apiserver-<node-name>
+Manual checks:
+
+```bash
+# API server is Running and Ready
+k get pod -n kube-system kube-apiserver-cka-ops-control-plane
+
+# Check no errors in logs
+k logs -n kube-system kube-apiserver-cka-ops-control-plane | tail -20
 
 # Basic cluster operations work
 k get nodes
@@ -82,51 +91,47 @@ k api-resources
 
 ## Cleanup
 
-Cluster is now fixed. Nothing to clean up.
+Nothing to clean up once the cluster is fixed. If you give up, `./scripts/lab.sh cleanup 29` restores the API server's etcd endpoint.
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-# 1. Check if API server is running (it may be stuck/restarting)
-k get pod -n kube-system -l component=kube-apiserver
-
-# 2. If accessible, check logs
-k logs -n kube-system kube-apiserver-<node> --tail=50
-# Look for error like: "dial tcp 10.0.0.5:2379: connection refused"
-
-# 3. SSH into control plane node
-ssh <control-plane-ip>
-
-# 4. Check current etcd endpoint in API server manifest
-grep "etcd-servers" /etc/kubernetes/manifests/kube-apiserver.yaml
-# Example: --etcd-servers=https://10.0.0.5:2379
-
-# 5. Get CORRECT endpoint from etcd manifest
-grep "listen-client-urls" /etc/kubernetes/manifests/etcd.yaml
-# Example: --listen-client-urls=https://127.0.0.1:2379,https://10.0.0.10:2379
-
-# 6. The correct endpoint should be one from etcd's listen URLs
-# Usually: https://127.0.0.1:2379 (if etcd on same node)
-# Or: https://<etcd-ip>:2379 (if separate etcd node)
-
-# 7. Edit and fix
-sudo sed -i 's|--etcd-servers=https://10.0.0.5:2379|--etcd-servers=https://127.0.0.1:2379|' /etc/kubernetes/manifests/kube-apiserver.yaml
-
-# Or manually edit
-sudo vi /etc/kubernetes/manifests/kube-apiserver.yaml
-# Find and correct the etcd-servers line
-
-# 8. Save (vi: Esc, :wq)
-# kubelet will auto-detect change and restart pod
-
-# 9. Verify API server comes up (may take 10-15 seconds)
-k get pod -n kube-system kube-apiserver-<node-name>
-# STATUS should change from CrashLoopBackOff to Running
-
-# 10. Test cluster is working
+# 1. The API server is not answering
 k get nodes
-k version
+# Unable to connect to the server / connection refused / timeout
+
+# 2. Shell on the control plane node (exam: ssh cka-ops-control-plane)
+docker exec -it cka-ops-control-plane bash
+
+# 3. Find the API server container (it keeps exiting and restarting) and read its logs
+crictl ps -a | grep kube-apiserver
+crictl logs <container-id> 2>&1 | tail -20
+# grpc: addrConn.createTransport failed to connect to {Addr: "127.0.0.1:2397", ...}
+#   Err: connection error: ... connect: connection refused
+
+# 4. Current etcd endpoint in the API server manifest
+grep etcd-servers /etc/kubernetes/manifests/kube-apiserver.yaml
+# - --etcd-servers=https://127.0.0.1:2397
+
+# 5. CORRECT endpoint from the etcd manifest (source of truth)
+grep listen-client-urls /etc/kubernetes/manifests/etcd.yaml
+# - --listen-client-urls=https://127.0.0.1:2379,https://<node-ip>:2379
+# 2397 is a typo for 2379
+
+# 6. Fix in place (or: vi /etc/kubernetes/manifests/kube-apiserver.yaml)
+sed -i 's|--etcd-servers=https://127.0.0.1:2397|--etcd-servers=https://127.0.0.1:2379|' \
+  /etc/kubernetes/manifests/kube-apiserver.yaml
+
+# kubelet detects the change and recreates the pod
+watch crictl ps --name kube-apiserver
+exit
+
+# 7. Verify (may take 30-60 seconds)
+k get pod -n kube-system kube-apiserver-cka-ops-control-plane
+k get nodes
+k get pods -A
+./scripts/lab.sh check 29
 ```
 
 </details>

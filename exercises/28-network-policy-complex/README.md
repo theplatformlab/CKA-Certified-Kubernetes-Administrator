@@ -30,23 +30,30 @@ If your CNI doesn't enforce policies, the NetworkPolicy objects exist but traffi
 
 ## Tasks
 
-1. Create 3 namespaces: `frontend`, `backend`, `database`
-2. Deploy apps:
-   - Frontend (nginx): labels `tier=frontend`
-   - Backend (busybox): labels `tier=backend`
-   - Database (redis): labels `tier=database`
-3. Create NetworkPolicies:
-   - Allow frontend → backend (only port 8080)
-   - Allow backend → database (only port 6379)
-   - Deny all other traffic initially (prefer-deny ingress)
-   - Allow DNS egress (UDP 53) to kube-dns for all pods
-4. **Explicitly test connectivity** to confirm policies are enforced:
-   - Frontend CAN reach backend on 8080 only
+Run `./scripts/lab.sh setup 28` first. It creates the namespaces `frontend`, `backend`, `database` (no NetworkPolicies yet) and deploys:
+
+| Namespace | Deployment / Service | Image | Pod label | Ports |
+|-----------|----------------------|-------|-----------|-------|
+| `frontend` | `frontend` | `nginx:1.28` | `tier=frontend` | 80 |
+| `backend` | `backend` | `busybox:1.37` (httpd) | `tier=backend` | 8080 (API), 9090 (admin) |
+| `database` | `database` | `redis:8.8-alpine` | `tier=database` | 6379 |
+
+1. Inspect the apps: `k get pods,svc -n <ns> --show-labels` in all three namespaces
+2. Create NetworkPolicies so that:
+   - Everything in `frontend`, `backend` and `database` is denied by default (ingress **and** egress)
+   - Pods with `tier=frontend` in namespace `frontend` can reach pods with `tier=backend` in namespace `backend` on TCP 8080 only
+   - Pods with `tier=backend` in namespace `backend` can reach pods with `tier=database` in namespace `database` on TCP 6379 only
+   - All pods in the three namespaces can resolve DNS (UDP and TCP 53 to kube-dns in `kube-system`)
+3. **Explicitly test connectivity** to confirm policies are enforced:
+   - Frontend CAN reach backend on 8080, but NOT on 9090
    - Frontend CANNOT reach database
    - Backend CAN reach database on 6379
    - Backend CANNOT reach frontend
-5. Verify DNS still works from all namespaces (tests egress rules)
-6. If policies don't enforce, verify CNI supports NetworkPolicy
+   - A `tier=frontend` pod in another namespace (e.g. `default`) CANNOT reach backend
+4. Verify DNS still works from all three namespaces (tests egress rules)
+5. If policies don't enforce, verify CNI supports NetworkPolicy (the lab cluster's kindnet does)
+
+Validate with `./scripts/lab.sh check 28` — it runs throwaway pods with the tier labels in each namespace and tests the traffic above.
 
 ## Key Learning
 
@@ -63,7 +70,7 @@ If your CNI doesn't enforce policies, the NetworkPolicy objects exist but traffi
 <summary>Stuck? Click to reveal hints</summary>
 
 - **Check CNI enforcement first:** `k get pods -n kube-system | grep -i cni` or `kubectl describe node` to see CNI plugin
-- For cross-namespace policies: use `namespaceSelector` with namespace labels (label namespaces first!)
+- For cross-namespace policies: use `namespaceSelector` with namespace labels (every namespace has `kubernetes.io/metadata.name: <name>`)
 - DNS rule: egress with `to: []` and `ports: [{protocol: UDP, port: 53}]` (empty `to` means all destinations)
 - Test connectivity with **explicit port**: `k exec <pod> -- curl http://service.namespace.svc.cluster.local:8080`
 - Debug: `k describe networkpolicy <name>` shows selectors AND rules clearly
@@ -92,58 +99,113 @@ If your CNI doesn't enforce policies, the NetworkPolicy objects exist but traffi
 ## Verify
 
 ```bash
-# Pods are running in correct namespaces
-k get pods -A
+./scripts/lab.sh check 28
+```
+
+Manual checks:
+
+```bash
+# Pods and labels
+k get pods -n frontend --show-labels
+k get pods -n backend --show-labels
+k get pods -n database --show-labels
 
 # NetworkPolicies exist
-k get networkpolicies -A
+k get networkpolicies -n frontend
+k get networkpolicies -n backend
+k get networkpolicies -n database
 
-# From frontend, test connectivity
-k exec -it <frontend-pod> -n frontend -- curl http://backend.<backend>.svc.cluster.local:8080
-# Should succeed
+# Test as a frontend pod (the policies select pods by label)
+k -n frontend run t --image=busybox:1.37 --labels=tier=frontend --rm -it --restart=Never -- sh
+#   wget -qO- -T 3 http://backend.backend.svc.cluster.local:8080      # backend   (allowed)
+#   wget -qO- -T 3 http://backend.backend.svc.cluster.local:9090      # times out (blocked)
+#   echo PING | nc -w 3 database.database.svc.cluster.local 6379     # no PONG   (blocked)
+#   nslookup kubernetes.default                                       # resolves
 
-# From frontend, try database (should fail)
-k exec -it <frontend-pod> -n frontend -- curl http://database.<database>.svc.cluster.local:6379
-# Should timeout/fail
-
-# Test DNS works
-k exec -it <any-pod> -- nslookup kubernetes.default
-# Should succeed
+# Test as a backend pod
+k -n backend run t --image=busybox:1.37 --labels=tier=backend --rm -it --restart=Never -- sh
+#   echo PING | nc -w 3 database.database.svc.cluster.local 6379     # +PONG     (allowed)
+#   wget -qO- -T 3 http://frontend.frontend.svc.cluster.local         # times out (blocked)
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns frontend backend database
+./scripts/lab.sh cleanup 28
 ```
 
 <details>
 <summary>Solution</summary>
 
+Every namespace gets a default deny for both directions plus a DNS allowance. Then each allowed flow needs **two** rules: egress on the source and ingress on the destination. Namespaces carry the automatic label `kubernetes.io/metadata.name`, so there is no need to label them yourself. `namespaceSelector` and `podSelector` in the **same** `from`/`to` entry mean "pods with this label in that namespace".
+
 ```bash
-# Create namespaces
-k create ns frontend backend database
+# Baseline for every namespace: deny all traffic, then allow DNS to kube-dns
+for ns in frontend backend database; do
+cat <<EOF | k apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: $ns
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: $ns
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+EOF
+done
 
-# Label namespaces for cross-ns selection
-k label ns frontend name=frontend
-k label ns backend name=backend
-k label ns database name=database
+# frontend -> backend:8080 (egress on the source)
+cat <<EOF | k apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-backend
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      tier: frontend
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: backend
+      podSelector:
+        matchLabels:
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+EOF
 
-# Deploy frontend
-k run frontend-web -n frontend --image=nginx:1.27 --labels=tier=frontend
-
-# Deploy backend
-k run backend-api -n backend --image=busybox:1.36 --command sleep 3600 --labels=tier=backend
-
-# Deploy database
-k run database-redis -n database --image=busybox:1.36 --command sleep 3600 --labels=tier=database
-
-# Create services
-k expose pod frontend-web -n frontend --port=80 --type=ClusterIP
-k expose pod backend-api -n backend --port=8080 --type=ClusterIP
-k expose pod database-redis -n database --port=6379 --type=ClusterIP
-
-# Allow frontend → backend
+# backend: ingress from frontend on 8080, egress to database on 6379
 cat <<EOF | k apply -f -
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -160,13 +222,39 @@ spec:
   - from:
     - namespaceSelector:
         matchLabels:
-          name: frontend
+          kubernetes.io/metadata.name: frontend
+      podSelector:
+        matchLabels:
+          tier: frontend
     ports:
     - protocol: TCP
       port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-database
+  namespace: backend
+spec:
+  podSelector:
+    matchLabels:
+      tier: backend
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: database
+      podSelector:
+        matchLabels:
+          tier: database
+    ports:
+    - protocol: TCP
+      port: 6379
 EOF
 
-# Allow backend → database
+# database: ingress from backend on 6379
 cat <<EOF | k apply -f -
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -183,38 +271,20 @@ spec:
   - from:
     - namespaceSelector:
         matchLabels:
-          name: backend
+          kubernetes.io/metadata.name: backend
+      podSelector:
+        matchLabels:
+          tier: backend
     ports:
     - protocol: TCP
       port: 6379
 EOF
 
-# Allow DNS egress from all namespaces
-for ns in frontend backend database; do
-cat <<EOF | k apply -f -
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-dns-egress
-  namespace: $ns
-spec:
-  podSelector: {}
-  policyTypes:
-  - Egress
-  egress:
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-EOF
-done
-
-# Test connectivity
-# Frontend → Backend (should work)
-k exec -it $(k get po -n frontend -o name | head -1) -n frontend -- curl -m 2 http://backend-api.backend.svc.cluster.local:8080
-
-# Frontend → Database (should fail)
-k exec -it $(k get po -n frontend -o name | head -1) -n frontend -- curl -m 2 http://database-redis.database.svc.cluster.local:6379
+# Verify
+k get networkpolicies -n frontend
+k get networkpolicies -n backend
+k get networkpolicies -n database
+./scripts/lab.sh check 28
 ```
 
 </details>

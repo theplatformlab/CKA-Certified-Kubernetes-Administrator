@@ -20,17 +20,19 @@ TLS configuration troubleshooting involves configuration and restart traps:
 
 ## Tasks
 
-1. A service currently supports only TLS 1.3
-2. Add support for TLS 1.2 (make both available)
-3. Update configuration file or ConfigMap:
-   - Add TLS 1.2 to supported protocols
-   - Keep TLS 1.3 enabled
-4. ConfigMap is mounted in Deployment as env var or config file
-5. Restart Deployment to apply changes
-6. Verify service accepts TLS 1.2 connections:
-   - Use `openssl s_client -connect <service> -tls1_2`
+Run `./scripts/lab.sh setup 30` first. Work in namespace `exercise-30`: setup deploys the Deployment `secure-web` (`nginx:1.28`, 1 replica) behind the ClusterIP Service `secure-web` on port 443. nginx terminates TLS with a self-signed certificate (Secret `secure-web-tls`) and reads its server config from the ConfigMap `secure-web-config`. The service currently supports only TLS 1.3.
+
+1. Find where the TLS protocol setting comes from (`k describe deployment secure-web`, then the ConfigMap)
+2. Add support for TLS 1.2 (make both available):
+   - Add TLS 1.2 to the supported protocols in ConfigMap `secure-web-config`
+   - Keep TLS 1.3 enabled; do not enable anything older than TLS 1.2
+3. Restart the Deployment so nginx loads the new configuration
+4. Verify the service accepts TLS 1.2 connections, from a pod in the cluster:
+   - Use `openssl s_client -connect secure-web.exercise-30.svc.cluster.local:443 -tls1_2`
    - Or curl with explicit TLS 1.2
-7. Verify TLS 1.3 still works
+5. Verify TLS 1.3 still works
+
+Validate with `./scripts/lab.sh check 30` — it handshakes with the Service using TLS 1.2 and TLS 1.3 from a throwaway pod.
 
 ## Key Learning
 
@@ -83,75 +85,70 @@ TLS configuration troubleshooting involves configuration and restart traps:
 ## Verify
 
 ```bash
-# ConfigMap has both TLS 1.2 and 1.3
-k get cm <name> -o yaml | grep -i tls
+./scripts/lab.sh check 30
+```
 
-# Deployment is running after restart
-k get deployment <name>
+Manual checks:
+
+```bash
+# ConfigMap has both TLS 1.2 and 1.3
+k -n exercise-30 get cm secure-web-config -o yaml | grep -i ssl_protocols
+
+# Deployment is running after restart (pod AGE is recent)
+k -n exercise-30 get deployment,pods
 
 # Service endpoint is responding
-k get svc <name> -o wide
+k -n exercise-30 get svc secure-web -o wide
 
-# Test TLS 1.2
-echo | openssl s_client -connect <ip>:<port> -tls1_2 2>/dev/null | grep Protocol
-# Output: Protocol  : TLSv1.2
-
-# Test TLS 1.3
-echo | openssl s_client -connect <ip>:<port> -tls1_3 2>/dev/null | grep Protocol
-# Output: Protocol  : TLSv1.3
+# Test both protocols from a pod (nginx:1.28 ships the openssl CLI)
+k -n exercise-30 run tls-test --image=nginx:1.28 --rm -it --restart=Never -- bash
+#   echo | openssl s_client -connect secure-web:443 -tls1_2 2>/dev/null | grep '^New'
+#   Output: New, TLSv1.2, Cipher is ECDHE-RSA-AES256-GCM-SHA384
+#   echo | openssl s_client -connect secure-web:443 -tls1_3 2>/dev/null | grep '^New'
+#   Output: New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+#   curl -sk --tlsv1.2 --tls-max 1.2 https://secure-web     # secure-web OK
 ```
+
+A failed handshake prints `New, (NONE), Cipher is (NONE)`. The `Protocol : TLSv1.2` line in the session block is printed even when the handshake failed — don't rely on it alone.
 
 ## Cleanup
 
 ```bash
-k delete svc <service>
-k delete deployment <deployment>
-k delete cm <config>
+./scripts/lab.sh cleanup 30
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-# 1. Find the service and ConfigMap
-k get svc --all-namespaces
-k get cm --all-namespaces
+# 1. Find where the config comes from
+k -n exercise-30 describe deployment secure-web   # Mounts: /etc/nginx/conf.d from secure-web-config
 
 # 2. Check current TLS config
-k get cm <name> -o yaml
+k -n exercise-30 get cm secure-web-config -o yaml
+# ssl_protocols       TLSv1.3;
 
-# 3. Edit ConfigMap to add TLS 1.2
-k edit cm <name>
-# Find line like: tls_min_version: "1.3"
-# Change to: supported_versions: ["1.2", "1.3"]
-# Or if format is different, add TLS 1.2
+# 3. Edit ConfigMap to ADD TLS 1.2 (keep 1.3)
+k -n exercise-30 edit cm secure-web-config
+# Change to: ssl_protocols       TLSv1.2 TLSv1.3;
 
-# 4. Check if there's an env var that sets this
-k describe deployment <deployment>
-# Look for "Environment:" section
+# 4. ConfigMap changes are not picked up by the running nginx: restart
+k -n exercise-30 rollout restart deployment/secure-web
 
-# 5. If config is in file mount, edit ConfigMap
-# Then restart deployment
+# 5. Wait for the new pod to be ready
+k -n exercise-30 rollout status deployment/secure-web
 
-k rollout restart deployment/<deployment>
+# 6. Test TLS 1.2 and TLS 1.3 from inside the cluster
+k -n exercise-30 run tls-test --image=nginx:1.28 --rm -it --restart=Never -- \
+  sh -c 'for v in -tls1_2 -tls1_3; do echo | openssl s_client -connect secure-web:443 $v 2>/dev/null | grep "^New"; done'
+# New, TLSv1.2, Cipher is ECDHE-RSA-AES256-GCM-SHA384
+# New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
 
-# 6. Wait for pod to be ready
-k rollout status deployment/<deployment>
-
-# 7. Portforward to test (if service is internal)
-k port-forward svc/<service> <local-port>:<remote-port> &
-
-# 8. Test TLS 1.2 connection
-echo | openssl s_client -connect localhost:<port> -tls1_2 2>/dev/null | grep "Protocol"
-# Should show: Protocol  : TLSv1.2
-
-# 9. Test TLS 1.3 still works
-echo | openssl s_client -connect localhost:<port> -tls1_3 2>/dev/null | grep "Protocol"
-# Should show: Protocol  : TLSv1.3
-
-# 10. Or use curl
-curl -k --tlsv1.2 https://localhost:<port>
-curl -k --tlsv1.3 https://localhost:<port>
+# 7. Or port-forward and test from your machine
+k -n exercise-30 port-forward svc/secure-web 8443:443 &
+echo | openssl s_client -connect localhost:8443 -tls1_2 2>/dev/null | grep "^New"
+curl -k --tlsv1.2 --tls-max 1.2 https://localhost:8443
+curl -k --tlsv1.3 https://localhost:8443
 ```
 
 </details>

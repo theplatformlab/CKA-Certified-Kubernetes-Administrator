@@ -6,18 +6,19 @@ Debug and fix a Deployment where pods won't schedule due to insufficient resourc
 
 ## Tasks
 
-1. Create a namespace called `exercise-23`
-2. Create a Deployment with:
-   - 3 replicas
-   - Image: `nginx:1.27`
-   - Resource requests: 512Mi memory, 500m CPU (intentionally too high)
-   - Cluster has 2 nodes with limited resources
-3. Observe pods pending — they won't schedule
-4. Check node capacity and available resources
-5. Calculate correct resource requests to fit 3 replicas
-6. Update Deployment with new (lower) requests
-7. Verify all 3 pods schedule and run
-8. Document the calculation
+Work in namespace `exercise-23` (`./scripts/lab.sh setup 23` creates it).
+
+kind nodes report the whole host's CPU and memory, so a fixed "512Mi / 500m" would always fit. Setup therefore creates the Deployment `web` (3 replicas, `nginx:1.27`, pinned to node `cka-practice-worker` with a `nodeSelector`) with requests of 60% of that node's allocatable CPU and memory — intentionally too high: one replica runs, two stay Pending.
+
+1. Observe the Pending pods and find out why they won't schedule
+2. Check the capacity of `cka-practice-worker`: Allocatable and Allocated resources
+3. Scale `web` to 0 so that "Allocated resources" only shows the other workloads on the node
+4. Calculate the requests: divide what is still free on the node (Allocatable − Allocated) evenly across 3 replicas, keeping a buffer of 5-10%
+5. Update the CPU and memory requests of `web` (keep the image and the `nodeSelector`) and scale back to 3 replicas
+6. Verify all 3 pods schedule and run
+7. Document the calculation
+
+Validate with `./scripts/lab.sh check 23`. It recomputes the fair share from the node and accepts per-replica requests between 75% and 100% of a third of the free CPU and memory — "just pick something tiny" does not count.
 
 ## Key Learning
 
@@ -38,8 +39,9 @@ Add buffer of 5-10%
 - `k describe node <node>` → see Allocatable and Allocated resources
 - `k top nodes` → see actual usage
 - If pods are Pending: `k describe pod <pod>` → check Events for "Insufficient memory"
-- Start with 100m CPU and 64Mi memory per replica, then adjust based on errors
-- Reduce requests incrementally until all 3 pods schedule
+- `k set resources deploy web --requests=cpu=...,memory=...` changes requests without editing YAML
+- Pending pods of the old ReplicaSet and the running replica both distort "Allocated resources" — that's why you scale to 0 first
+- Units: allocatable memory is shown in `Ki`; divide by 1024 for `Mi`. `16` CPU = `16000m`
 
 </details>
 
@@ -52,109 +54,66 @@ Add buffer of 5-10%
 ## Verify
 
 ```bash
-# Should see Pending pods with reason "Insufficient memory/cpu"
-k get pods -n exercise-23
+./scripts/lab.sh check 23
+```
 
-# Check why pods won't schedule
+Manual checks:
+
+```bash
+# Before the fix: Pending pods with reason "Insufficient memory/cpu"
+k get pods -n exercise-23
 k describe pod <pod-name> -n exercise-23
 
-# Check node capacity
-k describe node <node-name>
+# Node capacity
+k describe node cka-practice-worker
 
-# After fix — all 3 should be Running
-k get pods -n exercise-23
-
-# Check actual resource usage (much lower than requests)
-k top pods -n exercise-23
+# After fix — all 3 should be Running on cka-practice-worker
+k get pods -n exercise-23 -o wide
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns exercise-23
+./scripts/lab.sh cleanup 23
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-k create ns exercise-23
 kn exercise-23
 
-# Create deployment with too-high requests (will fail to schedule)
-k create deployment web --image=nginx:1.27 --replicas=3 $do > deploy.yaml
+# Pods are Pending
+k get pods -o wide
+k describe pod <pending-pod>
+# Events: 0/3 nodes are available: 1 Insufficient cpu, 1 Insufficient memory, ...
+
+# Take web out of the picture, then look at the node
+k scale deployment web --replicas=0
+k describe node cka-practice-worker
+# Allocatable:
+#   cpu:     16
+#   memory:  30628020Ki
+# Allocated resources:
+#   cpu      100m
+#   memory   50Mi
 ```
 
-Edit `deploy.yaml` to add initial (intentionally high) requests:
+Calculation (numbers from the output above — yours depend on your machine):
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: web
-  namespace: exercise-23
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: web
-  template:
-    metadata:
-      labels:
-        app: web
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.27
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
+```
+free CPU     = 16000m − 100m                    = 15900m
+free memory  = 30628020Ki / 1024 − 50Mi ≈ 29910Mi − 50Mi = 29860Mi
+per replica  = free / 3                         = 5300m CPU, 9953Mi memory
+10% buffer   → requests                         = 4770m CPU, 8958Mi memory
 ```
 
 ```bash
-k apply -f deploy.yaml
-
-# Check pods — they are Pending
-k get pods
-
-# Describe to see error
-k describe pod <pod-name>
-# Output: "Insufficient memory"
-
-# Check node capacity
-k describe node <node-name>
-# Allocatable:  2000m (CPU)
-#              2Gi (Memory)
-# With 3 replicas, need to divide available resources
-
-# Calculate: If node has 2Gi available and 2 cores (2000m)
-# Per pod: ~600Mi memory and 600m CPU (with overhead)
-# But if already running system pods, reduce further
-
-# Edit deploy.yaml with lower values
-```
-
-Fix the requests to something realistic:
-
-```yaml
-resources:
-  requests:
-    memory: "128Mi"
-    cpu: "100m"
-```
-
-```bash
-k apply -f deploy.yaml
+k set resources deployment web --requests=cpu=4770m,memory=8958Mi
+k scale deployment web --replicas=3
 
 # Verify all 3 pods now Running
-k get pods -n exercise-23
-
-# Check actual usage (will be much lower than requests)
-k top pods -n exercise-23
-
-# Cleanup
-k delete ns exercise-23
+k get pods -o wide
 ```
 
 </details>

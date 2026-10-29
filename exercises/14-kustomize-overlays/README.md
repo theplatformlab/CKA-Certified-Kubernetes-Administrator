@@ -8,7 +8,9 @@ Build a base deployment and apply an overlay that changes the namespace and repl
 
 ## Tasks
 
-1. Create a directory structure:
+Work in namespace `exercise-14` (`./scripts/lab.sh setup 14` creates it). Write the files under `exercises/14-kustomize-overlays/work/` (YAML there is gitignored) — the check renders them from that exact path.
+
+1. Create a directory structure in `exercises/14-kustomize-overlays/work/`:
    ```
    kustomize-lab/
      base/
@@ -19,17 +21,18 @@ Build a base deployment and apply an overlay that changes the namespace and repl
        staging/
          kustomization.yaml
    ```
-2. In the base:
-   - A Deployment named `app` with image `nginx:1.27` and 1 replica
-   - A ClusterIP Service named `app-svc` on port 80
+2. In the base (no namespace, no environment label):
+   - A Deployment named `app` with pod label `app=app`, one container `nginx` with image `nginx:1.27`, and 1 replica
+   - A ClusterIP Service named `app-svc` on port 80, selecting `app=app`
    - A `kustomization.yaml` listing both resources
 3. In the staging overlay:
    - Set namespace to `exercise-14`
-   - Patch replicas to 3
-   - Add a common label `env: staging`
-4. Create namespace `exercise-14`
-5. Apply the staging overlay with `kubectl apply -k`
-6. Verify 3 pods are running in namespace `exercise-14` with label `env=staging`
+   - Patch replicas to 3 (in the overlay — the base keeps 1)
+   - Add a common label `env: staging` (on the objects, the pod template and the selectors)
+4. Apply the staging overlay with `kubectl apply -k`
+5. Verify 3 pods are running in namespace `exercise-14` with label `env=staging`
+
+Validate with `./scripts/lab.sh check 14`.
 
 ## Hints
 
@@ -40,6 +43,7 @@ Build a base deployment and apply an overlay that changes the namespace and repl
 - `kubectl kustomize <overlay-dir>/` to preview the output without applying
 - Overlay `kustomization.yaml` references the base with `resources: [../../base]`
 - Use `replicas` field in kustomization.yaml to patch replica count
+- `commonLabels` still works but is deprecated in Kustomize v5; the replacement is `labels:` with `includeSelectors: true`
 
 </details>
 
@@ -52,8 +56,18 @@ Build a base deployment and apply an overlay that changes the namespace and repl
 ## Verify
 
 ```bash
+./scripts/lab.sh check 14
+```
+
+Manual checks:
+
+```bash
+# Preview: base has 1 replica, overlay has 3 in exercise-14
+k kustomize exercises/14-kustomize-overlays/work/kustomize-lab/base/
+k kustomize exercises/14-kustomize-overlays/work/kustomize-lab/overlays/staging/
+
 # 3 pods running
-k get pods -n exercise-14
+k get pods -n exercise-14 -l env=staging
 
 # Label applied
 k get deploy app -n exercise-14 --show-labels | grep staging
@@ -65,14 +79,15 @@ k get svc app-svc -n exercise-14
 ## Cleanup
 
 ```bash
-k delete ns exercise-14
-rm -rf kustomize-lab/
+./scripts/lab.sh cleanup 14
+rm -rf exercises/14-kustomize-overlays/work/
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
+cd exercises/14-kustomize-overlays/work
 mkdir -p kustomize-lab/base kustomize-lab/overlays/staging
 ```
 
@@ -127,8 +142,10 @@ resources:
 
 namespace: exercise-14
 
-commonLabels:
-  env: staging
+labels:
+- pairs:
+    env: staging
+  includeSelectors: true   # same effect as the older commonLabels
 
 replicas:
 - name: app
@@ -136,7 +153,7 @@ replicas:
 ```
 
 ```bash
-k create ns exercise-14
+k kustomize kustomize-lab/overlays/staging/   # preview
 k apply -k kustomize-lab/overlays/staging/
 
 # Verify

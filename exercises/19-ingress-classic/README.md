@@ -16,18 +16,21 @@ This differs from Exercise 15 (Gateway API) because it tests the older API that'
 
 ## Tasks
 
-1. Create a namespace called `exercise-19`
-2. Create two Deployments:
-   - `web-app` with image `nginx:1.28` and 2 replicas, serving on port 80
-   - `api-app` with image `nginx:1.28` and 2 replicas, serving on port 8080
-3. Expose `web-app` Deployment with a ClusterIP service named `web-service` on port 80
-4. Expose `api-app` Deployment with a ClusterIP service named `api-service` on port 8080
-5. Create an Ingress resource named `app-ingress` that routes:
-   - `/` traffic to `web-service:80`
-   - `/api` traffic to `api-service:8080`
-   - Default backend (no matching path) should point to `web-service`
-6. Verify the Ingress resource was created and has an address assigned
-7. Test path-based routing by describing the Ingress (check rules)
+Work in namespace `exercise-19` (`./scripts/lab.sh setup 19` creates it and an IngressClass `nginx`). The lab cluster runs no Ingress controller, so the check validates the Services (with real traffic) and the Ingress spec.
+
+1. Create two Deployments:
+   - `web-app` with image `nginx:1.28` and 2 replicas (nginx listens on port 80)
+   - `api-app` with image `nginx:1.28` and 2 replicas (also listens on port 80)
+2. Expose `web-app` with a ClusterIP Service named `web-service` on port 80 (targetPort 80)
+3. Expose `api-app` with a ClusterIP Service named `api-service` on port 8080, forwarding to the container's port 80
+4. Create an Ingress resource named `app-ingress` with `ingressClassName: nginx` that routes:
+   - `/` (Prefix) traffic to `web-service:80`
+   - `/api` (Prefix) traffic to `api-service:8080`
+   - Default backend (no matching path) should point to `web-service:80`
+5. Check the Ingress: `ADDRESS` stays empty here because no controller is running (with ingress-nginx installed it gets one)
+6. Test path-based routing by describing the Ingress (check rules)
+
+Validate with `./scripts/lab.sh check 19`.
 
 ## Hints
 
@@ -54,56 +57,49 @@ This differs from Exercise 15 (Gateway API) because it tests the older API that'
 ## Verify
 
 ```bash
-# Create deployments and services first
-k create deployment web-app -n exercise-19 --image=nginx:1.28 --replicas=2
-k expose deployment web-app -n exercise-19 --name=web-service --type=ClusterIP --port=80 --target-port=80
+./scripts/lab.sh check 19
+```
 
-k create deployment api-app -n exercise-19 --image=nginx:1.28 --replicas=2
-k expose deployment api-app -n exercise-19 --name=api-service --type=ClusterIP --port=8080 --target-port=8080
+Manual checks:
 
-# Verify services have endpoints
-k get endpoints -n exercise-19
+```bash
+# Services have endpoints
+k get endpointslices -n exercise-19
 
-# Create Ingress
-k create ingress app-ingress -n exercise-19 \
-  --rule="/*=web-service:80" \
-  --rule="/api/*=api-service:8080" \
-  --class=nginx
+# Both Services answer (api-service on 8080 -> pod port 80)
+k -n exercise-19 run t --image=busybox:1.37 --rm -it --restart=Never -- \
+  sh -c 'wget -qO- web-service:80 | head -4; wget -qO- api-service:8080 | head -4'
 
-# Check Ingress status
+# Ingress rules, class and default backend
 k get ingress -n exercise-19
 k describe ingress app-ingress -n exercise-19
-
-# Export as YAML to verify structure
 k get ingress app-ingress -n exercise-19 -o yaml
 ```
 
 ## Cleanup
 
 ```bash
-k delete ns exercise-19
+./scripts/lab.sh cleanup 19
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-# Namespace
-k create ns exercise-19
-
 # Deployments
-k create deployment web-app -n exercise-19 --image=nginx:1.28 --replicas=2 $do | k apply -f -
-k create deployment api-app -n exercise-19 --image=nginx:1.28 --replicas=2 $do | k apply -f -
+k create deployment web-app -n exercise-19 --image=nginx:1.28 --replicas=2
+k create deployment api-app -n exercise-19 --image=nginx:1.28 --replicas=2
 
 # Wait for pods
-k wait --for=condition=ready pod -l app=web-app -n exercise-19 --timeout=30s
+k rollout status deployment web-app -n exercise-19
+k rollout status deployment api-app -n exercise-19
 
-# Services
+# Services (nginx listens on 80 in both Deployments; api-service exposes it as 8080)
 k expose deployment web-app -n exercise-19 --name=web-service --type=ClusterIP --port=80 --target-port=80
-k expose deployment api-app -n exercise-19 --name=api-service --type=ClusterIP --port=8080 --target-port=8080
+k expose deployment api-app -n exercise-19 --name=api-service --type=ClusterIP --port=8080 --target-port=80
 
 # Verify endpoints exist
-k get endpoints -n exercise-19
+k get endpointslices -n exercise-19
 
 # Ingress YAML definition
 cat <<EOF | k apply -f -
@@ -142,7 +138,11 @@ EOF
 k get ingress -n exercise-19
 k describe ingress app-ingress -n exercise-19
 
-# Note: ADDRESS will remain <pending> if no ingress controller is running
+# Imperative alternative (/api* creates path /api, Prefix):
+# k create ingress app-ingress -n exercise-19 --class=nginx \
+#   --rule="/*=web-service:80" --rule="/api*=api-service:8080" --default-backend=web-service:80
+
+# Note: ADDRESS will remain empty if no ingress controller is running
 # In a real cluster with nginx-ingress installed, it would show the external IP/hostname
 ```
 
