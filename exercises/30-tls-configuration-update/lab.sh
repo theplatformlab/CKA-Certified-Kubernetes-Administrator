@@ -3,7 +3,7 @@
 # Setup deploys an nginx that terminates TLS (self-signed cert) and only allows TLSv1.3.
 # The task is to add TLSv1.2; the check handshakes with openssl from a throwaway pod.
 LAB_CLUSTER=practice
-NS=exercise-30
+NS="${ITEM_NS:-exercise-30}"
 
 _gen_cert() {
   local dir="$1" subj="/CN=secure-web.${NS}.svc"

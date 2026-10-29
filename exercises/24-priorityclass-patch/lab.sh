@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 24 — PriorityClass and kubectl patch. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-24
+NS="${ITEM_NS:-exercise-24}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

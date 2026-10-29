@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 13 — Helm install, upgrade, rollback. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-13
+NS="${ITEM_NS:-exercise-13}"
 REL=web
 
 _helm() { helm --kube-context "$CTX" "$@"; }

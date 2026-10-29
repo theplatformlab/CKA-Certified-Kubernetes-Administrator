@@ -7,3 +7,4 @@ exam_minutes: 7
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-02]
+exam_namespace: log-pipeline

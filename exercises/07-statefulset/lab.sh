@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 07 — StatefulSet. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-07
+NS="${ITEM_NS:-exercise-07}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

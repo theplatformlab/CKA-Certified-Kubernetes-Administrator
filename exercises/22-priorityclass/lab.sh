@@ -2,7 +2,7 @@
 # Exercise 22 — PriorityClass. Sourced by scripts/lab.sh.
 # PriorityClasses are cluster-scoped: cleanup removes them explicitly.
 LAB_CLUSTER=practice
-NS=exercise-22
+NS="${ITEM_NS:-exercise-22}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

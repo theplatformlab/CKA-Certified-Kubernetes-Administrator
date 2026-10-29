@@ -22,6 +22,7 @@
 #   WORKDIR        directory for answer files (default ~/cka-lab/<item-id>)
 #   CKA_SEED       seed for lab_params (default 1, so manual runs are repeatable)
 #   CKA_PARAMS     set to 1 when the parameters are already in the environment
+#   ITEM_NS        exams only: namespace replacing an exercise's exercise-NN
 
 set -euo pipefail
 
@@ -95,6 +96,8 @@ item_namespaces() {
       var="${BASH_REMATCH[1]}"
       ns="${ns//\{\{$var\}\}/${!var:-}}"
     done
+    # In exams an exercise's exercise-NN namespaces get the exam name (ITEM_NS).
+    [[ -n "${ITEM_NS:-}" ]] && ns="${ns/exercise-[0-9][0-9]/$ITEM_NS}"
     [[ -n "$ns" ]] && echo "$ns"
   done
 }

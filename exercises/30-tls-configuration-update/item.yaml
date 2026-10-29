@@ -6,4 +6,5 @@ minutes: 20
 weight: 10
 modes: [practice]
 namespaces: [exercise-30]
+exam_namespace: tls-web
 needs: [cluster-dns]

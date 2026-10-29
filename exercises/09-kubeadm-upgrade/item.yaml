@@ -7,4 +7,5 @@ exam_minutes: 14
 weight: 12
 modes: [practice, exam]
 namespaces: [exercise-09]
+exam_namespace: upgrade
 conflicts: [cluster-version, apiserver-manifest, scheduler-manifest, controller-manager-manifest, worker-kubelet, pki]

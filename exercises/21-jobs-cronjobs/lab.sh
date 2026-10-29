@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 21 — Jobs and CronJobs. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-21
+NS="${ITEM_NS:-exercise-21}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

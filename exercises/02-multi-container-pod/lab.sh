@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 02 — Multi-container pod with a native sidecar. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-02
+NS="${ITEM_NS:-exercise-02}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

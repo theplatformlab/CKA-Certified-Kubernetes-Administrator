@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 05 — NetworkPolicy. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-05
+NS="${ITEM_NS:-exercise-05}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

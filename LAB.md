@@ -28,6 +28,8 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 
 **Parametrized items.** Some items roll their names and values per session: replica counts, ports, schedules, thresholds. The task text, hints, solution and validator all use the same values. The values are stored with the session, so the history shows exactly what you were asked.
 
+**Namespaces in exams.** Exercises use `exercise-NN` namespaces when practising; in an exam each one gets a realistic name instead (`web-store`, `dev-team`, `payment-api`, ...), in the task text, the setup and the grading. Every namespace in the pool is unique, so no two questions of an exam share one.
+
 **Exams vs. the real CKA.**
 - On the real exam every task has its own cluster. Here, tasks share `cka-exam` (namespaced work) and `cka-exam-ops` (control-plane work). Items that touch the same component, such as two that break the API server, are never drawn together.
 - At most one item per exam needs a special cluster (CNI, container runtime, HA), so startup stays at a few minutes.
@@ -90,6 +92,7 @@ exam_minutes: 4                # realistic time at exam pace (the exam generator
 weight: 7                      # exam points
 modes: [practice, exam]        # or [practice] for tutorial-style labs
 namespaces: [payments]         # every namespace it uses; must be unique in the pool ({{PARAM}} allowed)
+exam_namespace: storefront     # exercises only: replaces exercise-NN in exams (lab.sh: NS="${ITEM_NS:-exercise-NN}")
 conflicts: [apiserver-manifest] # shared cluster-wide things it changes or breaks; items sharing a tag are never drawn together
 needs: [cluster-dns]           # things it relies on; never drawn with an item whose conflicts break them
 order: late                    # only if its setup leaves the API server down

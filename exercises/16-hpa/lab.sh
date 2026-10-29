@@ -3,7 +3,7 @@
 # kind ships without metrics-server: setup installs a pinned release with
 # --kubelet-insecure-tls (kubelet serving certs on kind are self-signed).
 LAB_CLUSTER=practice
-NS=exercise-16
+NS="${ITEM_NS:-exercise-16}"
 METRICS_SERVER_VERSION=v0.9.0
 METRICS_SERVER_URL="https://github.com/kubernetes-sigs/metrics-server/releases/download/${METRICS_SERVER_VERSION}/components.yaml"
 

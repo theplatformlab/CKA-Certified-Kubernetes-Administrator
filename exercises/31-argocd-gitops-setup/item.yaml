@@ -7,4 +7,5 @@ exam_minutes: 10
 weight: 12
 modes: [practice, exam]
 namespaces: [argocd, exercise-31]
+exam_namespace: guestbook
 conflicts: [argocd]

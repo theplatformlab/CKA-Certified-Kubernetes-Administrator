@@ -2,7 +2,7 @@
 # Exercise 25 — StorageClass with WaitForFirstConsumer and a local PV. Sourced by scripts/lab.sh.
 # Setup prepares the "local disk" directory on the first worker node.
 LAB_CLUSTER=practice
-NS=exercise-25
+NS="${ITEM_NS:-exercise-25}"
 DISK=/mnt/disks/vol1
 
 lab_setup() {

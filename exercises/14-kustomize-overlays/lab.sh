@@ -1,9 +1,9 @@
 # shellcheck shell=bash
 # Exercise 14 — Kustomize base and overlay. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-14
-# Your kustomization lives here (YAML under exercises/ is gitignored).
-KDIR="$EXERCISE_DIR/work/kustomize-lab"
+NS="${ITEM_NS:-exercise-14}"
+# Your kustomization lives in the item's answer directory.
+KDIR="$WORKDIR/kustomize-lab"
 
 # _render <dir> <jsonpath> — render a kustomization; the jsonpath is applied to each object.
 _render() {
@@ -13,7 +13,7 @@ _render() {
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -
   mkdir -p "$KDIR"
-  echo "  Write your files under ${KDIR#"$REPO_ROOT"/}/"
+  echo "  Write your files under $KDIR/"
 }
 
 lab_check() {
@@ -44,5 +44,5 @@ lab_check() {
 
 lab_cleanup() {
   kc delete namespace "$NS" --ignore-not-found --wait=false
-  echo "  Your files in ${KDIR#"$REPO_ROOT"/}/ are kept — delete them with: rm -rf ${KDIR#"$REPO_ROOT"/}"
+  echo "  Your files in $KDIR/ are kept — delete them with: rm -rf $KDIR"
 }

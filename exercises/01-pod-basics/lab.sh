@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 01 — Pod basics. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-01
+NS="${ITEM_NS:-exercise-01}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

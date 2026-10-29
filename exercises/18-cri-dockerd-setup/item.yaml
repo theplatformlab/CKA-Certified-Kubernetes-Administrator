@@ -7,4 +7,5 @@ exam_minutes: 10
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-18]
+exam_namespace: container-runtime
 conflicts: [docker-on-worker]

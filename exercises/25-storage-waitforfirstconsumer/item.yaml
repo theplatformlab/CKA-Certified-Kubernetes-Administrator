@@ -7,3 +7,4 @@ exam_minutes: 8
 weight: 10
 modes: [practice, exam]
 namespaces: [exercise-25]
+exam_namespace: local-disks

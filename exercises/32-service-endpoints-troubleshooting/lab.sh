@@ -2,7 +2,7 @@
 # Exercise 32 — Troubleshoot a Service with no endpoints. Sourced by scripts/lab.sh.
 # Setup creates the Deployment, a Service whose selector does not match, and a test pod.
 LAB_CLUSTER=practice
-NS=exercise-32
+NS="${ITEM_NS:-exercise-32}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

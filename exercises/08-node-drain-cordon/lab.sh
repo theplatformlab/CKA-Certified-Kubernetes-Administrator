@@ -3,7 +3,7 @@
 # Setup creates Deployment drain-test (3 replicas, emptyDir) and marks the pods
 # that start on worker2 with lab-original=true, so the check can prove they were evicted.
 LAB_CLUSTER=practice
-NS=exercise-08
+NS="${ITEM_NS:-exercise-08}"
 
 _node() { worker_node 2; }
 

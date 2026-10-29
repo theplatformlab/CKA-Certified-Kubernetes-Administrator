@@ -7,3 +7,4 @@ exam_minutes: 5
 weight: 5
 modes: [practice, exam]
 namespaces: [exercise-06]
+exam_namespace: storefront

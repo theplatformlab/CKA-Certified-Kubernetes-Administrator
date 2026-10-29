@@ -2,8 +2,8 @@
 # Exercise 12 — Storage: static PV/PVC with Retain. Sourced by scripts/lab.sh.
 # The end state is after task 8: PVC deleted, PV my-pv Released, test file on the node.
 LAB_CLUSTER=practice
-NS=exercise-12
-DIR=/data/exercise-12
+NS="${ITEM_NS:-exercise-12}"
+DIR="/data/$NS"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

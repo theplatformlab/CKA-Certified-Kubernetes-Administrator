@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 19 — Classic Ingress. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-19
+NS="${ITEM_NS:-exercise-19}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

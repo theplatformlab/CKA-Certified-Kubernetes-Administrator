@@ -7,5 +7,6 @@ exam_minutes: 8
 weight: 10
 modes: [practice, exam]
 namespaces: [exercise-15]
+exam_namespace: web-gateway
 conflicts: [gateway-api-crds]
 needs: [cluster-dns]

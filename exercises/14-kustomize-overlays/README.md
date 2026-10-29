@@ -8,9 +8,9 @@ Build a base deployment and apply an overlay that changes the namespace and repl
 
 ## Tasks
 
-Work in namespace `exercise-14` (`./scripts/lab.sh setup 14` creates it). Write the files under `exercises/14-kustomize-overlays/work/` (YAML there is gitignored) — the check renders them from that exact path.
+Work in namespace `exercise-14` (`./scripts/lab.sh setup 14` creates it). Write the files under `~/cka-lab/ex14/` — the check renders them from that exact path.
 
-1. Create a directory structure in `exercises/14-kustomize-overlays/work/`:
+1. Create a directory structure in `~/cka-lab/ex14/`:
    ```
    kustomize-lab/
      base/
@@ -63,8 +63,8 @@ Manual checks:
 
 ```bash
 # Preview: base has 1 replica, overlay has 3 in exercise-14
-k kustomize exercises/14-kustomize-overlays/work/kustomize-lab/base/
-k kustomize exercises/14-kustomize-overlays/work/kustomize-lab/overlays/staging/
+k kustomize ~/cka-lab/ex14/kustomize-lab/base/
+k kustomize ~/cka-lab/ex14/kustomize-lab/overlays/staging/
 
 # 3 pods running
 k get pods -n exercise-14 -l env=staging
@@ -80,14 +80,14 @@ k get svc app-svc -n exercise-14
 
 ```bash
 ./scripts/lab.sh cleanup 14
-rm -rf exercises/14-kustomize-overlays/work/
+rm -rf ~/cka-lab/ex14/
 ```
 
 <details>
 <summary>Solution</summary>
 
 ```bash
-cd exercises/14-kustomize-overlays/work
+cd ~/cka-lab/ex14
 mkdir -p kustomize-lab/base kustomize-lab/overlays/staging
 ```
 

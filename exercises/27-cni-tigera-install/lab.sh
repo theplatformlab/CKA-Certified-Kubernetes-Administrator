@@ -2,7 +2,7 @@
 # Exercise 27 — Install Calico with the Tigera operator. Sourced by scripts/lab.sh.
 # The cni cluster is created without a CNI (nodes NotReady, podSubnet 192.168.0.0/16).
 LAB_CLUSTER=cni
-NS=exercise-27
+NS="${ITEM_NS:-exercise-27}"
 POD_CIDR=192.168.0.0/16
 
 # _probe_on <node> <labels|-> <command> — like probe, but pinned to a node

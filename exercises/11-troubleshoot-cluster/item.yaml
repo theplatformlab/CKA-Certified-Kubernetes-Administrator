@@ -7,5 +7,6 @@ minutes: 25
 weight: 12
 modes: [practice]
 namespaces: [exercise-11]
+exam_namespace: ops-check
 conflicts: [worker-kubelet, coredns, kube-proxy, apiserver-manifest]
 order: late

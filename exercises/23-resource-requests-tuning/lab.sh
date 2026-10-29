@@ -4,7 +4,7 @@
 # requests from the node's real allocatable: 60% each, so only 1 of 3 replicas fits.
 # The check recomputes each replica's fair share of what is free on the node.
 LAB_CLUSTER=practice
-NS=exercise-23
+NS="${ITEM_NS:-exercise-23}"
 
 _node() { worker_node 1; }
 

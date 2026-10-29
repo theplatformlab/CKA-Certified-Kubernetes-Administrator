@@ -3,7 +3,7 @@
 # Setup pre-installs the Argo CD CRDs (as in the exam task: "the CRDs are already
 # installed"); the user renders the chart WITHOUT CRDs, applies it and creates an Application.
 LAB_CLUSTER=practice
-NS=exercise-31
+NS="${ITEM_NS:-exercise-31}"
 ARGOCD_VERSION=v3.5.6       # appVersion of chart argo-cd 10.11.6
 CHART_VERSION=10.11.6
 TEMPLATE_FILE="$HOME/argo-helm.yaml"

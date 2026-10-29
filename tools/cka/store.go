@@ -24,6 +24,7 @@ type SessionItem struct {
 	Seed           int64             `json:"seed"`
 	Params         map[string]string `json:"params,omitempty"`
 	Workdir        string            `json:"workdir"`
+	Namespace      string            `json:"namespace,omitempty"` // exams: replaces an exercise's exercise-NN
 	Weight         int               `json:"weight"`
 	Minutes        int               `json:"minutes"`
 	SetupError     string            `json:"setupError,omitempty"`

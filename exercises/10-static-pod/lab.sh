@@ -2,7 +2,7 @@
 # Exercise 10 — Static Pod. Sourced by scripts/lab.sh.
 # The static pod runs on the worker node of the ops cluster.
 LAB_CLUSTER=ops
-NS=exercise-10
+NS="${ITEM_NS:-exercise-10}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

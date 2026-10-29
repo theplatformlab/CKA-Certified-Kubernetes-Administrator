@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 15 — Gateway API: Gateway and HTTPRoute. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-15
+NS="${ITEM_NS:-exercise-15}"
 GATEWAY_API_VERSION=v1.6.3
 GATEWAY_API_URL="https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
 # GatewayClass created by setup. No controller runs for it — the lab checks the object specs.

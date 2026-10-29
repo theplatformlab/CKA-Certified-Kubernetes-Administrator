@@ -8,5 +8,6 @@ exam_minutes: 7
 weight: 10
 modes: [practice, exam]
 namespaces: [exercise-29]
+exam_namespace: etcd-check
 conflicts: [apiserver-manifest]
 order: late

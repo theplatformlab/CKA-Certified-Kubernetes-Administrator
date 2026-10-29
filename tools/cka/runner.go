@@ -92,6 +92,10 @@ func itemVars(s *Session, si *SessionItem, it *Item) map[string]string {
 	vars["NODE_CP"], vars["NODE_W1"], vars["NODE_W2"] = cp, w1, w2
 	vars["NODE_CP2"], vars["NODE_CP3"] = cluster+"-control-plane2", cluster+"-control-plane3"
 	vars["WORKDIR"] = strings.Replace(si.Workdir, homeDir(), "~", 1)
+	if it.Exercise {
+		vars["@ID"] = it.ID
+		vars["@NS"] = si.Namespace
+	}
 	return vars
 }
 
@@ -104,6 +108,9 @@ func labEnv(s *Session, si *SessionItem) []string {
 		fmt.Sprintf("CKA_SEED=%d", si.Seed%32768),
 		"CKA_PARAMS=1",
 	)
+	if si.Namespace != "" {
+		env = append(env, "ITEM_NS="+si.Namespace)
+	}
 	for _, p := range []string{"cni", "runtime", "ha"} {
 		if c := s.Clusters[p]; c != "" {
 			env = append(env, fmt.Sprintf("CKA_%s_CLUSTER=%s", strings.ToUpper(p), c))
@@ -480,8 +487,12 @@ func recordBaselines(s *Session, byID map[string]*Item, log func(string)) {
 		go func(si *SessionItem, it *Item) {
 			defer wg.Done()
 			ctx := "kind-" + s.Clusters[it.Cluster]
+			vars := map[string]string{"@NS": si.Namespace}
+			for k, v := range si.Params {
+				vars[k] = v
+			}
 			for _, ns := range it.Namespaces {
-				exec.Command("kubectl", "--context", ctx, "-n", Render(ns, si.Params, nil), "wait",
+				exec.Command("kubectl", "--context", ctx, "-n", Render(ns, vars, nil), "wait",
 					"--for=condition=Ready", "pods", "--all", "--timeout=60s").Run()
 			}
 			if results, _, err := RunCheck(s, si, it); err == nil {

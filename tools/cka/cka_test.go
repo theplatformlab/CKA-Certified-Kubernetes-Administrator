@@ -245,3 +245,45 @@ func TestExamTroubleshootingAreas(t *testing.T) {
 		}
 	}
 }
+
+// Exam namespaces of exercises must not collide with any namespace in the pool.
+func TestExamNamespacesUnique(t *testing.T) {
+	repoRoot = filepath.Join("..", "..")
+	items, err := LoadBank(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := map[string]string{}
+	claim := func(ns, id string) {
+		if prev, ok := owner[ns]; ok && prev != id {
+			t.Errorf("namespace %q used by %s and %s", ns, prev, id)
+		}
+		owner[ns] = id
+	}
+	for _, it := range items {
+		for _, ns := range it.Namespaces {
+			if it.Exercise && exerciseNSRe.MatchString(ns) {
+				continue // replaced in exams, practice-only otherwise
+			}
+			if !strings.Contains(ns, "{{") {
+				claim(ns, it.ID)
+			}
+		}
+		if ns := examNamespace(it); ns != "" {
+			claim(ns, it.ID)
+			for _, extra := range it.Namespaces {
+				if exerciseNSRe.MatchString(extra) {
+					claim(exerciseNSRe.ReplaceAllString(extra, ns), it.ID)
+				}
+			}
+		}
+	}
+}
+
+func TestRenderExamNamespace(t *testing.T) {
+	out := Render("ns exercise-20 and exercise-20-baseline, files in ~/cka-lab/ex20/x",
+		map[string]string{"@NS": "secured", "@ID": "ex20", "WORKDIR": "~/cka-lab/q03"}, nil)
+	if out != "ns secured and secured-baseline, files in ~/cka-lab/q03/x" {
+		t.Errorf("got %q", out)
+	}
+}

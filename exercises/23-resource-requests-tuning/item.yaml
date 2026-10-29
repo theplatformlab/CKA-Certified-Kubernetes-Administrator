@@ -6,4 +6,5 @@ minutes: 20
 weight: 10
 modes: [practice]
 namespaces: [exercise-23]
+exam_namespace: capacity
 conflicts: [worker1-capacity]

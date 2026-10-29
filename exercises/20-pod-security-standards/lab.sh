@@ -3,9 +3,9 @@
 # Setup creates the three namespaces WITHOUT Pod Security labels; labelling is the task.
 # The check asks the API server (server-side dry run) whether pods are admitted.
 LAB_CLUSTER=practice
-NS=exercise-20
-NS_BASE=exercise-20-baseline
-NS_AUDIT=exercise-20-audit
+NS="${ITEM_NS:-exercise-20}"
+NS_BASE="$NS-baseline"
+NS_AUDIT="$NS-audit"
 PSS=pod-security.kubernetes.io
 
 lab_setup() {

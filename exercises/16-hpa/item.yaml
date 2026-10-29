@@ -6,4 +6,5 @@ minutes: 15
 weight: 8
 modes: [practice]
 namespaces: [exercise-16]
+exam_namespace: load-test
 conflicts: [metrics-server]

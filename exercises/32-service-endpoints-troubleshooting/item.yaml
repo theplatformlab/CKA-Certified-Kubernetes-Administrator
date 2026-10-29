@@ -8,4 +8,5 @@ exam_minutes: 6
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-32]
+exam_namespace: payment-api
 needs: [cluster-dns]

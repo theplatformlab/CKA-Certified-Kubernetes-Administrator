@@ -7,7 +7,7 @@
 #   C  invalid proxy mode in the kube-proxy ConfigMap (Service web created afterwards has no rules)
 #   D  audit logging enabled; a ServiceAccount is denied deleting Secret db-credentials
 LAB_CLUSTER=ops
-NS=exercise-11
+NS="${ITEM_NS:-exercise-11}"
 APISERVER=/etc/kubernetes/manifests/kube-apiserver.yaml
 AUDIT_LOG=/var/log/kubernetes/audit/audit.log
 ANSWER=/opt/exercise-11/denied-user.txt

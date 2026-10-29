@@ -7,3 +7,4 @@ exam_minutes: 6
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-22]
+exam_namespace: critical-apps

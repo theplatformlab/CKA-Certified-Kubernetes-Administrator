@@ -3,7 +3,7 @@
 # Both debug sessions leave traces: the ephemeral container stays in the pod
 # spec, and the node debugger pod stays (Completed) in the namespace.
 LAB_CLUSTER=practice
-NS=exercise-17
+NS="${ITEM_NS:-exercise-17}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

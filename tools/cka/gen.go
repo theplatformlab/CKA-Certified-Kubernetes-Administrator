@@ -48,8 +48,15 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 			return false
 		}
 		pick := Pick{Item: it, Seed: seed, Params: p}
+		vars := map[string]string{}
+		for k, v := range p {
+			vars[k] = v
+		}
+		if opt.Mode == "exam" {
+			vars["@NS"] = examNamespace(it)
+		}
 		for _, ns := range it.Namespaces {
-			pick.Namespaces = append(pick.Namespaces, Render(ns, p, nil))
+			pick.Namespaces = append(pick.Namespaces, Render(ns, vars, nil))
 		}
 		for _, c := range chosen {
 			if conflicts(c, pick) {

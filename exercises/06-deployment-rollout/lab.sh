@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Exercise 06 — Deployment rolling update and rollback. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-06
+NS="${ITEM_NS:-exercise-06}"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

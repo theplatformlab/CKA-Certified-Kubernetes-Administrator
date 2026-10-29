@@ -7,5 +7,6 @@ exam_minutes: 6
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-19]
+exam_namespace: web-routing
 conflicts: [ingressclass-nginx]
 needs: [cluster-dns]

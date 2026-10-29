@@ -7,3 +7,4 @@ exam_minutes: 12
 weight: 12
 modes: [practice, exam]
 namespaces: [exercise-27]
+exam_namespace: calico-test

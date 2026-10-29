@@ -7,3 +7,4 @@ exam_minutes: 7
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-13]
+exam_namespace: helm-apps

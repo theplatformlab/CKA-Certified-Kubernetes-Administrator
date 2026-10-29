@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 # Exercise 04 — RBAC. Sourced by scripts/lab.sh.
 LAB_CLUSTER=practice
-NS=exercise-04
-SA="system:serviceaccount:exercise-04:dev-sa"
+NS="${ITEM_NS:-exercise-04}"
+SA="system:serviceaccount:$NS:dev-sa"
 
 lab_setup() {
   kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -

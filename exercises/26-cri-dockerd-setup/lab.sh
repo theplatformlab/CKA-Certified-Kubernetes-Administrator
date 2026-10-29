@@ -4,7 +4,7 @@
 # (Docker Engine + cri-dockerd running, kubelet still on containerd) and
 # starts a small workload on it.
 LAB_CLUSTER=runtime
-NS=exercise-26
+NS="${ITEM_NS:-exercise-26}"
 CRI_DOCKERD_VERSION=0.4.9
 SOCK=/run/cri-dockerd.sock
 CONTAINERD_SOCK=/run/containerd/containerd.sock

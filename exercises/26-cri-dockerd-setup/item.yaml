@@ -7,4 +7,5 @@ exam_minutes: 12
 weight: 12
 modes: [practice, exam]
 namespaces: [exercise-26]
+exam_namespace: dockerd-apps
 conflicts: [worker-kubelet]

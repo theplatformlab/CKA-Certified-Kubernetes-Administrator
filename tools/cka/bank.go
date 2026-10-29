@@ -59,6 +59,7 @@ type Item struct {
 	Weight     int      `yaml:"weight"`
 	Modes      []string `yaml:"modes"`
 	Namespaces []string `yaml:"namespaces"`
+	ExamNS     string   `yaml:"exam_namespace"` // exercises: replaces exercise-NN in exams
 	Conflicts  []string `yaml:"conflicts"` // cluster-wide things the item changes or breaks
 	Needs      []string `yaml:"needs"`     // things it relies on (never drawn with an item that breaks them)
 	Order      string   `yaml:"order"` // "late": set up after the other items on its cluster
@@ -275,9 +276,19 @@ func stripLabHints(s string) string {
 	return strings.Join(out, "\n")
 }
 
+var exerciseNSRe = regexp.MustCompile(`\bexercise-[0-9][0-9]\b`)
+
 // Render substitutes {{KEY}} placeholders and, for exercises, the default
-// cluster names written in the text (cka-practice, cka-ops, ...).
+// cluster names written in the text (cka-practice, cka-ops, ...). In exams
+// an exercise's exercise-NN namespace is replaced by vars["@NS"], and its
+// manual answer directory ~/cka-lab/exNN by the session's WORKDIR.
 func Render(s string, vars map[string]string, clusters map[string]string) string {
+	if ns := vars["@NS"]; ns != "" {
+		s = exerciseNSRe.ReplaceAllString(s, ns)
+	}
+	if id, wd := vars["@ID"], vars["WORKDIR"]; id != "" && wd != "" {
+		s = strings.ReplaceAll(s, "~/cka-lab/"+id, wd)
+	}
 	s = placeholderRe.ReplaceAllStringFunc(s, func(m string) string {
 		key := m[2 : len(m)-2]
 		if v, ok := vars[key]; ok {
@@ -343,4 +354,16 @@ func ExamView(question string, n int) string {
 		out = append(out, line)
 	}
 	return strings.Join(out, "\n")
+}
+
+// examNamespace: the namespace an exercise uses in an exam (exam_namespace,
+// or q-<id> as a fallback). Empty for pool questions, which keep theirs.
+func examNamespace(it *Item) string {
+	if !it.Exercise {
+		return ""
+	}
+	if it.ExamNS != "" {
+		return it.ExamNS
+	}
+	return "q-" + it.ID
 }
