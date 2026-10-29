@@ -83,7 +83,8 @@ topic: rollouts                # a generated session never has two items of one 
 domain: workloads              # troubleshooting | architecture | networking | workloads | storage
 area: applications             # troubleshooting only: cluster-components | nodes | networking | observability | applications
 difficulty: 1                  # 1-3
-minutes: 7                     # realistic exam time
+minutes: 7                     # recommended time when practising
+exam_minutes: 4                # realistic time at exam pace (the exam generator fits these into the duration)
 weight: 7                      # exam points
 modes: [practice, exam]        # or [practice] for tutorial-style labs
 namespaces: [payments]         # every namespace it uses; must be unique in the pool ({{PARAM}} allowed)

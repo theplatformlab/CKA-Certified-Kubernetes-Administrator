@@ -3,6 +3,7 @@ topic: pvc-binding
 domain: storage
 difficulty: 2
 minutes: 8
+exam_minutes: 5
 weight: 7
 modes: [practice, exam]
 namespaces: [reports]

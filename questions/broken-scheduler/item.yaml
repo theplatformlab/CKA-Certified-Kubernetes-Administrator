@@ -4,6 +4,7 @@ domain: troubleshooting
 area: cluster-components
 difficulty: 2
 minutes: 10
+exam_minutes: 6
 weight: 8
 modes: [practice, exam]
 namespaces: [default]

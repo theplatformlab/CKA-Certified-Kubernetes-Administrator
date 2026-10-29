@@ -3,6 +3,7 @@ topic: priorityclass
 domain: workloads
 difficulty: 2
 minutes: 15
+exam_minutes: 6
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-22]

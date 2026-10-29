@@ -3,6 +3,7 @@ topic: networkpolicy
 domain: networking
 difficulty: 3
 minutes: 25
+exam_minutes: 12
 weight: 12
 modes: [practice, exam]
 namespaces: [frontend, backend, database]

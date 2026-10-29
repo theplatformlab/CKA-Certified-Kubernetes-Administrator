@@ -157,7 +157,7 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		// Keep each pick near the average time still available per slot,
 		// so long tasks don't crowd out the remaining questions.
 		share := (budget - total) / float64(left+1)
-		return m <= 1.8*share && total+m+float64(left)*minExamMinutes <= budget
+		return m <= 1.6*share && total+m+float64(left)*minExamMinutes <= budget
 	}
 	add := func(it *Item, strict bool) bool {
 		if inPicks(chosen, it) || !fits(it, strict) || !tryAdd(it) {
@@ -223,7 +223,7 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 const DefaultExamQuestions = 17
 
 // The shortest realistic task; used to keep room for the remaining slots.
-const minExamMinutes = 5.0
+const minExamMinutes = 3.0
 
 // domainQuotas splits n questions over the domains by weight (largest remainder).
 func domainQuotas(n int) map[string]int {
@@ -248,8 +248,12 @@ func domainQuotas(n int) map[string]int {
 	return quota
 }
 
-// Exercise times are learning times; in an exam they take roughly 60% of that.
+// examMinutes: the item's time at exam pace (exam_minutes in item.yaml).
+// Without it: exercise times are learning times, roughly 60% at exam pace.
 func examMinutes(it *Item) float64 {
+	if it.ExamMins > 0 {
+		return float64(it.ExamMins)
+	}
 	if it.Exercise {
 		return float64(max(6, it.Minutes*6/10))
 	}

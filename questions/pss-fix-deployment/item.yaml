@@ -3,6 +3,7 @@ topic: pod-security
 domain: workloads
 difficulty: 2
 minutes: 8
+exam_minutes: 6
 weight: 7
 modes: [practice, exam]
 namespaces: [restricted]

@@ -54,7 +54,8 @@ type Item struct {
 	Domain     string   `yaml:"domain"`
 	Area       string   `yaml:"area"` // sub-area within the domain (see domainAreas)
 	Difficulty int      `yaml:"difficulty"`
-	Minutes    int      `yaml:"minutes"`
+	Minutes    int      `yaml:"minutes"`      // recommended time when practising
+	ExamMins   int      `yaml:"exam_minutes"` // realistic time at exam pace
 	Weight     int      `yaml:"weight"`
 	Modes      []string `yaml:"modes"`
 	Namespaces []string `yaml:"namespaces"`

@@ -3,6 +3,7 @@ topic: kubeadm-upgrade
 domain: architecture
 difficulty: 3
 minutes: 25
+exam_minutes: 14
 weight: 12
 modes: [practice, exam]
 namespaces: [exercise-09]

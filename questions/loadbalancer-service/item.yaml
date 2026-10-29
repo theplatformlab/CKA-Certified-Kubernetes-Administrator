@@ -3,6 +3,7 @@ topic: service-types
 domain: networking
 difficulty: 1
 minutes: 7
+exam_minutes: 5
 weight: 6
 modes: [practice, exam]
 namespaces: [edge-lb]

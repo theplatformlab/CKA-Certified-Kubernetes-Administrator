@@ -4,6 +4,7 @@ domain: troubleshooting
 area: networking
 difficulty: 2
 minutes: 7
+exam_minutes: 5
 weight: 6
 modes: [practice, exam]
 namespaces: [catalog]

@@ -3,6 +3,7 @@ topic: helm
 domain: architecture
 difficulty: 2
 minutes: 15
+exam_minutes: 7
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-13]

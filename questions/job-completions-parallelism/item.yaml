@@ -3,6 +3,7 @@ topic: jobs
 domain: workloads
 difficulty: 1
 minutes: 6
+exam_minutes: 4
 weight: 5
 modes: [practice, exam]
 namespaces: [render]

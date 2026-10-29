@@ -153,6 +153,9 @@ func TestPool(t *testing.T) {
 		if it.Topic == "" {
 			t.Errorf("%s: no topic", it.ID)
 		}
+		if it.Allows("exam") && it.ExamMins == 0 {
+			t.Errorf("%s: exam item without exam_minutes", it.ID)
+		}
 		if areas := domainAreas[it.Domain]; len(areas) > 0 {
 			found := false
 			for _, a := range areas {

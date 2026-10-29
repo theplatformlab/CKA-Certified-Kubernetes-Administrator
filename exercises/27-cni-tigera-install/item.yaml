@@ -3,6 +3,7 @@ topic: cni
 domain: architecture
 difficulty: 3
 minutes: 30
+exam_minutes: 12
 weight: 12
 modes: [practice, exam]
 namespaces: [exercise-27]

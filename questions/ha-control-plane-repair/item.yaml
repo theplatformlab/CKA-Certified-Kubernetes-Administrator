@@ -3,6 +3,7 @@ topic: ha-control-plane
 domain: architecture
 difficulty: 2
 minutes: 10
+exam_minutes: 8
 weight: 8
 modes: [practice, exam]
 conflicts: [ha-control-plane]

@@ -3,6 +3,7 @@ topic: audit-logging
 domain: architecture
 difficulty: 3
 minutes: 12
+exam_minutes: 9
 weight: 7
 modes: [practice, exam]
 conflicts: [apiserver-manifest]

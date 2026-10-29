@@ -3,6 +3,7 @@ topic: cri-dockerd
 domain: architecture
 difficulty: 2
 minutes: 15
+exam_minutes: 10
 weight: 8
 modes: [practice, exam]
 namespaces: [exercise-18]

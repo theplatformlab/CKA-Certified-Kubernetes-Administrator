@@ -3,6 +3,7 @@ topic: user-csr
 domain: architecture
 difficulty: 3
 minutes: 12
+exam_minutes: 9
 weight: 8
 modes: [practice, exam]
 namespaces: [insights]

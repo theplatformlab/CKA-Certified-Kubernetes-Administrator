@@ -3,6 +3,7 @@ topic: kubelet-config
 domain: architecture
 difficulty: 2
 minutes: 8
+exam_minutes: 6
 weight: 6
 modes: [practice, exam]
 conflicts: [worker-kubelet]

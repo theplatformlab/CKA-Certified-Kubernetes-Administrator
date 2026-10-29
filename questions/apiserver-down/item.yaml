@@ -4,6 +4,7 @@ domain: troubleshooting
 area: cluster-components
 difficulty: 3
 minutes: 12
+exam_minutes: 7
 weight: 9
 modes: [practice, exam]
 conflicts: [apiserver-manifest]

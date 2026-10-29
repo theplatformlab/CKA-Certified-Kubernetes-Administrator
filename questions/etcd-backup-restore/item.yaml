@@ -3,6 +3,7 @@ topic: etcd-backup
 domain: architecture
 difficulty: 3
 minutes: 15
+exam_minutes: 11
 weight: 9
 modes: [practice, exam]
 namespaces: [vault-records]
