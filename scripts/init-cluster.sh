@@ -118,6 +118,22 @@ ensure_docker() {
   fi
 }
 
+# Every node gets the editors and pager you have on the real exam's nodes
+# (kind's node image ships none of them). Nodes are set up in parallel.
+install_node_tools() {
+  local node pids=() failed=0
+  log_info "Installing vim, nano and less on all nodes ..."
+  for node in $(kind get nodes --name "$CLUSTER_NAME"); do
+    [[ "$node" == *external-load-balancer ]] && continue
+    node_exec "$node" "export DEBIAN_FRONTEND=noninteractive
+      apt-get update -qq && apt-get install -y -qq vim nano less >/dev/null" >/dev/null 2>&1 &
+    pids+=($!)
+  done
+  for pid in "${pids[@]}"; do wait "$pid" || failed=1; done
+  (( failed )) && log_warn "Some nodes could not install the editors (no internet access?)"
+  return 0
+}
+
 # ops profile: add the pkgs.k8s.io apt repo for the NEXT minor version on every
 # node so the kubeadm upgrade can be done the same way as on a real kubeadm
 # cluster (apt-get install kubeadm=... / kubeadm upgrade apply ...).
@@ -135,7 +151,7 @@ prepare_ops_nodes() {
       set -e
       export DEBIAN_FRONTEND=noninteractive
       apt-get update -qq
-      apt-get install -y -qq curl gpg vim less sudo openssl >/dev/null
+      apt-get install -y -qq curl gpg sudo openssl >/dev/null
       mkdir -p /etc/apt/keyrings
       curl -fsSL https://pkgs.k8s.io/core:/stable:/${next_minor}/deb/Release.key \\
         | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
@@ -214,6 +230,8 @@ main() {
     "${wait_args[@]}"
 
   configure_kubeconfig
+
+  install_node_tools
 
   # ha nodes get the same tooling (etcdctl for member/health checks).
   if [[ "$PROFILE" == "ops" || "$PROFILE" == "ha" ]]; then
