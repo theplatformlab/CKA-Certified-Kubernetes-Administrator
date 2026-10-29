@@ -529,7 +529,10 @@ func (m *model) startSession(opt GenOptions) (tea.Model, tea.Cmd) {
 	title := fmt.Sprintf("Preparing %s session: %d items", opt.Mode, len(s.Items))
 	return m, m.runBusy(title, scrSession, func(log func(string)) error {
 		if err := Prepare(s, m.items, fresh, log); err != nil {
-			return err
+			// A half-prepared session can't be continued: drop it.
+			m.store.Delete(s)
+			m.sess = nil
+			return fmt.Errorf("%v — the session was discarded, start it again", err)
 		}
 		if s.Mode == "exam" {
 			s.Deadline = time.Now().Add(time.Duration(s.DurationMin) * time.Minute)

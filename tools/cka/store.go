@@ -149,6 +149,10 @@ func (st *Store) Save(s *Session) error {
 	return os.Rename(tmp, filepath.Join(st.Dir, s.ID+".json"))
 }
 
+func (st *Store) Delete(s *Session) error {
+	return os.Remove(filepath.Join(st.Dir, s.ID+".json"))
+}
+
 // All sessions, newest first.
 func (st *Store) List() []*Session {
 	files, _ := filepath.Glob(filepath.Join(st.Dir, "*.json"))

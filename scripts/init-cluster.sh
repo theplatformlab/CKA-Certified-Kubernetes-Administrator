@@ -189,19 +189,29 @@ check_inotify() {
 # Configure kubeconfig
 # Adds the cluster to the kubeconfig and switches to it — unless
 # CKA_KEEP_CONTEXT=1 (used by ./cka), then the previous context stays current.
+#
+# Several clusters can be created at the same time (./cka builds the exam
+# clusters in parallel), but kind fails instead of waiting when another kind
+# process holds the kubeconfig lock. So kind create/delete work on a private
+# kubeconfig, and only this step touches ~/.kube/config — under a flock.
 configure_kubeconfig() {
   mkdir -p "$HOME/.kube"
-  kind export kubeconfig --name "$CLUSTER_NAME"
-  if [[ "${CKA_KEEP_CONTEXT:-}" == 1 && -n "${PREVIOUS_CONTEXT:-}" ]]; then
-    kubectl config use-context "$PREVIOUS_CONTEXT" >/dev/null
-  else
-    kubectl config use-context "kind-${CLUSTER_NAME}"
-  fi
+  (
+    flock 9
+    kind export kubeconfig --name "$CLUSTER_NAME"
+    if [[ "${CKA_KEEP_CONTEXT:-}" == 1 && -n "${PREVIOUS_CONTEXT:-}" ]]; then
+      kubectl config use-context "$PREVIOUS_CONTEXT" >/dev/null
+    else
+      kubectl config use-context "kind-${CLUSTER_NAME}"
+    fi
+  ) 9>"$HOME/.kube/.cka-init.lock"
 }
 
 main() {
   need_cmd kubectl
   PREVIOUS_CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
+  KIND_KUBECONFIG="$(mktemp)"
+  trap 'rm -f "$KIND_KUBECONFIG"' EXIT
   ensure_docker
   ensure_kind
   check_inotify
@@ -210,7 +220,7 @@ main() {
   if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
     if [[ "$RECREATE" == true ]]; then
       log_info "Deleting existing cluster '${CLUSTER_NAME}' ..."
-      kind delete cluster --name "$CLUSTER_NAME"
+      kind delete cluster --name "$CLUSTER_NAME" --kubeconfig "$KIND_KUBECONFIG"
     else
       log_info "Cluster '${CLUSTER_NAME}' already exists."
       configure_kubeconfig
@@ -236,6 +246,7 @@ main() {
   [[ "$PROFILE" == "cni" ]] && wait_args=()
 
   kind create cluster \
+    --kubeconfig "$KIND_KUBECONFIG" \
     --name "$CLUSTER_NAME" \
     --image "kindest/node:${KUBE_VERSION}" \
     --config "$CONFIG_FILE" \
