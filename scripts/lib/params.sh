@@ -14,14 +14,16 @@
 #     echo "REPLICAS=$(rand_int 2 5)"
 #   }
 
-# _rand — next number in [0, 32767] from the seeded generator (CKA_RNG_FILE)
+# _rand — next number in [0, 32767]: a hash of the seed and a draw counter.
+# (A plain LCG gave near-constant first draws for neighbouring seeds.)
+# CKA_RNG_FILE holds "<seed> <counter>".
 _rand() {
-  local s
+  local seed n h
   if [[ -n "${CKA_RNG_FILE:-}" && -f "$CKA_RNG_FILE" ]]; then
-    s=$(<"$CKA_RNG_FILE")
-    s=$(( (s * 1103515245 + 12345) % 2147483648 ))
-    echo "$s" >"$CKA_RNG_FILE"
-    echo $(( s / 65536 ))
+    read -r seed n <"$CKA_RNG_FILE"
+    echo "$seed $(( n + 1 ))" >"$CKA_RNG_FILE"
+    h="$(printf '%s:%s' "$seed" "$n" | sha256sum)"
+    echo $(( 16#${h:0:6} % 32768 ))
   else
     echo "$RANDOM"
   fi

@@ -216,7 +216,7 @@ func createCluster(profile, name, network string, recreate bool, out io.Writer) 
 		args = append(args, "--recreate")
 	}
 	cmd := exec.Command("bash", args...)
-	cmd.Env = append(os.Environ(), "CLUSTER_NAME="+name)
+	cmd.Env = append(os.Environ(), "CLUSTER_NAME="+name, "CKA_KEEP_CONTEXT=1")
 	if network != "" {
 		cmd.Env = append(cmd.Env, "KIND_EXPERIMENTAL_DOCKER_NETWORK="+network)
 	}

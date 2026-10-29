@@ -1,0 +1,7 @@
+title: User certificate and kubeconfig
+domain: architecture
+difficulty: 3
+minutes: 12
+weight: 8
+modes: [practice, exam]
+namespaces: [insights]

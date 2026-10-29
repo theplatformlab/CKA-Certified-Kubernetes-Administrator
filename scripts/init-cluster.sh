@@ -146,6 +146,8 @@ prepare_ops_nodes() {
 
   log_info "Adding Kubernetes ${next_minor} apt repository to all nodes ..."
   for node in $(kind get nodes --name "$CLUSTER_NAME"); do
+    # The HA load balancer is an haproxy container without bash or apt.
+    [[ "$node" == *external-load-balancer ]] && continue
     log_info "  ${node}"
     node_exec "$node" "
       set -e
@@ -164,9 +166,12 @@ prepare_ops_nodes() {
     "
   done
 
+  for node in $(kind get nodes --name "$CLUSTER_NAME"); do
+    [[ "$node" == *control-plane* ]] || continue
+    log_info "Installing etcdctl on ${node} ..."
+    node_exec "$node" "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq etcd-client >/dev/null"
+  done
   node="${CLUSTER_NAME}-control-plane"
-  log_info "Installing etcdctl on ${node} ..."
-  node_exec "$node" "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq etcd-client >/dev/null"
   log_info "Upgrade target versions available: $(node_exec "$node" "apt-cache madison kubeadm | awk '{print \$3}' | head -3 | tr '\n' ' '")"
 }
 
@@ -182,14 +187,21 @@ check_inotify() {
 }
 
 # Configure kubeconfig
+# Adds the cluster to the kubeconfig and switches to it — unless
+# CKA_KEEP_CONTEXT=1 (used by ./cka), then the previous context stays current.
 configure_kubeconfig() {
   mkdir -p "$HOME/.kube"
   kind export kubeconfig --name "$CLUSTER_NAME"
-  kubectl config use-context "kind-${CLUSTER_NAME}"
+  if [[ "${CKA_KEEP_CONTEXT:-}" == 1 && -n "${PREVIOUS_CONTEXT:-}" ]]; then
+    kubectl config use-context "$PREVIOUS_CONTEXT" >/dev/null
+  else
+    kubectl config use-context "kind-${CLUSTER_NAME}"
+  fi
 }
 
 main() {
   need_cmd kubectl
+  PREVIOUS_CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
   ensure_docker
   ensure_kind
   check_inotify

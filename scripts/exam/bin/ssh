@@ -3,14 +3,22 @@
 # (kind nodes are containers), just like `ssh <node>` on the real exam.
 # Anything that isn't a kind node is passed to the real ssh.
 
+# Options are skipped; the first other argument is the host, the rest is the
+# remote command (ssh node 'systemctl status kubelet').
 target=""
-for arg in "$@"; do
-  [[ "$arg" == -* ]] && continue
-  target="${arg#*@}"
+args=("$@")
+for i in "${!args[@]}"; do
+  [[ "${args[$i]}" == -* ]] && continue
+  target="${args[$i]#*@}"
+  remote=("${args[@]:i+1}")
   break
 done
 
 if [[ -n "$target" ]] && docker inspect -f '{{ index .Config.Labels "io.x-k8s.kind.cluster" }}' "$target" 2>/dev/null | grep -q .; then
+  if [[ ${#remote[@]} -gt 0 ]]; then
+    tty=(-i); [[ -t 0 && -t 1 ]] && tty=(-it)
+    exec docker exec "${tty[@]}" -w /root "$target" bash -lc "${remote[*]}"
+  fi
   exec docker exec -it -e TERM="${TERM:-xterm}" -w /root "$target" bash -l
 fi
 
