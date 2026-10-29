@@ -1242,7 +1242,7 @@ func (m *model) viewStats() string {
 	stats := m.stats()
 	var b strings.Builder
 	b.WriteString(stTitle.Render("Statistics") + "\n\n")
-	b.WriteString(fmt.Sprintf("  %-24s %6s %6s %6s %6s %8s\n", "Domain", "items", "new", "failed", "passed", "attempts"))
+	b.WriteString(fmt.Sprintf("  %-30s %6s %6s %6s %6s %8s\n", "Domain", "items", "new", "failed", "passed", "attempts"))
 	for _, d := range Domains {
 		var total, nNew, nFail, nPass, attempts int
 		for _, it := range m.items {
@@ -1261,7 +1261,7 @@ func (m *model) viewStats() string {
 				nPass++
 			}
 		}
-		b.WriteString(fmt.Sprintf("  %-24s %6d %6d %6d %6d %8d\n", d.Name+fmt.Sprintf(" (%d%%)", d.Weight), total, nNew, nFail, nPass, attempts))
+		b.WriteString(fmt.Sprintf("  %-30s %6d %6d %6d %6d %8d\n", d.Name+fmt.Sprintf(" (%d%%)", d.Weight), total, nNew, nFail, nPass, attempts))
 	}
 	var exams []*Session
 	for _, s := range m.sessions() {
