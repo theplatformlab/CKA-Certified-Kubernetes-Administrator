@@ -7,6 +7,7 @@ lab_setup() { ensure_ns "$NS"; }
 
 lab_check() {
   local p=app-with-logger
+  check_gate "Pod $p exists" exists -n "$NS" pod $p
   check_eq "Main container is named nginx and runs nginx:1.28" \
     "$(jp -n $NS pod $p '{.spec.containers[?(@.name=="nginx")].image}')" "nginx:1.28"
   check_eq "logger is a native sidecar (initContainer with restartPolicy Always)" \

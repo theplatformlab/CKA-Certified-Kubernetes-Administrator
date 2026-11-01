@@ -1,15 +1,15 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![YAML Validation](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/actions/workflows/validate.yml/badge.svg)](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/actions/workflows/validate.yml)
+[![Tests](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/actions/workflows/test.yml/badge.svg)](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/actions/workflows/test.yml)
 [![CKA](https://img.shields.io/badge/CKA-Certified%202026-success)]()
 [![CKA exam version](https://img.shields.io/badge/CKA%20exam-v1.37-326CE5?logo=kubernetes&logoColor=white)](https://docs.linuxfoundation.org/tc-docs/certification/faq-cka-ckad-cks)
 [![Lab version](https://img.shields.io/badge/Lab%20version-v1.35-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/releases/)
-[![Exercises](https://img.shields.io/badge/Exercises-32-blue)](exercises/)
-[![Skeletons](https://img.shields.io/badge/YAML%20Skeletons-23-blue)](skeletons/)
+[![Questions](https://img.shields.io/badge/Lab%20questions-110-blue)](questions/)
+[![Certifications](https://img.shields.io/badge/Lab-CKA%20%7C%20CKAD%20%7C%20CKS-326CE5)](LAB.md)
 [![Mock Exams](https://img.shields.io/badge/Mock%20Exams-generated-success)](LAB.md)
 [![GitHub stars](https://img.shields.io/github/stars/theplatformlab/CKA-Certified-Kubernetes-Administrator?style=social)](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator)
 
-**Disclaimer:** This is a study and practice resource. It contains practice exercises and training materials designed to help prepare for the CKA exam. It does not include, share, or reproduce actual CKA exam questions. All exercises are independently designed training scenarios. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for policies.
+**Disclaimer:** This is a study and practice resource. It contains practice tasks and training materials designed to help prepare for the CKA exam. It does not include, share, or reproduce actual CKA exam questions. All tasks are independently designed training scenarios. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for policies.
 
 > My CKA study notes, practice questions, and kubectl cheat sheet. The lab examples target Kubernetes v1.35. I scored 89% — this is what I used to prepare.
 
@@ -35,11 +35,10 @@ If you're time-pressured, here's the fast track:
 
 1. **Start a practice cluster** _(if needed)_ — if `kubectl` says connection refused or you don't have a local cluster yet: `bash scripts/init-cluster.sh`. This creates a kind-based k8s 1.35.1 cluster (1 control plane + 2 workers) with one command. [Read more](#local-cluster-setup--practice-with-kind).
 2. **Run the setup script** — get your aliases and vim config right from day one: [scripts/exam-setup.sh](scripts/exam-setup.sh)
-3. **Do the exercises** — use the [exercise list](exercises/) to choose a domain-focused lab or supplemental practice.
-4. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md) for all skeleton YAML. Copy, paste, modify.
-5. **Practise and take mock exams with `./cka`.** Practice sessions and mock exams are drawn from a pool of exercises and exam-style questions. Mock exams are weighted like the curriculum, and every result is graded automatically and tracked. See [LAB.md](LAB.md).
-6. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
-7. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
+3. **Practise and take mock exams with `./cka`.** Practice sessions (by domain or area, e.g. Helm & Kustomize) and mock exams are drawn from one pool of exam-style [questions](questions/), for CKA, CKAD or CKS. Mock exams are weighted like the curriculum, graded automatically against the live cluster, and tracked. See [LAB.md](LAB.md).
+4. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md). Copy, paste, modify.
+5. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
+6. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
 
 ---
 
@@ -48,43 +47,10 @@ If you're time-pressured, here's the fast track:
 ```
 CKA-Certified-Kubernetes-Administrator/
 ├── README.md                          # This guide (you're here)
-├── exercises/                         # 32 hands-on labs
-│   ├── 01-pod-basics/
-│   ├── 02-multi-container-pod/
-│   ├── 03-configmap-secret/
-│   ├── 04-rbac/
-│   ├── 05-networkpolicy/
-│   ├── 06-deployment-rollout/
-│   ├── 07-statefulset/
-│   ├── 08-node-drain-cordon/
-│   ├── 09-kubeadm-upgrade/
-│   ├── 10-static-pod/
-│   ├── 11-troubleshoot-cluster/
-│   ├── 12-storage-pv-pvc/
-│   ├── 13-helm-install-upgrade/
-│   ├── 14-kustomize-overlays/
-│   ├── 15-gateway-api/
-│   ├── 16-hpa/
-│   ├── 17-kubectl-debug/
-│   ├── 18-cri-dockerd-setup/
-│   ├── 19-ingress-classic/
-│   ├── 20-pod-security-standards/
-│   ├── 21-jobs-cronjobs/
-│   ├── 22-priorityclass/
-│   ├── 23-resource-requests-tuning/
-│   ├── 24-priorityclass-patch/
-│   ├── 25-storage-waitforfirstconsumer/
-│   ├── 26-cri-dockerd-setup/
-│   ├── 27-cni-tigera-install/
-│   ├── 28-network-policy-complex/
-│   ├── 29-troubleshoot-etcd-endpoint/
-│   ├── 30-tls-configuration-update/
-│   ├── 31-argocd-gitops-setup/
-│   └── 32-service-endpoints-troubleshooting/
-├── TEMPLATES.md                       # All YAML templates in collapsible format
-├── skeletons/                         # 23 YAML template files (see TEMPLATES.md)
-├── questions/                         # Exam-style pool questions (task, hints, solution, setup + validator)
-├── cka                                # Lab launcher: practice sessions and generated mock exams (LAB.md)
+├── LAB.md                             # The lab: practice sessions and mock exams for CKA, CKAD, CKS
+├── questions/                         # The task pool (task, hints, solution, setup + validator per item)
+├── cka                                # Lab launcher
+├── TEMPLATES.md                       # YAML templates in collapsible format
 ├── tools/cka/                         # The lab app (Go)
 ├── cheatsheet/
 │   └── cka-cheatsheet.md              # One-page printable reference
@@ -92,16 +58,16 @@ CKA-Certified-Kubernetes-Administrator/
 │   └── README.md                      # Symptom-based lookup playbook
 ├── scripts/
 │   ├── init-cluster.sh               # kind clusters (profiles in config/)
-│   ├── lab.sh                        # Exercise setup / check / cleanup
+│   ├── lab.sh                        # Setup / check / cleanup of a single item
 │   ├── exam/                         # Docs-only browser proxy, ssh shim, shell rc
 │   ├── lib/                          # Shared helpers for the validators
-│   ├── exam-setup.sh                 # Aliases, vim config, bash completion
-│   └── validate-local.sh             # Local YAML validation (run before pushing)
+│   └── exam-setup.sh                 # Aliases, vim config, bash completion
 ├── .github/
-│   ├── workflows/validate.yml         # CI — YAML lint on every push
+│   ├── workflows/test.yml             # CI — app tests (incl. the pool) and item script syntax
 │   ├── ISSUE_TEMPLATE/                # Bug, content request, exam feedback
 │   │   └── config.yml                 # Discussions link for questions
 │   └── PULL_REQUEST_TEMPLATE.md
+├── docs/CKS-WSL.md                    # Falco, AppArmor, gVisor on WSL2
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
@@ -129,7 +95,7 @@ CKA-Certified-Kubernetes-Administrator/
 - [The Exam Environment (PSI Remote Desktop)](#the-exam-environment-psi-remote-desktop)
 - [First 60 Seconds — Aliases, vim, bash](#first-60-seconds--aliases-vim-bash)
 - [Imperative Commands Quick Reference](#imperative-commands-quick-reference)
-- [YAML Templates Quick Reference](#yaml-skeletons--write-these-from-memory)
+- [YAML Templates Quick Reference](#yaml-templates--write-these-from-memory)
 - [Exam Day Strategy — Time Allocation](#exam-day-strategy--time-allocation)
 - [Mistakes That Will Fail You on the CKA](#mistakes-that-will-fail-you-on-the-cka)
 - [Vim Keys I Actually Used on Exam Day](#vim-keys-i-actually-used-on-exam-day)
@@ -159,7 +125,7 @@ CKA-Certified-Kubernetes-Administrator/
 
 ## Local Cluster Setup — Practice with Kind
 
-**Don't have a Kubernetes cluster?** Use the included script to bootstrap a local k8s 1.35.1 cluster via [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Perfect for running through the exercises without needing a kubeadm setup.
+**Don't have a Kubernetes cluster?** Use the included script to bootstrap a local k8s 1.35.1 cluster via [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Perfect for the lab without needing a kubeadm setup.
 
 ### Quick Start: One Command
 
@@ -176,14 +142,16 @@ bash scripts/init-cluster.sh
 
 ### Cluster Profiles
 
-Some exercises need a cluster you can break or rebuild. Each profile is a separate kind cluster with its own config in [`scripts/config/`](scripts/config/):
+Some tasks need a cluster you can break or rebuild. Each profile is a separate kind cluster with its own config in [`scripts/config/`](scripts/config/):
 
 | Profile | Cluster | Used for |
 |---|---|---|
-| `practice` (default) | `cka-practice` | Almost all exercises |
-| `ops` | `cka-ops` | kubeadm upgrade, static pods, broken control plane, etcd (09, 10, 11, 29). Every node has the pkgs.k8s.io apt repo for the **next** minor version, so `apt-get install kubeadm=1.36.x-*` + `kubeadm upgrade apply` work like on a real kubeadm cluster. etcdctl is installed. |
-| `cni` | `cka-cni` | Created without a CNI, so you install Calico yourself (27) |
-| `runtime` | `cka-runtime` | Docker Engine + cri-dockerd on a node (18, 26) |
+| `practice` (default) | `cka-practice` | Almost all tasks |
+| `ops` | `cka-ops` | kubeadm upgrade and join, static pods, broken control plane, etcd. Every node has the pkgs.k8s.io apt repo for the **next** minor version, so `apt-get install kubeadm=1.36.x-*` + `kubeadm upgrade apply` work like on a real kubeadm cluster. etcdctl is installed. |
+| `cni` | `cka-cni` | Created without a CNI, so you install Calico yourself |
+| `runtime` | `cka-runtime` | Docker Engine + cri-dockerd on a node |
+| `ha` | `cka-ha` | 3 control planes + 1 worker behind a load balancer |
+| `cks` | `cka-cks` | CKS tooling on the nodes: Falco, trivy, kube-bench, gVisor ([docs/CKS-WSL.md](docs/CKS-WSL.md)) |
 
 ```bash
 bash scripts/init-cluster.sh                     # practice
@@ -215,17 +183,17 @@ Every item can also be run by hand. Each one has a setup step (namespace, pre-ex
 
 ```bash
 ./scripts/lab.sh list                    # all items and the cluster each one uses
-./scripts/lab.sh setup 07                # exercise 07 (questions are addressed by id)
-./scripts/lab.sh check 07                # ✓/✗ per requirement, exit code 0 when everything passes
-./scripts/lab.sh cleanup 07
+./scripts/lab.sh setup rollout-rollback  # items are addressed by their directory name
+./scripts/lab.sh check rollout-rollback  # ✓/✗ per requirement, exit code 0 when everything passes
+./scripts/lab.sh cleanup rollout-rollback
 ```
 
-The runner always talks to the item's cluster (`--context kind-cka-practice`, `kind-cka-ops`, ...), whatever your current context is. Manifests you write inside `exercises/` are gitignored.
+The runner always talks to the item's cluster (`--context kind-cka-practice`, `kind-cka-ops`, ...), whatever your current context is.
 
 **After setup:**
 1. Run the exam-setup script to configure aliases: `bash scripts/exam-setup.sh`
 2. Verify connection: `kubectl get nodes` — should show `cka-practice-control-plane`, `cka-practice-worker` and `cka-practice-worker2`
-3. Start an exercise: `./scripts/lab.sh setup 01`, then follow `exercises/01-pod-basics/README.md`
+3. Start the lab: `./cka`
 
 ### Using Your Own Cluster
 
@@ -238,7 +206,7 @@ Then skip init-cluster.sh and just run:
 ```bash
 bash scripts/exam-setup.sh        # Configure aliases, etc.
 kubectl get nodes                 # Verify connection
-cd exercises/01-pod-basics        # Start practicing
+./cka                             # Start practicing
 ```
 
 ---
@@ -352,7 +320,7 @@ These notes describe the repository's v1.35 lab baseline. They are not a list of
 |---|---|---|
 | **Native sidecars** | Stable | Sidecars can be declared in `initContainers` with `restartPolicy: Always`. |
 | **In-place pod vertical scaling** | Beta | Can resize CPU or memory resources without replacing the pod, subject to feature support. |
-| **Gateway API** | Stable APIs available | See the Gateway API exercise; controller installation and configuration vary by cluster. |
+| **Gateway API** | Stable APIs available | See the Gateway API questions; controller installation and configuration vary by cluster. |
 | **kubectl debug** | Stable | The command is useful for pod and node troubleshooting. |
 | **ValidatingAdmissionPolicy** | Stable | CEL-based admission policy is available without a webhook. |
 
@@ -958,7 +926,7 @@ The domain weights below match the current official CKA curriculum. The Kubernet
 
 10% of the score. Sounds small, but the questions are straightforward if you understand PV/PVC binding. I almost skipped this in my study plan and then it showed up as one of the easiest points on the exam. The main trap: `storageClassName` has to match exactly between PV and PVC, and "exactly" includes the case where one side has it set and the other doesn't.
 
-> See also: [Exercise 12 — Storage](exercises/12-storage-pv-pvc/) | Skeletons: [pv.yaml](skeletons/pv.yaml), [pvc.yaml](skeletons/pvc.yaml), [storageclass.yaml](skeletons/storageclass.yaml)
+> See also: [Storage](questions/static-pv-rwx/) | [YAML templates](TEMPLATES.md)
 
 #### 1.1 — Understand Storage Classes and Persistent Volumes
 
@@ -1076,7 +1044,7 @@ Common gotcha: forgetting `storageClassName`. If the PVC has `storageClassName: 
 
 This is the biggest domain — 30% of the score. You'll get several questions asking you to fix broken things. This is where I lost the most time in early practice because I had no system. I'd randomly check pods, then nodes, then pods again. Once I built a consistent troubleshooting order (nodes → kubelet → control plane pods → describe → logs → endpoints), my accuracy went way up.
 
-> See also: [Exercise 11 — Troubleshoot Cluster](exercises/11-troubleshoot-cluster/) | [Troubleshooting Decision Flowchart](#troubleshooting-decision-flowchart)
+> See also: [Troubleshoot Cluster](questions/cluster-multi-fault/) | [Troubleshooting Decision Flowchart](#troubleshooting-decision-flowchart)
 
 #### 2.1 — Evaluate Cluster and Node Logging
 
@@ -1251,7 +1219,7 @@ The most common networking issues on the exam:
 
 15% of the score. Deployments, rolling updates, ConfigMaps, Secrets, static pods, scheduling constraints. I found this the most comfortable domain because it's what you do day-to-day. The gotcha: static pods. I kept trying to delete them with kubectl and wondering why they came back. Once you understand kubelet manages them directly, it clicks.
 
-> See also: [Exercise 01 — Pod Basics](exercises/01-pod-basics/) | [Exercise 06 — Deployment Rollout](exercises/06-deployment-rollout/) | [Exercise 10 — Static Pod](exercises/10-static-pod/)
+> See also: [Pod Basics](questions/pod-labels-resources/) | [Deployment Rollout](questions/rollout-rollback/) | [Static Pod](questions/static-pod/)
 
 #### 3.1 — Understand Deployments and How to Perform Rolling Updates and Rollbacks
 
@@ -1503,7 +1471,7 @@ Control plane components (kube-apiserver, kube-scheduler, kube-controller-manage
 
 25% of the score. This is the domain that separates CKA from CKAD — etcd, kubeadm, RBAC. If you're coming from CKAD, this is all new and it's where I spent the most study time. etcd backup/restore alone took me a week to get reliable. The `--as=system:serviceaccount:ns:name` syntax for testing RBAC was another thing I had to drill until it was automatic.
 
-> See also: [Exercise 04 — RBAC](exercises/04-rbac/) | [Exercise 09 — kubeadm Upgrade](exercises/09-kubeadm-upgrade/) | [Exercise 18 — CRI-dockerd Setup](exercises/18-cri-dockerd-setup/)
+> See also: [RBAC](questions/rbac-user-and-serviceaccount/) | [kubeadm Upgrade](questions/kubeadm-upgrade/) | [CRI-dockerd Setup](questions/cri-dockerd-setup/)
 
 #### 4.1 — Manage Role-Based Access Control (RBAC)
 
@@ -1683,7 +1651,7 @@ The three flags you need every time: `--cacert`, `--cert`, `--key`. I wrote them
 
 20% of the score. Services, Ingress, Gateway API, NetworkPolicy, DNS. NetworkPolicy is where I lost the most points in practice exams — the AND vs OR selector behavior is unintuitive, and forgetting DNS egress is a silent killer.
 
-> See also: [Exercise 05 — NetworkPolicy](exercises/05-networkpolicy/) | Skeletons: [service.yaml](skeletons/service.yaml), [ingress.yaml](skeletons/ingress.yaml), [networkpolicy.yaml](skeletons/networkpolicy.yaml)
+> See also: [NetworkPolicy](questions/netpol-three-tier/) | [YAML templates](TEMPLATES.md)
 
 #### 5.1 — Understand Host Networking Configuration on the Cluster Nodes
 
@@ -3171,21 +3139,21 @@ Advice: don't spend your first 2 weeks watching videos. Spend 30% of your time o
 
 ## CKA Study Plan (4-5 Weeks)
 
-This is roughly what I followed. I deviated a lot — Week 3 was supposed to be networking but I was still struggling with etcd restore, so I spent half that week redoing exercise 07 until I could do it without the docs. Adjust as you go. If something isn't clicking, stay on it.
+This is roughly what I followed. I deviated a lot — Week 3 was supposed to be networking but I was still struggling with etcd restore, so I spent half that week redoing it until I could do it without the docs. Adjust as you go. If something isn't clicking, stay on it.
 
 ### Week 1 — Foundations
 
 - Set up a practice cluster (kind or minikube)
 - Configure aliases and vim ([exam-setup.sh](scripts/exam-setup.sh))
 - Cover Domain 3 (Workloads & Scheduling): Pods, Deployments, ConfigMaps, Secrets, scheduling
-- Do exercises 01-03, 06
+- Practise the Workloads & Scheduling domain in `./cka`
 - Practice generating YAML with `$do` — you should never type a full manifest from scratch
 
 ### Week 2 — Cluster Administration
 
 - Cover Domain 4 (Cluster Architecture): RBAC, kubeadm, etcd backup/restore
 - Set up a multi-node cluster with kubeadm (VMs or cloud)
-- Do exercises 04, 07, 08, 09, 10
+- Practise the Cluster Architecture domain in `./cka`
 - Practice etcd backup/restore until you can do it from memory
 - Memorize RBAC imperative commands (create role, create rolebinding, auth can-i)
 
@@ -3194,15 +3162,15 @@ This is roughly what I followed. I deviated a lot — Week 3 was supposed to be 
 - Cover Domain 5 (Services & Networking): Services, Ingress, NetworkPolicy, CoreDNS
 - Cover Domain 1 (Storage): PV, PVC, StorageClass
 - Cover Domain 2 (Troubleshooting): start breaking things and fixing them
-- Do exercises 05, 11, 12
+- Practise Services & Networking, Storage and Troubleshooting in `./cka`
 - Do killer.sh session 1
 - This was my hardest week. NetworkPolicy AND storage AND troubleshooting is a lot. If you need to push something to Week 4, push storage.
 
 ### Week 4 — Mock Exams + Weak Areas
 
-- Do the [mock exam](#practice-questions-with-answers-mock-exam) in this repo under timed conditions (2 hours)
+- Take [mock exams](#mock-exams--final-preparation) with `./cka` under timed conditions (2 hours)
 - Review killer.sh results — identify weak areas
-- Redo any exercises you struggled with
+- Redo the questions you failed (`./cka` puts them first)
 - Practice context switching discipline — every question, switch context first
 - Do killer.sh session 2 (3 days before exam)
 
@@ -3293,7 +3261,7 @@ Track your progress across all CKA domains.
 - [ ] Know reclaim policies (Retain, Delete)
 - [ ] CSI driver basics and troubleshooting
 - [ ] Mount PVC in a Pod
-- [ ] Complete [Exercise 12](exercises/12-storage-pv-pvc/)
+- [ ] Complete [static-pv-rwx](questions/static-pv-rwx/)
 
 ### Domain 2 — Troubleshooting (30%)
 
@@ -3306,7 +3274,7 @@ Track your progress across all CKA domains.
 - [ ] Troubleshoot CoreDNS
 - [ ] Troubleshoot NetworkPolicy
 - [ ] Use kubectl debug (ephemeral containers + node debug)
-- [ ] Complete [Exercise 11](exercises/11-troubleshoot-cluster/), [17](exercises/17-kubectl-debug/)
+- [ ] Complete [cluster-multi-fault](questions/cluster-multi-fault/), [kubectl-debug-pod-node](questions/kubectl-debug-pod-node/)
 
 ### Domain 3 — Workloads & Scheduling (15%)
 
@@ -3319,7 +3287,7 @@ Track your progress across all CKA domains.
 - [ ] Static pods
 - [ ] nodeSelector and node affinity
 - [ ] Taints and tolerations
-- [ ] Complete [Exercise 01](exercises/01-pod-basics/), [06](exercises/06-deployment-rollout/), [10](exercises/10-static-pod/), [16](exercises/16-hpa/)
+- [ ] Complete [pod-labels-resources](questions/pod-labels-resources/), [rollout-rollback](questions/rollout-rollback/), [static-pod](questions/static-pod/), [hpa-cpu-autoscaling](questions/hpa-cpu-autoscaling/)
 
 ### Domain 4 — Cluster Architecture (25%)
 
@@ -3333,7 +3301,7 @@ Track your progress across all CKA domains.
 - [ ] Understand HA topology
 - [ ] Helm install, upgrade, rollback
 - [ ] Kustomize base + overlay
-- [ ] Complete [Exercise 04](exercises/04-rbac/), [08](exercises/08-node-drain-cordon/), [09](exercises/09-kubeadm-upgrade/), [13](exercises/13-helm-install-upgrade/), [14](exercises/14-kustomize-overlays/), [18](exercises/18-cri-dockerd-setup/), [20](exercises/20-pod-security-standards/)
+- [ ] Complete [rbac-user-and-serviceaccount](questions/rbac-user-and-serviceaccount/), [node-drain-maintenance](questions/node-drain-maintenance/), [kubeadm-upgrade](questions/kubeadm-upgrade/), [helm-upgrade-rollback](questions/helm-upgrade-rollback/), [kustomize-base-overlay](questions/kustomize-base-overlay/), [cri-dockerd-setup](questions/cri-dockerd-setup/), [pss-fix-deployment](questions/pss-fix-deployment/)
 
 ### Domain 5 — Services & Networking (20%)
 
@@ -3344,14 +3312,14 @@ Track your progress across all CKA domains.
 - [ ] NetworkPolicy (ingress + egress)
 - [ ] CoreDNS configuration
 - [ ] CNI plugin awareness
-- [ ] Complete [Exercise 05](exercises/05-networkpolicy/), [15](exercises/15-gateway-api/), [19](exercises/19-ingress-classic/)
+- [ ] Complete [netpol-three-tier](questions/netpol-three-tier/), [gateway-traffic-split](questions/gateway-traffic-split/), [ingress-tls-paths](questions/ingress-tls-paths/)
 
 ### Exam Readiness
 
 - [ ] Aliases and vim config memorized
 - [ ] CRI-dockerd kernel configuration and setup memorized
 - [ ] Can install and configure kubeadm cluster from memory
-- [ ] YAML skeletons written from memory (at least 10/23)
+- [ ] YAML templates written from memory (at least 10)
 - [ ] killer.sh session 1 completed
 - [ ] killer.sh session 2 completed
 - [ ] Mock exam completed (>66%)
@@ -3361,7 +3329,7 @@ Track your progress across all CKA domains.
 
 ## Mock Exams — Final Preparation
 
-There are no fixed mock exams. `./cka` → **Mock exam** generates a new one from the [question pool](questions/) and the exercises each time:
+There are no fixed mock exams. `./cka` → **Mock exam** generates a new one from the [question pool](questions/) each time (for CKA, CKAD or CKS):
 
 - Weighted like the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10%.
 - Questions you haven't taken come first, then the ones you failed.
@@ -3373,499 +3341,9 @@ Details: [LAB.md](LAB.md).
 
 ---
 
-## YAML Skeletons — Write These from Memory
+## YAML Templates — Write These from Memory
 
-These are in the [`skeletons/`](skeletons/) directory. During the exam, I wrote most of these from memory instead of copying from docs — it was faster.
-
-<details>
-<summary>Pod</summary>
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: my-pod
-  labels:
-    app: my-pod
-spec:
-  containers:
-  - name: main
-    image: nginx:1.27
-    ports:
-    - containerPort: 80
-    resources:
-      requests:
-        memory: "64Mi"
-        cpu: "250m"
-      limits:
-        memory: "128Mi"
-        cpu: "500m"
-```
-
-</details>
-
-<details>
-<summary>Deployment</summary>
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-deployment
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: my-deployment
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-  template:
-    metadata:
-      labels:
-        app: my-deployment
-    spec:
-      containers:
-      - name: main
-        image: nginx:1.27
-        ports:
-        - containerPort: 80
-```
-
-</details>
-
-<details>
-<summary>Service (ClusterIP + NodePort)</summary>
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-service
-spec:
-  type: ClusterIP
-  selector:
-    app: my-deployment
-  ports:
-  - port: 80
-    targetPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-nodeport
-spec:
-  type: NodePort
-  selector:
-    app: my-deployment
-  ports:
-  - port: 80
-    targetPort: 80
-    nodePort: 30080
-```
-
-</details>
-
-<details>
-<summary>NetworkPolicy</summary>
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: my-netpol
-spec:
-  podSelector:
-    matchLabels:
-      app: my-app
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          role: frontend
-    ports:
-    - protocol: TCP
-      port: 80
-  egress:
-  - to:
-    - podSelector:
-        matchLabels:
-          role: db
-    ports:
-    - protocol: TCP
-      port: 5432
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-```
-
-</details>
-
-<details>
-<summary>PV + PVC</summary>
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: my-pv
-spec:
-  capacity:
-    storage: 1Gi
-  accessModes:
-  - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  hostPath:
-    path: /data/my-pv
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: my-pvc
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: manual
-```
-
-</details>
-
-<details>
-<summary>Ingress</summary>
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: my-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: myapp.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: my-service
-            port:
-              number: 80
-```
-
-</details>
-
-<details>
-<summary>RBAC (Role + RoleBinding)</summary>
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: pod-reader
-  namespace: default
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "watch", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: read-pods
-  namespace: default
-subjects:
-- kind: ServiceAccount
-  name: my-sa
-  namespace: default
-roleRef:
-  kind: Role
-  name: pod-reader
-  apiGroup: rbac.authorization.k8s.io
-```
-
-</details>
-
-<details>
-<summary>ClusterRole + ClusterRoleBinding</summary>
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: node-reader
-rules:
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["get", "watch", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: read-nodes
-subjects:
-- kind: ServiceAccount
-  name: monitoring-sa
-  namespace: monitoring
-roleRef:
-  kind: ClusterRole
-  name: node-reader
-  apiGroup: rbac.authorization.k8s.io
-```
-
-</details>
-
-<details>
-<summary>DaemonSet</summary>
-
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: my-daemonset
-spec:
-  selector:
-    matchLabels:
-      app: my-daemonset
-  template:
-    metadata:
-      labels:
-        app: my-daemonset
-    spec:
-      tolerations:
-      - key: node-role.kubernetes.io/control-plane
-        operator: Exists
-        effect: NoSchedule
-      containers:
-      - name: agent
-        image: fluentd:v1.17
-```
-
-</details>
-
-<details>
-<summary>StatefulSet</summary>
-
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: my-statefulset
-spec:
-  serviceName: my-headless
-  replicas: 3
-  selector:
-    matchLabels:
-      app: my-statefulset
-  template:
-    metadata:
-      labels:
-        app: my-statefulset
-    spec:
-      containers:
-      - name: main
-        image: nginx:1.27
-        volumeMounts:
-        - name: data
-          mountPath: /data
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 1Gi
-```
-
-</details>
-
-<details>
-<summary>Job + CronJob</summary>
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: my-job
-spec:
-  completions: 3
-  parallelism: 2
-  backoffLimit: 4
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: worker
-        image: busybox:1.36
-        command: ["sh", "-c", "echo done"]
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: my-cronjob
-spec:
-  schedule: "*/5 * * * *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          restartPolicy: OnFailure
-          containers:
-          - name: cron
-            image: busybox:1.36
-            command: ["sh", "-c", "date"]
-```
-
-</details>
-
-<details>
-<summary>ConfigMap + Secret</summary>
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: my-config
-data:
-  APP_MODE: "production"
-  LOG_LEVEL: "info"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: my-secret
-type: Opaque
-stringData:
-  DB_USER: admin
-  DB_PASS: changeme
-```
-
-</details>
-
-<details>
-<summary>SecurityContext</summary>
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: secure-pod
-spec:
-  securityContext:
-    runAsUser: 1000
-    runAsGroup: 3000
-    fsGroup: 2000
-  containers:
-  - name: main
-    image: busybox:1.36
-    command: ["sleep", "3600"]
-    securityContext:
-      allowPrivilegeEscalation: false
-      readOnlyRootFilesystem: true
-      capabilities:
-        drop:
-        - ALL
-```
-
-</details>
-
-<details>
-<summary>ResourceQuota + LimitRange</summary>
-
-```yaml
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: my-quota
-spec:
-  hard:
-    requests.cpu: "4"
-    requests.memory: 8Gi
-    limits.cpu: "8"
-    limits.memory: 16Gi
-    pods: "20"
----
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: my-limits
-spec:
-  limits:
-  - type: Container
-    default:
-      cpu: "500m"
-      memory: "256Mi"
-    defaultRequest:
-      cpu: "100m"
-      memory: "64Mi"
-```
-
-</details>
-
-<details>
-<summary>StorageClass</summary>
-
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: fast
-provisioner: kubernetes.io/no-provisioner
-reclaimPolicy: Retain
-volumeBindingMode: WaitForFirstConsumer
-```
-
-</details>
-
-<details>
-<summary>Gateway API (Gateway + HTTPRoute)</summary>
-
-```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: my-gateway
-spec:
-  gatewayClassName: istio
-  listeners:
-  - name: http
-    protocol: HTTP
-    port: 80
-    allowedRoutes:
-      namespaces:
-        from: Same
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: my-route
-spec:
-  parentRefs:
-  - name: my-gateway
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-    backendRefs:
-    - name: my-service
-      port: 80
-```
-
-</details>
+During the exam, I wrote most manifests from memory (or generated them with `$do`) instead of copying from the docs — it was faster. The templates I drilled are in [TEMPLATES.md](TEMPLATES.md): Pod, Deployment, Services, NetworkPolicy, PV/PVC, StorageClass, Ingress, Gateway API, RBAC, DaemonSet, StatefulSet, Jobs, ConfigMaps/Secrets, SecurityContext, quotas and more.
 
 ---
 

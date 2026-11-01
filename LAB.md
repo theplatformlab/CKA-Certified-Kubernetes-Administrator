@@ -1,6 +1,6 @@
-# CKA Lab — practice sessions and mock exams
+# Kubernetes Lab — practice sessions and mock exams for CKA, CKAD and CKS
 
-`./cka` is the interactive way to use this repo. It draws tasks from a single pool of items: the [exercises](exercises/) and the exam-style [questions](questions/). It sets up each task on a local kind cluster, checks your result against the live cluster state, and records every attempt.
+`./cka` is the interactive way to use this repo. It draws tasks from a single pool of exam-style [questions](questions/). It sets up each task on a local kind cluster, checks your result against the live cluster state, and records every attempt.
 
 ```bash
 ./cka            # opens the lab: the app on the left, your shell on the right (tmux)
@@ -32,9 +32,9 @@ The menu's first line, **Studying for: ‹ CKA ›**, switches between CKA, CKAD
 
 **Parametrized items.** Some items roll their names and values per session: replica counts, ports, schedules, thresholds. The task text, hints, solution and validator all use the same values. The values are stored with the session, so the history shows exactly what you were asked.
 
-**Namespaces in exams.** Exercises use `exercise-NN` namespaces when practising; in an exam each one gets a realistic name instead (`web-store`, `dev-team`, `payment-api`, ...), in the task text, the setup and the grading. Every namespace in the pool is unique, so no two questions of an exam share one.
+**Namespaces.** Every namespace in the pool belongs to one item, so no two questions of a session share one.
 
-**Exams vs. the real CKA.**
+**Exams vs. the real exam.**
 - On the real exam every task has its own cluster. Here, tasks share `cka-exam` (namespaced work) and `cka-exam-ops` (control-plane work). An item whose setup breaks the cluster (API server down, broken scheduler or kubelet, etcd restore, upgrade) gets a cluster of its own, `cka-exam-ops2`, so it never blocks the other tasks. Other items that touch the same component are never drawn together.
 - At most one item per exam needs a special cluster (CNI, container runtime, HA), so startup stays at a few minutes.
 
@@ -69,12 +69,12 @@ History is stored in `~/.local/share/cka-lab/sessions/` (one JSON file per sessi
 ## Command line
 
 ```bash
-./cka list                       # the pool: id, domain, cluster, time, weight, modes, your status
+./cka list                       # the pool: id, area, cluster, time, weight, modes, your status, exams
 ./cka gen exam 120 17            # preview a generated exam: minutes, questions (creates nothing)
 ./cka gen practice networking 5  # preview a practice selection
 ./cka render <id>                # print an item's task and hints as the app shows them
 
-./scripts/lab.sh setup <id>      # run a single item by hand (exercise number or question id)
+./scripts/lab.sh setup <id>      # run a single item by hand
 ./scripts/lab.sh check <id>
 ./scripts/lab.sh cleanup <id>
 ./scripts/lab.sh params <id>     # the item's parameter values (CKA_SEED=<n> for other ones)
@@ -82,7 +82,7 @@ History is stored in `~/.local/share/cka-lab/sessions/` (one JSON file per sessi
 
 ## Writing an item
 
-An item is a directory in `questions/<id>/` (or `exercises/<NN>-<name>/`) with three files:
+An item is a directory `questions/<id>/` with three files:
 
 **`item.yaml`**
 ```yaml
@@ -97,7 +97,6 @@ exam_minutes: 4                # realistic time at exam pace (the exam generator
 weight: 7                      # exam points
 modes: [practice, exam]        # or [practice] for tutorial-style labs
 namespaces: [payments]         # every namespace it uses; must be unique in the pool ({{PARAM}} allowed)
-exam_namespace: storefront     # exercises only: replaces exercise-NN in exams (lab.sh: NS="${ITEM_NS:-exercise-NN}")
 conflicts: [apiserver-manifest] # shared cluster-wide things it changes or breaks; items on one cluster sharing a tag are never drawn together
 needs: [cluster-dns]           # things it relies on; never drawn with an item on the same cluster whose conflicts break them
 own_cluster: true              # only if its setup breaks the cluster (API server, etcd, scheduler, a kubelet, ...): it gets a cluster of its own (cka-exam-ops2) when other items use its profile
@@ -109,7 +108,7 @@ own_cluster: true              # only if its setup breaks the cluster (API serve
 - `{{WORKDIR}}`
 - every key the item's `lab_params` prints
 
-Exercise READMEs keep their richer format (Tasks, Hints, What tripped me up, Verify, Cleanup, Solution); the app picks out the parts it needs.
+An optional `## What tripped me up` section after the solution is shown together with it.
 
 **`lab.sh`**:
 - `LAB_CLUSTER`: `practice` | `ops` | `cni` | `runtime` | `ha` | `cks` (CKS tooling on the nodes: Falco, trivy, kube-bench, gVisor; see [docs/CKS-WSL.md](docs/CKS-WSL.md))

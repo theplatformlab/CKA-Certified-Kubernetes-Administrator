@@ -1,5 +1,5 @@
 # Default practice cluster: 1 control plane + 2 workers.
-# Used by most exercises and by the namespaced mock exam questions.
+# Used by most questions (namespaced work).
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:

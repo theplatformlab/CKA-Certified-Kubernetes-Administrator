@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Assertion helpers for exercise and mock exam validators.
+# Assertion helpers for the item validators (lab_check).
 # Requires common.sh (kc, node_exec) to be sourced first.
 #
 # Every helper prints one ✓/✗ line and updates the counters; none of them

@@ -1,6 +1,6 @@
 # YAML Templates Quick Reference
 
-All Kubernetes templates for CKA exercises. Copy, modify, and use these as starting point for your solutions.
+Kubernetes YAML templates for the exam tasks. Copy, modify, and use these as starting point for your solutions.
 
 ---
 
@@ -745,7 +745,7 @@ spec:
 ## Usage Tips
 
 - Use `kubectl create -f <template>` to apply templates
-- Modify values like `name`, `replicas`, `image`, `port` for your exercises
+- Modify values like `name`, `replicas`, `image`, `port` for your tasks
 - Use `kubectl explain <resource>` to understand fields better
 - Templates use Kubernetes 1.35 compatible APIs
 - All image versions aligned with current standards (nginx 1.28, busybox 1.37)

@@ -1,5 +1,5 @@
 # CNI cluster: created WITHOUT a CNI plugin so one can be installed by hand
-# (exercise 27). Nodes stay NotReady until a CNI is running.
+# (cni-calico-install). Nodes stay NotReady until a CNI is running.
 # podSubnet matches the Calico default.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4

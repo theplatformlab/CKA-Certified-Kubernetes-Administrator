@@ -5,8 +5,8 @@
 # Usage:
 #   ./scripts/init-cluster.sh                     # 'practice' profile -> cluster 'cka-practice'
 #   ./scripts/init-cluster.sh --profile ops       # control-plane work + kubeadm upgrade -> 'cka-ops'
-#   ./scripts/init-cluster.sh --profile cni       # no CNI installed (exercise 27) -> 'cka-cni'
-#   ./scripts/init-cluster.sh --profile runtime   # cri-dockerd labs (18, 26) -> 'cka-runtime'
+#   ./scripts/init-cluster.sh --profile cni       # no CNI installed (you install Calico) -> 'cka-cni'
+#   ./scripts/init-cluster.sh --profile runtime   # Docker Engine + cri-dockerd tasks -> 'cka-runtime'
 #   ./scripts/init-cluster.sh --profile ha        # 3 control planes + 1 worker -> 'cka-ha'
 #   ./scripts/init-cluster.sh --profile cks       # CKS: security tooling on the nodes -> 'cka-cks'
 #   ./scripts/init-cluster.sh --recreate          # Delete and recreate the cluster
@@ -23,7 +23,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 PROFILE="practice"
 KIND_VERSION="${KIND_VERSION:-v0.31.0}"
-KUBE_VERSION="${KUBE_VERSION:-v1.35.1}"  # v1.35+ for native sidecar exercises
+KUBE_VERSION="${KUBE_VERSION:-v1.35.1}"  # v1.35+ for native sidecar tasks
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
 RECREATE=false
@@ -338,7 +338,7 @@ main() {
       echo ""
       echo "Next steps:"
       echo "  1. source ./scripts/exam-setup.sh  (load aliases)"
-      echo "  2. k create ns exercise-01          (start first exercise)"
+      echo "  2. ./cka                           (start the lab)"
       exit 0
     fi
   fi
@@ -382,7 +382,7 @@ main() {
   echo "📌 Next steps:"
   echo "   1. source ./scripts/exam-setup.sh  (load aliases + completion)"
   echo "   2. k get nodes                      (verify setup)"
-  echo "   3. k create ns exercise-01          (start first exercise)"
+  echo "   3. ./cka                           (start the lab)"
   echo ""
   log_warn "To delete this cluster later: kind delete cluster --name ${CLUSTER_NAME}"
 }

@@ -6,6 +6,7 @@ NS=db-cluster
 lab_setup() { ensure_ns "$NS"; }
 
 lab_check() {
+  check_gate "StatefulSet database-cluster exists" exists -n "$NS" sts database-cluster
   check_eq "Service database-cluster is headless" "$(jp -n $NS svc database-cluster '{.spec.clusterIP}')" "None"
   check_eq "Service exposes port 5432 named postgres, selector app=database-cluster" \
     "$(jp -n $NS svc database-cluster '{.spec.ports[0].name}:{.spec.ports[0].port} {.spec.selector.app}')" \

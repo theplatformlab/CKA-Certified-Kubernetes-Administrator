@@ -1,6 +1,6 @@
 package main
 
-// The question pool: exercises/<NN>-<name>/ and questions/<id>/.
+// The question pool: questions/<id>/.
 // Each item directory has item.yaml (metadata), README.md (task, hints,
 // solution) and lab.sh (setup/check, run through scripts/lab.sh).
 

@@ -60,6 +60,7 @@ _path() {
 }
 
 lab_check() {
+  check_gate "Ingress api-ingress exists" exists -n "$NS" ingress api-ingress
   check_eq "Ingress api-ingress uses IngressClass nginx" \
     "$(jp -n $NS ingress api-ingress '{.spec.ingressClassName}')" "nginx"
   check_eq "TLS for api.example.com uses Secret api-tls-cert" \

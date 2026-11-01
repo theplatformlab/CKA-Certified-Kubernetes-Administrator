@@ -40,6 +40,7 @@ EOF
 
 lab_check() {
   local h="hpa.v2.autoscaling"
+  check_gate "HPA web-app exists" exists -n "$NS" $h web-app
   check_eq "HPA web-app targets Deployment web-app" \
     "$(jp -n $NS $h web-app '{.spec.scaleTargetRef.kind}/{.spec.scaleTargetRef.name}')" "Deployment/web-app"
   check_eq "minReplicas $HPA_MIN, maxReplicas $HPA_MAX" \

@@ -17,7 +17,7 @@ assignees: ''
 **Study duration:** <!-- e.g., 4 weeks -->
 
 **What helped most from this repo?**
-<!-- Which sections, exercises, or skeletons were most useful? -->
+<!-- Which sections, lab questions or templates were most useful? -->
 
 **What was on the exam that wasn't covered here?**
 <!-- No real questions — just topics or areas you felt underprepared for. -->

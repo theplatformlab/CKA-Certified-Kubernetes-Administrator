@@ -13,11 +13,11 @@ Use this when things fail during practice or exams. Organized by symptom → dia
 ```
 1. Are there ANY nodes in the cluster?
    └─ k get nodes
-   └─ If none: Cluster infrastructure broken (too big for this exercise)
+   └─ If none: Cluster infrastructure broken (too big to fix piecemeal)
    
 2. Do nodes show as Ready?
    └─ k get nodes -o wide
-   └─ If NotReady: Check Exercise 11 (troubleshooting)
+   └─ If NotReady: see questions/worker-kubelet-config
    └─ If all Ready: Continue to step 3
 
 3. Check Pod events (most useful step)
@@ -36,7 +36,7 @@ Use this when things fail during practice or exams. Organized by symptom → dia
 5. Check affinity/tolerations/taints
    └─ k describe node <node-name> | grep -E "Taints|Labels"
    └─ k describe pod <pod> | grep -E "affinity|toleration"
-   └─ Pod might be incompatible with node's taints (Exercise 08)
+   └─ Pod might be incompatible with node's taints (questions/taint-blocks-scheduling)
 
 6. Still Pending?
    └─ k get events -n <namespace> --sort-by='.lastTimestamp' | tail -5
@@ -51,7 +51,7 @@ Use this when things fail during practice or exams. Organized by symptom → dia
 | `Didn't match nodeSelector` | Remove nodeSelector from Pod or add label to node |
 | `PersistentVolumeClaim is not Bound` | See Storage Pending section |
 | `Insufficient cpu` | Resource request too high for available nodes |
-| `No storage instances available` | Storage class not configured (Exercise 12) |
+| `No storage instances available` | Storage class not configured (questions/pending-pvc-storageclass) |
 
 ---
 
@@ -64,7 +64,7 @@ Use this when things fail during practice or exams. Organized by symptom → dia
 ```
 1. Does a matching PV exist?
    └─ k get pv | grep <storage-class>
-   └─ If NO: Create PV first (Exercise 12)
+   └─ If NO: Create PV first (questions/pending-pvc-storageclass)
    └─ If YES: Continue to step 2
 
 2. Is the PV already Bound to another PVC?
@@ -222,7 +222,7 @@ Use this when things fail during practice or exams. Organized by symptom → dia
 
 3. Is API server running?
    └─ k get pods -n kube-system | grep apiserver
-   └─ If CrashLoopBackOff: Check Exercise 29 (etcd endpoint)
+   └─ If CrashLoopBackOff: see questions/apiserver-down
 
 4. Can you reach the cluster IP?
    └─ k cluster-info (shows cluster URL)
@@ -304,8 +304,8 @@ k auth can-i get pods --as=system:serviceaccount:<ns>:<sa>
    └─ If 100% disk: Delete large files or pods
 
 5. Still NotReady?
-   └─ This is an Exercise 11 scenario
-   └─ Debug methodically following Exercise 11 gotchas
+   └─ This is a cluster-multi-fault scenario
+   └─ Debug methodically one component at a time
 ```
 
 ---
@@ -332,7 +332,7 @@ k auth can-i get pods --as=system:serviceaccount:<ns>:<sa>
 
 4. HPA can't find metrics?
    └─ k get hpa <name> -o yaml | grep "Metrics:"
-   └─ If shows "<unknown>/XX%": Pod has no resource.requests (Exercise 16)
+   └─ If shows "<unknown>/XX%": Pod has no resource.requests (questions/hpa-cpu-autoscaling)
    └─ Fix: Add resources.requests.cpu to Deployment
 ```
 
@@ -348,7 +348,7 @@ Before mock exams:
 - [ ] Services have endpoints: `k get endpoints -A | grep -v "<none>"`
 - [ ] Your kubeconfig works: `k auth can-i get pods --as=$(k config get-contexts -o name | head -1)`
 
-If all ✅: Ready to practice exercises and mocks.
+If all ✅: Ready for ./cka.
 
 ---
 

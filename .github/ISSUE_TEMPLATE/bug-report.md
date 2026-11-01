@@ -10,7 +10,7 @@ assignees: ''
 <!-- Describe the issue — broken command, invalid YAML, outdated info, etc. -->
 
 **Where is it?**
-<!-- Link to the file or section (e.g., README.md line 450, exercises/04-rbac/README.md) -->
+<!-- Link to the file or section (e.g., README.md line 450, questions/rollout-rollback/README.md) -->
 
 **Expected behavior**
 <!-- What should it say or do instead? -->
