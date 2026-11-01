@@ -21,6 +21,9 @@ lab_check() {
   check_eq "broken-revision.txt contains revision 3" "$(tr -d '[:space:]' 2>/dev/null <"$WORKDIR/broken-revision.txt")" "3"
   check_eq "Deployment payment-service runs nginx:1.28 again" \
     "$(jp -n $NS deploy payment-service '{.spec.template.spec.containers[0].image}')" "nginx:1.28"
+  check_eq "Rolling update strategy: maxSurge 1, maxUnavailable 0" \
+    "$(jp -n $NS deploy payment-service '{.spec.strategy.type} {.spec.strategy.rollingUpdate.maxSurge} {.spec.strategy.rollingUpdate.maxUnavailable}' | sed 's/ 0%$/ 0/')" \
+    "RollingUpdate 1 0"
   check_eq "3/3 replicas updated and ready" \
     "$(jp -n $NS deploy payment-service '{.status.updatedReplicas}/{.status.readyReplicas}/{.spec.replicas}')" "3/3/3"
   check_not "No pods with the broken image are left" \

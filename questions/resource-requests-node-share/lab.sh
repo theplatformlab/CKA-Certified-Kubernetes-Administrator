@@ -1,10 +1,10 @@
 # shellcheck shell=bash
-# Exercise 23 — Resource requests tuning. Sourced by scripts/lab.sh.
+# Size resource requests to fit a node. Sourced by scripts/lab.sh.
 # kind nodes report the whole host's CPU/memory, so setup derives the "too high"
 # requests from the node's real allocatable: 60% each, so only 1 of 3 replicas fits.
 # The check recomputes each replica's fair share of what is free on the node.
 LAB_CLUSTER=practice
-NS="${ITEM_NS:-exercise-23}"
+NS=capacity
 
 _node() { worker_node 1; }
 
@@ -39,7 +39,7 @@ _free() {
 lab_setup() {
   local node cpu mem
   node="$(_node)"
-  kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -
+  ensure_ns "$NS"
   cpu="$(( $(_milli "$(jp node "$node" '{.status.allocatable.cpu}')") * 6 / 10 ))m"
   mem="$(( $(_mib "$(jp node "$node" '{.status.allocatable.memory}')") * 6 / 10 ))Mi"
   kc apply -f - <<EOF
@@ -74,8 +74,9 @@ EOF
 lab_check() {
   local node cpu mem fcpu fmem
   node="$(_node)"
-  check_eq "Deployment web has 3 replicas" "$(jp -n $NS deploy web '{.spec.replicas}')" "3"
-  check_eq "Deployment web has 3 ready replicas" "$(jp -n $NS deploy web '{.status.readyReplicas}')" "3"
+  # Untouched, only 1 of the 3 replicas fits on the node.
+  check_gate "Deployment web has 3 ready replicas" \
+    test "$(jp -n $NS deploy web '{.spec.replicas}/{.status.readyReplicas}/{.status.updatedReplicas}')" = "3/3/3"
   check_eq "web pods still run nginx:1.27 pinned to $node" \
     "$(jp -n $NS deploy web '{.spec.template.spec.containers[0].image} {.spec.template.spec.nodeSelector.kubernetes\.io/hostname}')" \
     "nginx:1.27 $node"
@@ -89,8 +90,4 @@ lab_check() {
     test "$(_milli "$cpu")" -ge $((fcpu * 75 / 100)) -a "$(_milli "$cpu")" -le "$fcpu"
   check "Memory request $mem is 75-100% of a third of the free memory on $node (${fmem}Mi)" \
     test "$(_mib "$mem")" -ge $((fmem * 75 / 100)) -a "$(_mib "$mem")" -le "$fmem"
-}
-
-lab_cleanup() {
-  kc delete namespace "$NS" --ignore-not-found --wait=false
 }

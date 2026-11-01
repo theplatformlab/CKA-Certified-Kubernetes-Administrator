@@ -1,10 +1,9 @@
-title: Pod Basics
+title: Pod with labels and resources
 topic: pod-basics
 area: pods
 difficulty: 1
-minutes: 10
+minutes: 8
 exam_minutes: 4
 weight: 5
 modes: [practice, exam]
-namespaces: [exercise-01]
-exam_namespace: webshop
+namespaces: [webshop]

@@ -1,10 +1,10 @@
-title: Resource Requests Tuning
+title: Size resource requests to fit a node
 topic: resource-requests
 area: resources
 difficulty: 3
-minutes: 20
+minutes: 15
+exam_minutes: 9
 weight: 10
 modes: [practice]
-namespaces: [exercise-23]
-exam_namespace: capacity
+namespaces: [capacity]
 conflicts: [worker1-capacity]
