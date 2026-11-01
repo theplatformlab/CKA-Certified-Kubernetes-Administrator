@@ -98,9 +98,6 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		for k, v := range p {
 			vars[k] = v
 		}
-		if opt.Mode == "exam" {
-			vars["@NS"] = examNamespace(it)
-		}
 		for _, ns := range it.Namespaces {
 			pick.Namespaces = append(pick.Namespaces, Render(ns, vars, nil))
 		}
@@ -309,13 +306,9 @@ func domainQuotas(ex *Exam, n int) map[string]int {
 }
 
 // examMinutes: the item's time at exam pace (exam_minutes in item.yaml).
-// Without it: exercise times are learning times, roughly 60% at exam pace.
 func examMinutes(it *Item) float64 {
 	if it.ExamMins > 0 {
 		return float64(it.ExamMins)
-	}
-	if it.Exercise {
-		return float64(max(6, it.Minutes*6/10))
 	}
 	return float64(it.Minutes)
 }

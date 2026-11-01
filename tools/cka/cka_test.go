@@ -7,16 +7,12 @@ import (
 	"time"
 )
 
-func TestParseReadmeExercise(t *testing.T) {
-	md := "# Exercise 99 — Demo\n\n> Related: [x](y)\n\nIntro.\n\n## Tasks\n\nWork in namespace `ex` (`./scripts/lab.sh setup 99` creates it).\n\n1. Do it\n\nValidate with `./scripts/lab.sh check 99`.\n\n" +
-		"## Hints\n\n<details>\n<summary>Stuck?</summary>\n\n- first\n- second\n  continued\n\n</details>\n\n## What tripped me up\n\n> trap\n\n## Verify\n\nk get pods\n\n## Cleanup\n\nx\n\n<details>\n<summary>Solution</summary>\n\nk apply\n\n</details>\n"
+func TestParseReadme(t *testing.T) {
+	md := "# Demo\n\n> Related: [x](y)\n\nIntro.\n\n## Hints\n\n<details>\n<summary>Stuck?</summary>\n\n- first\n- second\n  continued\n\n</details>\n\n" +
+		"## Solution\n\nk apply\n\n## What tripped me up\n\n> trap\n"
 	doc := ParseReadme(md)
-	q := stripLabHints(doc.Question)
-	if strings.Contains(q, "lab.sh") || strings.Contains(q, "Related") || strings.Contains(q, "k get pods") {
-		t.Errorf("question not cleaned:\n%s", q)
-	}
-	if !strings.Contains(q, "Work in namespace `ex`.") {
-		t.Errorf("parenthetical not removed:\n%s", q)
+	if strings.Contains(doc.Question, "Related") || !strings.Contains(doc.Question, "Intro.") {
+		t.Errorf("question:\n%s", doc.Question)
 	}
 	if len(doc.Hints) != 2 || !strings.Contains(doc.Hints[1], "continued") {
 		t.Errorf("hints: %#v", doc.Hints)
@@ -233,25 +229,10 @@ func TestExamPools(t *testing.T) {
 	}
 }
 
-func TestApplyBaseline(t *testing.T) {
-	si := &SessionItem{Baseline: []string{"cannot delete"}, Checks: []CheckResult{
-		{Pass: true, Desc: "cannot delete"}, {Pass: false, Desc: "role exists"}}}
-	si.ApplyBaseline()
-	if si.Passed() != 0 {
-		t.Errorf("untouched item kept %d points", si.Passed())
-	}
-	si = &SessionItem{Baseline: []string{"cannot delete"}, Checks: []CheckResult{
-		{Pass: true, Desc: "cannot delete"}, {Pass: true, Desc: "role exists"}}}
-	si.ApplyBaseline()
-	if si.Passed() != 2 {
-		t.Errorf("attempted item lost points: %d", si.Passed())
-	}
-}
-
 func TestExamView(t *testing.T) {
-	q := "# Exercise 32 — Troubleshoot\n\n> **Medium** | ~15 min\n\nClients fail.\n\n## Tasks\n\n> keep me\n1. fix"
+	q := "# Troubleshoot\n\n> **Medium** | ~15 min\n\nClients fail.\n\n## Tasks\n\n> keep me\n1. fix"
 	out := ExamView(q, 4)
-	if !strings.HasPrefix(out, "# Question 4\n") || strings.Contains(out, "Medium") || strings.Contains(out, "Exercise") {
+	if !strings.HasPrefix(out, "# Question 4\n") || strings.Contains(out, "Medium") || strings.Contains(out, "Troubleshoot") {
 		t.Errorf("not hidden:\n%s", out)
 	}
 	if !strings.Contains(out, "> keep me") || !strings.Contains(out, "Clients fail.") {
@@ -362,44 +343,23 @@ func TestGeneratePracticeArea(t *testing.T) {
 	}
 }
 
-// Exam namespaces of exercises must not collide with any namespace in the pool.
-func TestExamNamespacesUnique(t *testing.T) {
+// Every namespace belongs to one item, so no two questions of a session share one.
+func TestNamespacesUnique(t *testing.T) {
 	repoRoot = filepath.Join("..", "..")
 	items, err := LoadBank(repoRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
 	owner := map[string]string{}
-	claim := func(ns, id string) {
-		if prev, ok := owner[ns]; ok && prev != id {
-			t.Errorf("namespace %q used by %s and %s", ns, prev, id)
-		}
-		owner[ns] = id
-	}
 	for _, it := range items {
 		for _, ns := range it.Namespaces {
-			if it.Exercise && exerciseNSRe.MatchString(ns) {
-				continue // replaced in exams, practice-only otherwise
+			if strings.Contains(ns, "{{") || ns == "default" {
+				continue
 			}
-			if !strings.Contains(ns, "{{") {
-				claim(ns, it.ID)
+			if prev, ok := owner[ns]; ok && prev != it.ID {
+				t.Errorf("namespace %q used by %s and %s", ns, prev, it.ID)
 			}
+			owner[ns] = it.ID
 		}
-		if ns := examNamespace(it); ns != "" {
-			claim(ns, it.ID)
-			for _, extra := range it.Namespaces {
-				if exerciseNSRe.MatchString(extra) {
-					claim(exerciseNSRe.ReplaceAllString(extra, ns), it.ID)
-				}
-			}
-		}
-	}
-}
-
-func TestRenderExamNamespace(t *testing.T) {
-	out := Render("ns exercise-20 and exercise-20-baseline, files in ~/cka-lab/ex20/x",
-		map[string]string{"@NS": "secured", "@ID": "ex20", "WORKDIR": "~/cka-lab/q03"}, nil)
-	if out != "ns secured and secured-baseline, files in ~/cka-lab/q03/x" {
-		t.Errorf("got %q", out)
 	}
 }

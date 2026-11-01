@@ -692,9 +692,6 @@ func (m *model) startSession(opt GenOptions) (tea.Model, tea.Cmd) {
 			Seed: p.Seed, Params: p.Params, Weight: p.Item.Weight, Minutes: p.Item.Minutes,
 			Workdir: filepath.Join(homeDir(), "cka-lab", fmt.Sprintf("q%02d", i+1)),
 		})
-		if opt.Mode == "exam" {
-			s.Items[i].Namespace = examNamespace(p.Item)
-		}
 		if keys[i] != p.Item.Cluster {
 			s.Items[i].Cluster = keys[i]
 		}
@@ -864,7 +861,6 @@ func (m *model) startGrading() {
 				si.Checks, _, _ = RunCheck(s, si, it)
 			}
 			si.Graded, si.GradedAt = true, time.Now()
-			si.ApplyBaseline()
 		}
 		s.Status, s.Finished = StatusFinished, time.Now()
 		m.store.Save(s)

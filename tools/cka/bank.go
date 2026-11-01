@@ -179,7 +179,6 @@ type Item struct {
 	ID         string   `yaml:"-"`
 	Dir        string   `yaml:"-"`
 	Cluster    string   `yaml:"-"` // practice | ops | cni | runtime (LAB_CLUSTER in lab.sh)
-	Exercise   bool     `yaml:"-"`
 	Title      string   `yaml:"title"`
 	Topic      string   `yaml:"topic"` // at most one item per topic in a generated session
 	Domain     string   `yaml:"-"`     // set by Exam.Pool: the item's domain in that exam
@@ -192,7 +191,6 @@ type Item struct {
 	Weight     int      `yaml:"weight"`
 	Modes      []string `yaml:"modes"`
 	Namespaces []string `yaml:"namespaces"`
-	ExamNS     string   `yaml:"exam_namespace"` // exercises: replaces exercise-NN in exams
 	Conflicts  []string `yaml:"conflicts"`      // cluster-wide things the item changes or breaks
 	Needs      []string `yaml:"needs"`          // things it relies on (never drawn with an item that breaks them)
 	OwnCluster bool     `yaml:"own_cluster"`    // its setup breaks the cluster: never shares it with other items
@@ -207,23 +205,18 @@ func (it *Item) Allows(mode string) bool {
 	return false
 }
 
-func (it *Item) Label() string {
-	if it.Exercise {
-		return fmt.Sprintf("%s · %s", it.ID, it.Title)
-	}
-	return it.Title
-}
+func (it *Item) Label() string { return it.Title }
 
 var labClusterRe = regexp.MustCompile(`(?m)^LAB_CLUSTER=([a-z]+)`)
 
 func LoadBank(root string) ([]*Item, error) {
 	var items []*Item
-	load := func(dir string, exercise bool) error {
+	load := func(dir string) error {
 		raw, err := os.ReadFile(filepath.Join(dir, "item.yaml"))
 		if err != nil {
 			return nil // not an item
 		}
-		it := &Item{Dir: dir, Exercise: exercise, Cluster: "practice"}
+		it := &Item{Dir: dir, Cluster: "practice", ID: filepath.Base(dir)}
 		if err := yaml.Unmarshal(raw, it); err != nil {
 			return fmt.Errorf("%s: %w", dir, err)
 		}
@@ -233,12 +226,6 @@ func LoadBank(root string) ([]*Item, error) {
 			}
 		} else {
 			return nil
-		}
-		base := filepath.Base(dir)
-		if exercise {
-			it.ID = "ex" + strings.SplitN(base, "-", 2)[0]
-		} else {
-			it.ID = base
 		}
 		if it.Minutes == 0 {
 			it.Minutes = 10
@@ -252,15 +239,10 @@ func LoadBank(root string) ([]*Item, error) {
 		items = append(items, it)
 		return nil
 	}
-	for _, sub := range []struct {
-		glob     string
-		exercise bool
-	}{{"exercises/[0-9]*-*", true}, {"questions/*", false}} {
-		dirs, _ := filepath.Glob(filepath.Join(root, sub.glob))
-		for _, d := range dirs {
-			if err := load(d, sub.exercise); err != nil {
-				return nil, err
-			}
+	dirs, _ := filepath.Glob(filepath.Join(root, "questions", "*"))
+	for _, d := range dirs {
+		if err := load(d); err != nil {
+			return nil, err
 		}
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
@@ -383,45 +365,9 @@ var (
 	placeholderRe = regexp.MustCompile(`\{\{([A-Z][A-Z0-9_]*)\}\}`)
 )
 
-// stripLabHints removes the lab.sh instructions from exercise texts: inside
-// ./cka the setup has already run and checking is a key press.
-func stripLabHints(s string) string {
-	var out []string
-	for _, line := range strings.Split(s, "\n") {
-		t := strings.TrimSpace(line)
-		if strings.HasPrefix(t, "Validate with `./scripts/lab.sh") || strings.HasPrefix(t, "./scripts/lab.sh ") {
-			continue
-		}
-		line = labParenRe.ReplaceAllString(line, "")
-		line = runSetupRe.ReplaceAllString(line, "")
-		line = validateWithR.ReplaceAllString(line, "")
-		line = labRefRe.ReplaceAllStringFunc(line, func(m string) string {
-			if strings.Contains(m, " setup ") {
-				return "the setup"
-			}
-			return "the check"
-		})
-		if strings.Contains(line, "lab.sh") {
-			continue // a manual-use instruction that doesn't apply inside ./cka
-		}
-		out = append(out, line)
-	}
-	return strings.Join(out, "\n")
-}
-
-var exerciseNSRe = regexp.MustCompile(`\bexercise-[0-9][0-9]\b`)
-
-// Render substitutes {{KEY}} placeholders and, for exercises, the default
-// cluster names written in the text (cka-practice, cka-ops, ...). In exams
-// an exercise's exercise-NN namespace is replaced by vars["@NS"], and its
-// manual answer directory ~/cka-lab/exNN by the session's WORKDIR.
+// Render substitutes {{KEY}} placeholders and the default cluster names
+// written in the text (cka-practice, cka-ops, ...).
 func Render(s string, vars map[string]string, clusters map[string]string) string {
-	if ns := vars["@NS"]; ns != "" {
-		s = exerciseNSRe.ReplaceAllString(s, ns)
-	}
-	if id, wd := vars["@ID"], vars["WORKDIR"]; id != "" && wd != "" {
-		s = strings.ReplaceAll(s, "~/cka-lab/"+id, wd)
-	}
 	s = placeholderRe.ReplaceAllStringFunc(s, func(m string) string {
 		key := m[2 : len(m)-2]
 		if v, ok := vars[key]; ok {
@@ -452,10 +398,6 @@ func (it *Item) Doc() (Doc, error) {
 		return Doc{}, err
 	}
 	doc := ParseReadme(string(raw))
-	if it.Exercise {
-		doc.Question = stripLabHints(doc.Question)
-		doc.Solution = stripLabHints(doc.Solution)
-	}
 	// Like on the exam, every task starts with the context to switch to.
 	if !strings.Contains(doc.Question, "use-context") {
 		title, rest, _ := strings.Cut(doc.Question, "\n")
@@ -491,14 +433,3 @@ func ExamView(question string, n int) string {
 	return strings.Join(out, "\n")
 }
 
-// examNamespace: the namespace an exercise uses in an exam (exam_namespace,
-// or q-<id> as a fallback). Empty for pool questions, which keep theirs.
-func examNamespace(it *Item) string {
-	if !it.Exercise {
-		return ""
-	}
-	if it.ExamNS != "" {
-		return it.ExamNS
-	}
-	return "q-" + it.ID
-}

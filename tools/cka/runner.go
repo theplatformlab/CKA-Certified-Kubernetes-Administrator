@@ -113,10 +113,6 @@ func itemVars(s *Session, si *SessionItem, it *Item) map[string]string {
 	vars["NODE_CP"], vars["NODE_W1"], vars["NODE_W2"] = cp, w1, w2
 	vars["NODE_CP2"], vars["NODE_CP3"] = cluster+"-control-plane2", cluster+"-control-plane3"
 	vars["WORKDIR"] = strings.Replace(si.Workdir, homeDir(), "~", 1)
-	if it.Exercise {
-		vars["@ID"] = it.ID
-		vars["@NS"] = si.Namespace
-	}
 	return vars
 }
 
@@ -127,9 +123,6 @@ func labEnv(s *Session, si *SessionItem, it *Item) []string {
 		fmt.Sprintf("CKA_SEED=%d", si.Seed%32768),
 		"CKA_PARAMS=1",
 	)
-	if si.Namespace != "" {
-		env = append(env, "ITEM_NS="+si.Namespace)
-	}
 	clusters := s.ItemClusters(si, it)
 	for _, p := range []string{"practice", "ops", "cni", "runtime", "ha", "cks"} {
 		if c := clusters[p]; c != "" {
@@ -490,47 +483,9 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 		setup(si)
 	}
 	pwg.Wait()
-	recordBaselines(s, byID, log)
 	return nil
 }
 
-// recordBaselines runs the checks of exercise items once after setup, when
-// their pods have settled. Exercises have no check_gate, so grading uses the
-// baseline to give an untouched exercise 0 points (see ApplyBaseline).
-func recordBaselines(s *Session, byID map[string]*Item, log func(string)) {
-	var wg sync.WaitGroup
-	for _, si := range s.Items {
-		it := byID[si.ItemID]
-		if !it.Exercise || si.SetupError != "" {
-			continue
-		}
-		wg.Add(1)
-		go func(si *SessionItem, it *Item) {
-			defer wg.Done()
-			ctx := "kind-" + s.Clusters[s.clusterKey(si, it)]
-			vars := map[string]string{"@NS": si.Namespace}
-			for k, v := range si.Params {
-				vars[k] = v
-			}
-			for _, ns := range it.Namespaces {
-				exec.Command("kubectl", "--context", ctx, "-n", Render(ns, vars, nil), "wait",
-					"--for=condition=Ready", "pods", "--all", "--timeout=60s").Run()
-			}
-			if results, _, err := RunCheck(s, si, it); err == nil {
-				si.Baseline = nil
-				for _, r := range results {
-					if r.Pass {
-						si.Baseline = append(si.Baseline, r.Desc)
-					}
-				}
-			}
-		}(si, it)
-	}
-	if len(s.Items) > 0 {
-		log("Recording the starting state of exercise items ...")
-	}
-	wg.Wait()
-}
 
 // Cleanup runs every item's cleanup (practice sessions, after grading).
 func Cleanup(s *Session, items []*Item, log func(string)) {
