@@ -1,0 +1,9 @@
+title: Blue/green deployment
+topic: blue-green
+area: rollouts
+difficulty: 2
+minutes: 8
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [web-release]

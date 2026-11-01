@@ -1,0 +1,10 @@
+title: Build an image and run it in the cluster
+topic: container-image
+area: container-images
+exams: [ckad]
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [build-pipeline]

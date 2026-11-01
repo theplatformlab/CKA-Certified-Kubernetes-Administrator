@@ -1,0 +1,9 @@
+title: Resize a running pod in place
+topic: in-place-resize
+area: resources
+difficulty: 2
+minutes: 7
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [ml-training]
