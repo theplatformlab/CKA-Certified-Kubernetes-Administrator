@@ -1,0 +1,11 @@
+title: Find a misbehaving Pod with Falco and add a rule
+topic: falco
+area: runtime-detection
+exams: [cks]
+difficulty: 2
+minutes: 14
+exam_minutes: 9
+weight: 8
+modes: [practice, exam]
+namespaces: [shop-backend]
+conflicts: [falco-rules]

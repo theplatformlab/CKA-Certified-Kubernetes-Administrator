@@ -1,0 +1,10 @@
+title: Run a Deployment in the gVisor sandbox
+topic: runtimeclass
+area: isolation
+exams: [cks]
+difficulty: 1
+minutes: 7
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [sandboxed-apps]

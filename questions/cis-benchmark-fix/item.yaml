@@ -1,0 +1,11 @@
+title: Fix CIS benchmark findings with kube-bench
+topic: cis-benchmark
+area: cis-benchmark
+exams: [cks]
+difficulty: 2
+minutes: 14
+exam_minutes: 10
+weight: 8
+modes: [practice, exam]
+conflicts: [apiserver-manifest, worker-kubelet]
+own_cluster: true

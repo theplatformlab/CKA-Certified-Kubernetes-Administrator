@@ -176,6 +176,113 @@ prepare_ops_nodes() {
   log_info "Upgrade target versions available: $(node_exec "$node" "apt-cache madison kubeadm | awk '{print \$3}' | head -3 | tr '\n' ' '")"
 }
 
+# cks profile: the tools the CKS exam provides on its nodes.
+#   every node:     kube-bench (/etc/kube-bench/cfg), apparmor (apparmor_parser,
+#                   aa-status; profiles only load if the host kernel has the
+#                   AppArmor LSM active, see docs/CKS-WSL.md)
+#   control plane:  trivy (vulnerability DB pre-downloaded) and kubesec
+#   workers:        Falco as systemd service 'falco' (modern eBPF driver,
+#                   rules in /etc/falco, alerts in journalctl -u falco), and
+#                   gVisor (runsc) with the containerd runtime handler 'runsc'
+# Versions can be pinned with the environment variables below. Nodes are set
+# up in parallel; each node's log goes to a temp file shown on failure.
+TRIVY_VERSION="${TRIVY_VERSION:-0.76.1}"
+KUBE_BENCH_VERSION="${KUBE_BENCH_VERSION:-0.16.0}"
+KUBESEC_VERSION="${KUBESEC_VERSION:-2.15.0}"
+
+cks_node_common() {
+  cat <<EOF
+set -e
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq curl gpg ca-certificates apparmor >/dev/null
+cd /tmp
+curl -fsSLo kube-bench.deb https://github.com/aquasecurity/kube-bench/releases/download/v${KUBE_BENCH_VERSION}/kube-bench_${KUBE_BENCH_VERSION}_linux_amd64.deb
+apt-get install -y -qq ./kube-bench.deb >/dev/null
+rm -f kube-bench.deb
+# kind's policy-rc.d keeps apt from starting or stopping services (useful in
+# image builds). Real nodes have none: 'apt-get purge' must stop the service.
+rm -f /usr/sbin/policy-rc.d
+EOF
+}
+
+cks_control_plane() {
+  cat <<EOF
+curl -fsSLo trivy.deb https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.deb
+apt-get install -y -qq ./trivy.deb >/dev/null
+rm -f trivy.deb
+curl -fsSL https://github.com/controlplaneio/kubesec/releases/download/v${KUBESEC_VERSION}/kubesec_linux_amd64.tar.gz | tar xz -C /usr/local/bin kubesec
+# The DB download takes a while; do it now so scans start right away.
+trivy image --download-db-only -q
+EOF
+}
+
+cks_worker() {
+  cat <<'EOF'
+# Falco from the falcosecurity apt repo, modern eBPF driver (needs a kernel
+# with BTF; no kernel module or headers). The package installs the unit as
+# falco-modern-bpf.service with an alias 'falco'; journalctl -u needs the
+# real unit name, so it runs as a plain falco.service instead.
+curl -fsSL https://falco.org/repo/falcosecurity-packages.asc | gpg --dearmor --yes -o /usr/share/keyrings/falco-archive-keyring.gpg
+echo 'deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main' > /etc/apt/sources.list.d/falcosecurity.list
+# gVisor from its apt repo (runsc + containerd-shim-runsc-v1)
+curl -fsSL https://gvisor.dev/archive.key | gpg --dearmor --yes -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main' > /etc/apt/sources.list.d/gvisor.list
+apt-get update -qq
+FALCO_FRONTEND=noninteractive FALCO_DRIVER_CHOICE=modern_ebpf FALCOCTL_ENABLED=no \
+  apt-get install -y -qq falco runsc >/dev/null 2>&1
+systemctl disable --now falco-modern-bpf >/dev/null 2>&1 || true
+rm -f /etc/systemd/system/falco.service
+sed '/^Alias=/d; s/^Description=.*/Description=Falco: Container Native Runtime Security (modern eBPF)/' \
+  /usr/lib/systemd/system/falco-modern-bpf.service > /etc/systemd/system/falco.service
+systemctl daemon-reload
+systemctl enable --now falco >/dev/null 2>&1
+if ! grep -q 'runtimes.runsc\]' /etc/containerd/config.toml; then
+  cat >> /etc/containerd/config.toml <<'TOML'
+
+# gVisor: RuntimeClass handler "runsc"
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+  runtime_type = "io.containerd.runsc.v1"
+TOML
+  systemctl restart containerd
+fi
+for i in $(seq 30); do systemctl is-active -q falco && break; sleep 1; done
+systemctl is-active -q falco
+EOF
+}
+
+prepare_cks_nodes() {
+  local node script log pids=() nodes=() logs=() i failed=0
+  log_info "Installing CKS tooling (kube-bench, trivy, kubesec, Falco, gVisor) ..."
+  for node in $(kind get nodes --name "$CLUSTER_NAME"); do
+    script="$(cks_node_common)"
+    if [[ "$node" == *control-plane* ]]; then
+      script+=$'\n'"$(cks_control_plane)"
+    else
+      script+=$'\n'"$(cks_worker)"
+    fi
+    log="$(mktemp)"
+    node_exec "$node" "$script" >"$log" 2>&1 &
+    pids+=($!); nodes+=("$node"); logs+=("$log")
+  done
+  for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then
+      log_info "  ${nodes[$i]}: done"
+    else
+      failed=1
+      log_error "  ${nodes[$i]}: tool installation failed:"
+      tail -n 20 "${logs[$i]}" >&2
+    fi
+    rm -f "${logs[$i]}"
+  done
+  (( failed )) && return 1
+
+  if [[ "$(node_exec "${CLUSTER_NAME}-worker" 'cat /sys/module/apparmor/parameters/enabled 2>/dev/null')" != Y ]]; then
+    log_warn "AppArmor is not active in the host kernel: AppArmor items will not work (see docs/CKS-WSL.md)."
+  fi
+  return 0
+}
+
 # Each kind node uses several inotify instances; the common default of 128 is
 # exhausted by ~2 clusters and containerd then fails with "too many open files".
 check_inotify() {
@@ -260,6 +367,9 @@ main() {
   # ha nodes get the same tooling (etcdctl for member/health checks).
   if [[ "$PROFILE" == "ops" || "$PROFILE" == "ha" ]]; then
     prepare_ops_nodes
+  fi
+  if [[ "$PROFILE" == "cks" ]]; then
+    prepare_cks_nodes
   fi
 
   echo ""

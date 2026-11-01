@@ -1,0 +1,10 @@
+title: Restrict syscalls with seccomp profiles
+topic: seccomp
+area: kernel-hardening
+exams: [cks]
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [fintech-core]

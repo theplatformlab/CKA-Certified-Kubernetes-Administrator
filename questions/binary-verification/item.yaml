@@ -1,0 +1,9 @@
+title: Verify Kubernetes binaries against release checksums
+topic: binary-verification
+area: binary-verification
+exams: [cks]
+difficulty: 1
+minutes: 7
+exam_minutes: 4
+weight: 5
+modes: [practice, exam]

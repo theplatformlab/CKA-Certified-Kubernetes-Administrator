@@ -112,7 +112,7 @@ own_cluster: true              # only if its setup breaks the cluster (API serve
 Exercise READMEs keep their richer format (Tasks, Hints, What tripped me up, Verify, Cleanup, Solution); the app picks out the parts it needs.
 
 **`lab.sh`**:
-- `LAB_CLUSTER`: `practice` | `ops` | `cni` | `runtime` | `ha`
+- `LAB_CLUSTER`: `practice` | `ops` | `cni` | `runtime` | `ha` | `cks` (CKS tooling on the nodes: Falco, trivy, kube-bench, gVisor; see [docs/CKS-WSL.md](docs/CKS-WSL.md))
 - `lab_params` (optional): prints `KEY=VALUE` lines using `pick`, `rand_int` and `rand_suffix` from [`scripts/lib/params.sh`](scripts/lib/params.sh)
 - `lab_setup`: idempotent; creates the starting state or breaks things
 - `lab_check`: starts with a `check_gate` so an untouched item scores 0, then uses the helpers from [`scripts/lib/check.sh`](scripts/lib/check.sh). Exams run it in the background every few minutes, so it must not change what the candidate works on (throwaway `probe` pods are fine) and should be quick
