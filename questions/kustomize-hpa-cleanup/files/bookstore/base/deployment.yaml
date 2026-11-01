@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookstore
+  template:
+    metadata:
+      labels:
+        app: bookstore
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.28
+        ports:
+        - containerPort: 80
+        envFrom:
+        - configMapRef:
+            name: promo-config
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            memory: 64Mi

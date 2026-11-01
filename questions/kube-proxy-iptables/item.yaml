@@ -1,0 +1,11 @@
+title: Inspect the iptables rules of a Service
+topic: kube-proxy
+area: networking
+exams: [cka]
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 6
+modes: [practice, exam]
+namespaces: [traffic-lab]
+needs: [kube-proxy]

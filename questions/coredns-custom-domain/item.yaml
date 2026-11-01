@@ -1,0 +1,11 @@
+title: Serve Services under an extra DNS domain
+topic: coredns-domain
+area: dns
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [accounting]
+conflicts: [coredns]
+needs: [cluster-dns]

@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bookstore-prod
+resources:
+- ../../base
+labels:
+- pairs:
+    env: prod
+patches:
+- path: replicas-patch.yaml
+- target:
+    kind: ConfigMap
+    name: promo-config
+  patch: |-
+    - op: replace
+      path: /data/PROMO_DISCOUNT
+      value: "10"

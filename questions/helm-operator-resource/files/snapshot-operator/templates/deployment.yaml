@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-controller
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: controller
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: {{ .Release.Name }}-controller
+      containers:
+      - name: controller
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        # Stand-in for a real reconcile loop.
+        command: ["sh", "-c", "echo snapshot-operator {{ .Chart.AppVersion }} started, log level {{ .Values.logLevel }}; while true; do sleep 3600; done"]
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
