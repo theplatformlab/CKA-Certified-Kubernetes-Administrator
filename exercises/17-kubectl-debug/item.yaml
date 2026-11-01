@@ -1,9 +1,0 @@
-title: kubectl debug
-topic: kubectl-debug
-area: observability
-difficulty: 2
-minutes: 15
-weight: 8
-modes: [practice]
-namespaces: [exercise-17]
-exam_namespace: debugging

@@ -1,9 +1,0 @@
-title: Storage — PV & PVC
-topic: persistent-volumes
-area: volumes
-difficulty: 2
-minutes: 15
-weight: 8
-modes: [practice]
-namespaces: [exercise-12]
-exam_namespace: persistence

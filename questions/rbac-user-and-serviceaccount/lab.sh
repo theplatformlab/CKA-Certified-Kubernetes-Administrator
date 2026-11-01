@@ -21,6 +21,17 @@ lab_check() {
   check_not "dev-user cannot delete pods in staging" _can delete pods -n $NS --as dev-user
   check_not "dev-user cannot read secrets in staging" _can get secrets -n $NS --as dev-user
   check_not "dev-user cannot list pods in default" _can list pods -n default --as dev-user
+  check_not "dev-user cannot list nodes" _can list nodes --as dev-user
   check "ServiceAccount ci-bot can list deployments in staging" _can list deployments.apps -n $NS --as "$sa"
   check_not "ServiceAccount ci-bot cannot create deployments in staging" _can create deployments.apps -n $NS --as "$sa"
+  check_eq "ClusterRoleBinding ci-bot-node-reader references ClusterRole staging-node-reader" \
+    "$(jp clusterrolebinding ci-bot-node-reader '{.roleRef.kind}/{.roleRef.name}')" "ClusterRole/staging-node-reader"
+  check "ServiceAccount ci-bot can get nodes" _can get nodes --as "$sa"
+  check "ServiceAccount ci-bot can list nodes" _can list nodes --as "$sa"
+  check_not "ServiceAccount ci-bot cannot delete nodes" _can delete nodes --as "$sa"
+}
+
+lab_cleanup() {
+  kc delete clusterrolebinding ci-bot-node-reader --ignore-not-found >/dev/null
+  kc delete clusterrole staging-node-reader --ignore-not-found >/dev/null
 }

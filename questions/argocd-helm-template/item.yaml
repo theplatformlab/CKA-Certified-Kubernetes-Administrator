@@ -1,0 +1,10 @@
+title: Install Argo CD from a Helm template
+topic: argocd-operators
+area: crds-operators
+difficulty: 3
+minutes: 18
+exam_minutes: 10
+weight: 10
+modes: [practice, exam]
+namespaces: [argocd, guestbook]
+conflicts: [argocd]
