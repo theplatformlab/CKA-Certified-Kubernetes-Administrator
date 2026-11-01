@@ -173,6 +173,13 @@ main() {
     check)
       # Checks must run to the end: a failing query is a failed check, not an abort.
       set +eo pipefail
+      # kubectl retries for ~50s against an API server that is down, which
+      # made grading crawl through every query; probe once and let every kc
+      # call fail right away instead.
+      if ! timeout 20 kubectl --context "$CTX" get --raw /version >/dev/null 2>&1; then
+        log_warn "API server of ${CLUSTER} does not answer: every check that needs it fails"
+        kc() { return 1; }
+      fi
       lab_check
       check_summary
       ;;
