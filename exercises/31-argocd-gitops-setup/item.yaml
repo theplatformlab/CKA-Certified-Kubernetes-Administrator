@@ -1,6 +1,7 @@
 title: Argo CD GitOps Setup
 topic: argocd-operators
 domain: architecture
+area: crds-operators
 difficulty: 3
 minutes: 20
 exam_minutes: 10

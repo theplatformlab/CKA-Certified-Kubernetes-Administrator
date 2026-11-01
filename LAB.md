@@ -13,12 +13,12 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 
 | | Practice session | Mock exam |
 |---|---|---|
-| Selection | N items (1/3/5/10) from one domain, or from all domains spread like the curriculum, or items you pick yourself | 17 questions by default (adjustable in the exam setup, or `CKA_EXAM_QUESTIONS`), split by the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10%. Long tasks are limited so the set fits the duration |
+| Selection | N items (1/3/5/10) from one domain or one of its areas (e.g. Helm & Kustomize, NetworkPolicies, CoreDNS), or from all domains spread like the curriculum, or items you pick yourself | 17 questions by default (adjustable in the exam setup, or `CKA_EXAM_QUESTIONS`), split by the CKA 1.37 curriculum: Troubleshooting 30%, Cluster Architecture 25%, Services & Networking 20%, Workloads & Scheduling 15%, Storage 10%. Long tasks are limited so the set fits the duration |
 | Time | Soft: each item shows its recommended time next to your time on it | Hard countdown (120/90/60 min); grading starts automatically at 0 |
 | Help | Hints one at a time (`h`), check any time (`c`), solution on demand (`s s`) | None. Only the docs-only browser (kubernetes.io, helm.sh, gateway-api.sigs.k8s.io) |
 | Pause | `P` pauses; the menu offers "Continue" later, and clusters keep running | `P` freezes the timer, hides the question and locks the shell (pause screen). From there `u` resumes, `x` also shuts the exam clusters down (frees memory; "Continue" starts them again), `m` goes to the menu. `q` leaves the panel with the timer still running |
 | Clusters | Persistent `cka-practice`, `cka-ops` (`cka-ops2`), `cka-cni`, `cka-runtime`, `cka-ha`, created on demand | Fresh `cka-exam`, `cka-exam-ops`, and `cka-exam-ops2/-cni/-runtime/-ha` when an item needs one (at most one of these per exam); built in parallel on their own docker network |
-| End | `F F` grades all items, then cleans them up | `S S` submits; the exam clusters stay up so you can inspect them |
+| End | `F F` grades all items, then cleans them up | `S S` submits; the exam clusters stay up so you can inspect them. Like on killer.sh, questions are graded in the background during the exam (one every 20 s or so), so submitting only re-checks the questions you had on screen since their last check |
 
 **One item per topic.** Every item has a topic (pod-security, networkpolicy, priorityclass, ...). A generated session never contains two items of the same topic, so you don't get three Pod Security questions in one exam.
 
@@ -85,7 +85,7 @@ An item is a directory in `questions/<id>/` (or `exercises/<NN>-<name>/`) with t
 title: Roll back a broken rollout
 topic: rollouts                # a generated session never has two items of one topic
 domain: workloads              # troubleshooting | architecture | networking | workloads | storage
-area: applications             # troubleshooting only: cluster-components | nodes | networking | observability | applications
+area: applications             # sub-area of the domain, see domainAreas in tools/cka/bank.go (troubleshooting: cluster-components | nodes | networking | observability | applications)
 difficulty: 1                  # 1-3
 minutes: 7                     # recommended time when practising
 exam_minutes: 4                # realistic time at exam pace (the exam generator fits these into the duration)
@@ -110,7 +110,7 @@ Exercise READMEs keep their richer format (Tasks, Hints, What tripped me up, Ver
 - `LAB_CLUSTER`: `practice` | `ops` | `cni` | `runtime` | `ha`
 - `lab_params` (optional): prints `KEY=VALUE` lines using `pick`, `rand_int` and `rand_suffix` from [`scripts/lib/params.sh`](scripts/lib/params.sh)
 - `lab_setup`: idempotent; creates the starting state or breaks things
-- `lab_check`: starts with a `check_gate` so an untouched item scores 0, then uses the helpers from [`scripts/lib/check.sh`](scripts/lib/check.sh)
+- `lab_check`: starts with a `check_gate` so an untouched item scores 0, then uses the helpers from [`scripts/lib/check.sh`](scripts/lib/check.sh). Exams run it in the background every few minutes, so it must not change what the candidate works on (throwaway `probe` pods are fine) and should be quick
 - `lab_cleanup` (optional): the item's namespaces are deleted automatically; this function undoes everything else
 
 Test every item:

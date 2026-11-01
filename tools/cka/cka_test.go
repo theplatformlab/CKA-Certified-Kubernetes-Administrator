@@ -269,6 +269,57 @@ func TestExamTroubleshootingAreas(t *testing.T) {
 	}
 }
 
+func TestNextBackgroundCheck(t *testing.T) {
+	now := time.Now()
+	ago := func(d time.Duration) time.Time { return now.Add(-d) }
+	s := &Session{Items: []*SessionItem{
+		{CheckedAt: ago(time.Minute), SeenAt: ago(2 * time.Minute)},      // graded after the last visit
+		{CheckedAt: ago(3 * time.Minute), SeenAt: ago(time.Minute)},      // left after its check: due
+		{CheckedAt: ago(30 * time.Second), SeenAt: now},                  // on screen
+		{CheckedAt: ago(4 * time.Minute), SeenAt: ago(10 * time.Minute)}, // old, but not stale yet
+	}}
+	if got := nextBackgroundCheck(s, 2, now); got != 1 {
+		t.Errorf("got %d, want the question left since its check (1)", got)
+	}
+	s.Items[1].CheckedAt = now
+	if got := nextBackgroundCheck(s, 2, now); got != -1 {
+		t.Errorf("got %d, want none due", got)
+	}
+	s.Items[2].CheckedAt = ago(3 * time.Minute)
+	if got := nextBackgroundCheck(s, 2, now); got != 2 {
+		t.Errorf("got %d, want the question on screen (2)", got)
+	}
+	s.Items[2].CheckedAt = now
+	s.Items[3].CheckedAt = ago(6 * time.Minute)
+	if got := nextBackgroundCheck(s, 2, now); got != 3 {
+		t.Errorf("got %d, want the stale question (3)", got)
+	}
+	if (&SessionItem{}).NeedsRecheck() != true {
+		t.Error("an unchecked item must be checked")
+	}
+}
+
+// A practice session limited to an area only draws from that area.
+func TestGeneratePracticeArea(t *testing.T) {
+	repoRoot = filepath.Join("..", "..")
+	items, err := LoadBank(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	picks, err := Generate(items, map[string]ItemStat{}, GenOptions{Mode: "practice", Domain: "architecture", Area: "helm-kustomize", Count: 10, Seed: 1}, noParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(picks) < 2 {
+		t.Errorf("only %d helm/kustomize items", len(picks))
+	}
+	for _, p := range picks {
+		if p.Item.Area != "helm-kustomize" {
+			t.Errorf("%s: area %s", p.Item.ID, p.Item.Area)
+		}
+	}
+}
+
 // Exam namespaces of exercises must not collide with any namespace in the pool.
 func TestExamNamespacesUnique(t *testing.T) {
 	repoRoot = filepath.Join("..", "..")

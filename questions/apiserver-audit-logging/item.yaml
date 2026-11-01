@@ -1,6 +1,7 @@
 title: API server audit logging
 topic: audit-logging
 domain: architecture
+area: cluster-lifecycle
 difficulty: 3
 minutes: 12
 exam_minutes: 9

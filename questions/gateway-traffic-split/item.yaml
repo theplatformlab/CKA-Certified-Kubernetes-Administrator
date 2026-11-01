@@ -1,6 +1,7 @@
 title: Gateway API traffic splitting
 topic: gateway-api
 domain: networking
+area: ingress-gateway
 difficulty: 2
 minutes: 8
 exam_minutes: 6

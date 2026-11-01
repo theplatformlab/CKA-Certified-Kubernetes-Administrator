@@ -1,6 +1,7 @@
 title: CRI-dockerd Setup
 topic: cri-dockerd
 domain: architecture
+area: extensions
 difficulty: 2
 minutes: 15
 exam_minutes: 10

@@ -27,12 +27,46 @@ var Domains = []struct {
 	{"storage", "Storage", 10},
 }
 
-// Sub-areas a generated session covers first, in this order, before the
-// domain's remaining slots are filled by priority. Troubleshooting follows the
-// curriculum bullets: cluster components, nodes, services/networking, output
-// streams and resource usage, application failures.
+// Sub-areas of each domain, following the curriculum bullets. A generated
+// session covers them first, in this order, before the domain's remaining
+// slots are filled by priority; practice sessions can be limited to one.
 var domainAreas = map[string][]string{
 	"troubleshooting": {"cluster-components", "nodes", "networking", "observability", "applications"},
+	"architecture":    {"cluster-lifecycle", "rbac", "helm-kustomize", "crds-operators", "extensions"},
+	"networking":      {"services", "network-policies", "ingress-gateway", "dns"},
+	"workloads":       {"deployments", "scheduling", "configuration", "pods", "autoscaling"},
+	"storage":         {"volumes", "storage-classes"},
+}
+
+var areaNames = map[string]string{
+	"cluster-components": "Cluster components",
+	"nodes":              "Nodes",
+	"networking":         "Services & networking",
+	"observability":      "Logs & resource usage",
+	"applications":       "Applications",
+	"cluster-lifecycle":  "kubeadm, etcd & cluster lifecycle",
+	"rbac":               "RBAC & cluster access",
+	"helm-kustomize":     "Helm & Kustomize",
+	"crds-operators":     "CRDs & operators",
+	"extensions":         "CNI, CSI & CRI",
+	"services":           "Services",
+	"network-policies":   "NetworkPolicies",
+	"ingress-gateway":    "Ingress & Gateway API",
+	"dns":                "CoreDNS",
+	"deployments":        "Deployments & workload controllers",
+	"scheduling":         "Scheduling & resources",
+	"configuration":      "ConfigMaps & Secrets",
+	"pods":               "Pod design",
+	"autoscaling":        "Autoscaling",
+	"volumes":            "PersistentVolumes & claims",
+	"storage-classes":    "StorageClasses & provisioning",
+}
+
+func areaName(key string) string {
+	if n := areaNames[key]; n != "" {
+		return n
+	}
+	return key
 }
 
 func domainName(key string) string {

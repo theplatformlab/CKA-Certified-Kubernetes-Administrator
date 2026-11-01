@@ -18,6 +18,7 @@ type GenOptions struct {
 	Mode    string // exam | practice
 	Minutes int    // exam duration
 	Domain  string // practice: "" = all
+	Area    string // practice: "" = the whole domain
 	Count   int    // number of items (practice) / questions (exam)
 	Only    []string
 	Seed    int64
@@ -137,6 +138,9 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 			continue
 		}
 		if opt.Domain != "" && it.Domain != opt.Domain {
+			continue
+		}
+		if opt.Area != "" && it.Area != opt.Area {
 			continue
 		}
 		candidates = append(candidates, it)

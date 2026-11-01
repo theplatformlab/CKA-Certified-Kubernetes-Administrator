@@ -49,6 +49,13 @@ type (
 		index   int
 		results []CheckResult
 	}
+	bgCheckDoneMsg struct {
+		sess    *Session
+		index   int
+		results []CheckResult
+		started time.Time
+		err     error
+	}
 	tickMsg time.Time
 )
 
@@ -74,6 +81,7 @@ type model struct {
 
 	// practice config
 	domainIdx int // 0 = all
+	areaIdx   int // 0 = the whole domain
 	countIdx  int
 	picked    map[string]bool
 	// exam config
@@ -92,6 +100,8 @@ type model struct {
 	vp        viewport.Model
 	vpContent string // what was last put into vp (for Ctrl+F)
 	checking bool
+	bgChecking bool      // an exam question is being graded in the background
+	bgLast     time.Time // when the last background check finished
 	armed    string // key that must be pressed twice ("s" solution, "S" submit, "F" finish)
 	saveTick int
 
@@ -187,6 +197,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+	case bgCheckDoneMsg:
+		m.bgChecking, m.bgLast = false, time.Now()
+		// Results that arrive after submitting (or while paused) are dropped:
+		// the final grading decides for itself what to re-check.
+		if msg.err == nil && msg.sess == m.sess && m.sess.Status == StatusActive {
+			si := m.sess.Items[msg.index]
+			si.Checks, si.CheckedAt = msg.results, msg.started
+			m.store.Save(m.sess)
+		}
+		return m, nil
 	case checkDoneMsg:
 		m.checking = false
 		if m.sess != nil && msg.index < len(m.sess.Items) {
@@ -211,6 +231,7 @@ func (m *model) onTick() tea.Cmd {
 	}
 	m.sess.ElapsedSec++
 	m.sess.Items[m.cur].TimeSec++
+	m.sess.Items[m.cur].SeenAt = time.Now()
 	m.saveTick++
 	if m.saveTick%15 == 0 {
 		m.store.Save(m.sess)
@@ -218,8 +239,62 @@ func (m *model) onTick() tea.Cmd {
 	if m.sess.Mode == "exam" && time.Now().After(m.sess.Deadline) {
 		m.flash = "Time is up"
 		m.startGrading()
+		return nil
 	}
-	return nil
+	return m.backgroundCheck()
+}
+
+// Like killer.sh, exams are graded in the background while they run, one
+// question at a time, so submitting only re-checks what was worked on since.
+const (
+	bgPause   = 20 * time.Second // between two background checks
+	bgCurrent = 2 * time.Minute  // the question on screen is re-checked this often
+	bgStale   = 5 * time.Minute  // every other question at least this often
+	bgMaxAge  = 15 * time.Minute // older results are re-checked when submitting
+)
+
+func (m *model) backgroundCheck() tea.Cmd {
+	s := m.sess
+	if s.Mode != "exam" || m.bgChecking || time.Since(m.bgLast) < bgPause {
+		return nil
+	}
+	idx := nextBackgroundCheck(s, m.cur, time.Now())
+	if idx < 0 {
+		return nil
+	}
+	si := s.Items[idx]
+	it := findItem(m.items, si.ItemID)
+	if it == nil {
+		return nil
+	}
+	m.bgChecking = true
+	started := time.Now()
+	return func() tea.Msg {
+		results, _, err := RunCheck(s, si, it)
+		return bgCheckDoneMsg{sess: s, index: idx, results: results, started: started, err: err}
+	}
+}
+
+// nextBackgroundCheck picks the question to grade next (-1: none is due):
+// one that was on screen since its last check, then the question on screen
+// now, then the one with the oldest result.
+func nextBackgroundCheck(s *Session, cur int, now time.Time) int {
+	oldest := func(due func(i int, si *SessionItem) bool) int {
+		best := -1
+		for i, si := range s.Items {
+			if due(i, si) && (best < 0 || si.CheckedAt.Before(s.Items[best].CheckedAt)) {
+				best = i
+			}
+		}
+		return best
+	}
+	if i := oldest(func(i int, si *SessionItem) bool { return i != cur && si.NeedsRecheck() }); i >= 0 {
+		return i
+	}
+	if now.Sub(s.Items[cur].CheckedAt) >= bgCurrent {
+		return cur
+	}
+	return oldest(func(i int, si *SessionItem) bool { return now.Sub(si.CheckedAt) >= bgStale })
 }
 
 func (m *model) onKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -413,7 +488,7 @@ func (m *model) keyMenu(key string) (tea.Model, tea.Cmd) {
 // ---- Practice / exam configuration ------------------------------------------------
 
 func (m *model) keyPracticeCfg(key string) (tea.Model, tea.Cmd) {
-	const rows = 4 // domain, count, pick, start
+	const rows = 5 // domain, area, count, pick, start
 	switch key {
 	case "up", "k":
 		m.cursor = max(0, m.cursor-1)
@@ -424,28 +499,55 @@ func (m *model) keyPracticeCfg(key string) (tea.Model, tea.Cmd) {
 		if key == "left" || key == "h" {
 			d = -1
 		}
-		if m.cursor == 0 {
+		switch m.cursor {
+		case 0:
 			m.domainIdx = (m.domainIdx + d + len(Domains) + 1) % (len(Domains) + 1)
-		} else if m.cursor == 1 {
+			m.areaIdx = 0
+		case 1:
+			if areas := m.practiceAreas(); len(areas) > 0 {
+				m.areaIdx = (m.areaIdx + d + len(areas) + 1) % (len(areas) + 1)
+			}
+		case 2:
 			m.countIdx = (m.countIdx + d + len(counts)) % len(counts)
 		}
 	case "enter":
 		switch m.cursor {
-		case 2:
+		case 3:
 			m.scr, m.cursor = scrPickItems, 0
 			m.picked = map[string]bool{}
-		case 3:
-			domain := ""
+		case 4:
+			opt := GenOptions{Mode: "practice", Count: counts[m.countIdx]}
 			if m.domainIdx > 0 {
-				domain = Domains[m.domainIdx-1].Key
+				opt.Domain = Domains[m.domainIdx-1].Key
 			}
-			return m.startSession(GenOptions{Mode: "practice", Domain: domain, Count: counts[m.countIdx]})
+			if m.areaIdx > 0 {
+				opt.Area = m.practiceAreas()[m.areaIdx-1]
+			}
+			return m.startSession(opt)
 		}
 	case "esc", "q":
 		m.scr, m.cursor = scrMenu, 0
 		m.invalidate()
 	}
 	return m, nil
+}
+
+// practiceAreas: the sub-areas of the selected domain (none for "All domains").
+func (m *model) practiceAreas() []string {
+	if m.domainIdx == 0 {
+		return nil
+	}
+	return domainAreas[Domains[m.domainIdx-1].Key]
+}
+
+func (m *model) areaItemCount(area string) int {
+	n := 0
+	for _, it := range m.items {
+		if it.Allows("practice") && it.Area == area && it.Domain == Domains[m.domainIdx-1].Key {
+			n++
+		}
+	}
+	return n
 }
 
 // Practice items grouped by domain (curriculum order), then by title.
@@ -726,9 +828,14 @@ func (m *model) startGrading() {
 			if it == nil {
 				continue
 			}
-			log(fmt.Sprintf("Checking %d/%d: %s", i+1, len(s.Items), si.Title))
-			results, _, _ := RunCheck(s, si, it)
-			si.Checks, si.Graded, si.GradedAt = results, true, time.Now()
+			if s.Mode == "exam" && !si.NeedsRecheck() && time.Since(si.CheckedAt) < bgMaxAge {
+				log(fmt.Sprintf("Checked %d/%d: %s (graded during the exam)", i+1, len(s.Items), si.Title))
+			} else {
+				log(fmt.Sprintf("Checking %d/%d: %s", i+1, len(s.Items), si.Title))
+				si.CheckedAt = time.Now()
+				si.Checks, _, _ = RunCheck(s, si, it)
+			}
+			si.Graded, si.GradedAt = true, time.Now()
 			si.ApplyBaseline()
 		}
 		s.Status, s.Finished = StatusFinished, time.Now()
@@ -1188,11 +1295,19 @@ func (m *model) viewPracticeCfg() string {
 	var b strings.Builder
 	b.WriteString(stTitle.Render("Practice session") + "\n")
 	b.WriteString(m.info("Soft time targets, hints (h), checks (c) and solutions (s) on demand, pause anytime (P).") + "\n\n")
+	area := "All areas"
+	if m.domainIdx == 0 {
+		area = "–"
+	} else if m.areaIdx > 0 {
+		a := m.practiceAreas()[m.areaIdx-1]
+		area = fmt.Sprintf("%s (%d items)", areaName(a), m.areaItemCount(a))
+	}
 	b.WriteString(cursorLine(m.cursor == 0, "Domain:  ‹ "+domain+" ›") + "\n")
-	b.WriteString(cursorLine(m.cursor == 1, fmt.Sprintf("Items:   ‹ %d ›", counts[m.countIdx])) + "\n")
-	b.WriteString(cursorLine(m.cursor == 2, "Choose items myself …") + "\n")
-	b.WriteString(cursorLine(m.cursor == 3, "Start") + "\n\n")
-	b.WriteString(m.info("With “All domains”, the items are spread over the domains like the curriculum. Items you haven't done come first, then items you failed last time, one per topic.\nSessions use cka-practice (and cka-ops / cka-cni / cka-runtime when an item needs them)."))
+	b.WriteString(cursorLine(m.cursor == 1, "Area:    ‹ "+area+" ›") + "\n")
+	b.WriteString(cursorLine(m.cursor == 2, fmt.Sprintf("Items:   ‹ %d ›", counts[m.countIdx])) + "\n")
+	b.WriteString(cursorLine(m.cursor == 3, "Choose items myself …") + "\n")
+	b.WriteString(cursorLine(m.cursor == 4, "Start") + "\n\n")
+	b.WriteString(m.info("With “All domains”, the items are spread over the domains like the curriculum. Pick a domain to choose one of its areas, e.g. Helm & Kustomize. Items you haven't done come first, then items you failed last time, one per topic.\nSessions use cka-practice (and cka-ops / cka-cni / cka-runtime when an item needs them)."))
 	return b.String()
 }
 

@@ -1,6 +1,7 @@
 title: Init container prepares content
 topic: init-containers
 domain: workloads
+area: pods
 difficulty: 2
 minutes: 9
 exam_minutes: 6

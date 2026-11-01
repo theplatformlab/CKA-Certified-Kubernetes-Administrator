@@ -34,6 +34,8 @@ type SessionItem struct {
 	Flagged        bool              `json:"flagged"`
 	TimeSec        int               `json:"timeSec"`
 	Checks         []CheckResult     `json:"checks,omitempty"`
+	CheckedAt      time.Time         `json:"checkedAt,omitempty"` // start of the check that produced Checks
+	SeenAt         time.Time         `json:"seenAt,omitempty"`    // last time the question was on screen
 	// Baseline: checks that already passed right after setup (exercises only;
 	// pool questions have a check_gate instead).
 	Baseline []string `json:"baseline,omitempty"`
@@ -62,6 +64,12 @@ func (si *SessionItem) ApplyBaseline() {
 			si.Checks[i].Detail = "not graded: the task was not attempted"
 		}
 	}
+}
+
+// NeedsRecheck: never checked, or the question was on screen (and maybe
+// worked on) after its last check started.
+func (si *SessionItem) NeedsRecheck() bool {
+	return si.CheckedAt.IsZero() || si.SeenAt.After(si.CheckedAt)
 }
 
 func (si *SessionItem) Passed() int {

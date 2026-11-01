@@ -1,6 +1,7 @@
 title: etcd backup and restore
 topic: etcd-backup
 domain: architecture
+area: cluster-lifecycle
 difficulty: 3
 minutes: 15
 exam_minutes: 11

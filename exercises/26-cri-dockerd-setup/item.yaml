@@ -1,6 +1,7 @@
 title: Switch kubelet to cri-dockerd
 topic: cri-dockerd
 domain: architecture
+area: extensions
 difficulty: 3
 minutes: 30
 exam_minutes: 12
