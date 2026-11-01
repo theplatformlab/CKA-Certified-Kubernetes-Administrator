@@ -1,0 +1,11 @@
+title: Query the API with a ServiceAccount token
+topic: serviceaccount-api
+domain: architecture
+area: rbac
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 6
+modes: [practice, exam]
+namespaces: [keystore]
+needs: [cluster-dns]

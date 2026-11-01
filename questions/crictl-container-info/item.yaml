@@ -1,0 +1,10 @@
+title: Inspect a container with crictl
+topic: crictl
+domain: troubleshooting
+area: observability
+difficulty: 2
+minutes: 8
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [forensics]
