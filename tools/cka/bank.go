@@ -15,65 +15,162 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Curriculum domains with their exam weight in percent.
-var Domains = []struct {
+// The certifications and their curricula. Every domain lists its areas
+// (curriculum bullets, in the order a generated session covers them); every
+// item names the area(s) it trains, so one item can belong to several exams
+// (a NetworkPolicy item counts for CKA, CKAD and CKS) without duplicates.
+type Domain struct {
 	Key, Name string
-	Weight    int
-}{
-	{"troubleshooting", "Troubleshooting", 30},
-	{"architecture", "Cluster Architecture", 25},
-	{"networking", "Services & Networking", 20},
-	{"workloads", "Workloads & Scheduling", 15},
-	{"storage", "Storage", 10},
+	Weight    int // percent of the exam
+	Areas     []string
 }
 
-// Sub-areas of each domain, following the curriculum bullets. A generated
-// session covers them first, in this order, before the domain's remaining
-// slots are filled by priority; practice sessions can be limited to one.
-var domainAreas = map[string][]string{
-	"troubleshooting": {"cluster-components", "nodes", "networking", "observability", "applications"},
-	"architecture":    {"cluster-lifecycle", "rbac", "helm-kustomize", "crds-operators", "extensions"},
-	"networking":      {"services", "network-policies", "ingress-gateway", "dns"},
-	"workloads":       {"deployments", "scheduling", "configuration", "pods", "autoscaling"},
-	"storage":         {"volumes", "storage-classes"},
+type Exam struct {
+	Key, Name, Title string
+	Domains          []Domain
+}
+
+var Exams = []*Exam{
+	{"cka", "CKA", "Certified Kubernetes Administrator", []Domain{
+		{"troubleshooting", "Troubleshooting", 30, []string{"cluster-components", "nodes", "networking", "observability", "applications"}},
+		{"architecture", "Cluster Architecture", 25, []string{"cluster-lifecycle", "rbac", "helm-kustomize", "crds-operators", "extensions"}},
+		{"networking", "Services & Networking", 20, []string{"services", "network-policies", "ingress-gateway", "dns"}},
+		{"workloads", "Workloads & Scheduling", 15, []string{"rollouts", "scheduling", "configuration", "workload-controllers", "resources", "pods", "pod-security", "autoscaling"}},
+		{"storage", "Storage", 10, []string{"volumes", "storage-classes"}},
+	}},
+	{"ckad", "CKAD", "Certified Kubernetes Application Developer", []Domain{
+		{"environment", "Environment, Configuration & Security", 25, []string{"configuration", "pod-security", "resources", "rbac", "crds-operators"}},
+		{"design", "Application Design & Build", 20, []string{"workload-controllers", "pods", "volumes", "container-images"}},
+		{"deployment", "Application Deployment", 20, []string{"rollouts", "helm-kustomize", "autoscaling"}},
+		{"services", "Services & Networking", 20, []string{"services", "network-policies", "ingress-gateway", "networking"}},
+		{"observability", "Observability & Maintenance", 15, []string{"probes", "observability", "applications", "api-deprecations"}},
+	}},
+	{"cks", "CKS", "Certified Kubernetes Security Specialist", []Domain{
+		{"microservices", "Minimize Microservice Vulnerabilities", 20, []string{"pod-security", "secrets-management", "isolation", "pod-encryption"}},
+		{"supply-chain", "Supply Chain Security", 20, []string{"static-analysis", "image-policy", "image-footprint", "sbom"}},
+		{"runtime", "Monitoring, Logging & Runtime Security", 20, []string{"runtime-detection", "audit-logs", "immutability"}},
+		{"cluster-setup", "Cluster Setup", 15, []string{"network-policies", "cis-benchmark", "ingress-tls", "node-metadata", "binary-verification"}},
+		{"hardening", "Cluster Hardening", 15, []string{"rbac", "serviceaccount-security", "api-access", "cluster-upgrade"}},
+		{"system", "System Hardening", 10, []string{"kernel-hardening", "host-os", "network-access"}},
+	}},
+}
+
+func ExamByKey(key string) *Exam {
+	for _, ex := range Exams {
+		if ex.Key == key {
+			return ex
+		}
+	}
+	return Exams[0] // sessions from before the exam choice are CKA
+}
+
+func (ex *Exam) domain(key string) *Domain {
+	for i := range ex.Domains {
+		if ex.Domains[i].Key == key {
+			return &ex.Domains[i]
+		}
+	}
+	return nil
+}
+
+func (ex *Exam) DomainName(key string) string {
+	if d := ex.domain(key); d != nil {
+		return d.Name
+	}
+	return key
+}
+
+// place: the domain and area an item counts for in this exam ("" if it is
+// not part of the exam). Its first area that the curriculum lists wins.
+func (ex *Exam) place(it *Item) (domain, area string) {
+	if len(it.Exams) > 0 && !contains(it.Exams, ex.Key) {
+		return "", ""
+	}
+	for _, a := range append([]string{it.Area}, it.Areas...) {
+		for _, d := range ex.Domains {
+			if contains(d.Areas, a) {
+				return d.Key, a
+			}
+		}
+	}
+	return "", ""
+}
+
+// Pool: the exam's items, as copies whose Domain and Area are the exam's.
+func (ex *Exam) Pool(items []*Item) []*Item {
+	var out []*Item
+	for _, it := range items {
+		if d, a := ex.place(it); d != "" {
+			c := *it
+			c.Domain, c.Area = d, a
+			out = append(out, &c)
+		}
+	}
+	return out
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 var areaNames = map[string]string{
-	"cluster-components": "Cluster components",
-	"nodes":              "Nodes",
-	"networking":         "Services & networking",
-	"observability":      "Logs & resource usage",
-	"applications":       "Applications",
-	"cluster-lifecycle":  "kubeadm, etcd & cluster lifecycle",
-	"rbac":               "RBAC & cluster access",
-	"helm-kustomize":     "Helm & Kustomize",
-	"crds-operators":     "CRDs & operators",
-	"extensions":         "CNI, CSI & CRI",
-	"services":           "Services",
-	"network-policies":   "NetworkPolicies",
-	"ingress-gateway":    "Ingress & Gateway API",
-	"dns":                "CoreDNS",
-	"deployments":        "Deployments & workload controllers",
-	"scheduling":         "Scheduling & resources",
-	"configuration":      "ConfigMaps & Secrets",
-	"pods":               "Pod design",
-	"autoscaling":        "Autoscaling",
-	"volumes":            "PersistentVolumes & claims",
-	"storage-classes":    "StorageClasses & provisioning",
+	"cluster-components":      "Cluster components",
+	"nodes":                   "Nodes",
+	"networking":              "Service & network troubleshooting",
+	"observability":           "Logs, monitoring & debugging",
+	"applications":            "Application failures",
+	"cluster-lifecycle":       "kubeadm, etcd & cluster lifecycle",
+	"rbac":                    "RBAC & cluster access",
+	"helm-kustomize":          "Helm & Kustomize",
+	"crds-operators":          "CRDs & operators",
+	"extensions":              "CNI, CSI & CRI",
+	"services":                "Services",
+	"network-policies":        "NetworkPolicies",
+	"ingress-gateway":         "Ingress & Gateway API",
+	"dns":                     "CoreDNS",
+	"rollouts":                "Deployments, rollouts & strategies",
+	"workload-controllers":    "DaemonSets, StatefulSets, Jobs",
+	"scheduling":              "Scheduling",
+	"resources":               "Requests, limits & quotas",
+	"configuration":           "ConfigMaps & Secrets",
+	"pods":                    "Pod design (multi-container, init, static)",
+	"pod-security":            "Pod security & SecurityContexts",
+	"autoscaling":             "Autoscaling",
+	"volumes":                 "Volumes, PVs & claims",
+	"storage-classes":         "StorageClasses & provisioning",
+	"container-images":        "Container images",
+	"probes":                  "Probes & health checks",
+	"api-deprecations":        "API deprecations",
+	"secrets-management":      "Secrets management",
+	"isolation":               "Isolation & sandboxed containers",
+	"pod-encryption":          "Pod-to-pod encryption",
+	"static-analysis":         "Static analysis & image scanning",
+	"image-policy":            "Permitted registries & admission",
+	"image-footprint":         "Base image footprint",
+	"sbom":                    "SBOM & supply chain",
+	"runtime-detection":       "Runtime threat detection (Falco)",
+	"audit-logs":              "Audit logs",
+	"immutability":            "Immutable containers",
+	"cis-benchmark":           "CIS benchmark",
+	"ingress-tls":             "Ingress with TLS",
+	"node-metadata":           "Node metadata & endpoints",
+	"binary-verification":     "Verify platform binaries",
+	"serviceaccount-security": "ServiceAccount security",
+	"api-access":              "Restrict API access",
+	"cluster-upgrade":         "Upgrades",
+	"kernel-hardening":        "AppArmor & seccomp",
+	"host-os":                 "Host OS footprint & least privilege",
+	"network-access":          "External network access",
 }
 
 func areaName(key string) string {
 	if n := areaNames[key]; n != "" {
 		return n
-	}
-	return key
-}
-
-func domainName(key string) string {
-	for _, d := range Domains {
-		if d.Key == key {
-			return d.Name
-		}
 	}
 	return key
 }
@@ -85,8 +182,10 @@ type Item struct {
 	Exercise   bool     `yaml:"-"`
 	Title      string   `yaml:"title"`
 	Topic      string   `yaml:"topic"` // at most one item per topic in a generated session
-	Domain     string   `yaml:"domain"`
-	Area       string   `yaml:"area"` // sub-area within the domain (see domainAreas)
+	Domain     string   `yaml:"-"`     // set by Exam.Pool: the item's domain in that exam
+	Area       string   `yaml:"area"`  // the curriculum area it trains (see Exams)
+	Areas      []string `yaml:"areas"` // further areas, e.g. of another exam's curriculum
+	Exams      []string `yaml:"exams"` // only these exams (default: every exam listing one of its areas)
 	Difficulty int      `yaml:"difficulty"`
 	Minutes    int      `yaml:"minutes"`      // recommended time when practising
 	ExamMins   int      `yaml:"exam_minutes"` // realistic time at exam pace

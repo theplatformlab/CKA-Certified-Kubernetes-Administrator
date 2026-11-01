@@ -1,7 +1,6 @@
 title: PodDisruptionBudget
 topic: pdb
-domain: workloads
-area: deployments
+area: workload-controllers
 difficulty: 1
 minutes: 5
 exam_minutes: 3

@@ -1,7 +1,6 @@
 title: Resource Requests Tuning
 topic: resource-requests
-domain: workloads
-area: scheduling
+area: resources
 difficulty: 3
 minutes: 20
 weight: 10

@@ -1,7 +1,6 @@
 title: CronJob
 topic: jobs
-domain: workloads
-area: deployments
+area: workload-controllers
 difficulty: 1
 minutes: 6
 exam_minutes: 5

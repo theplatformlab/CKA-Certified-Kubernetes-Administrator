@@ -1,7 +1,6 @@
 title: Roll back a broken rollout
 topic: rollouts
-domain: workloads
-area: deployments
+area: rollouts
 difficulty: 1
 minutes: 7
 exam_minutes: 4

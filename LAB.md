@@ -9,6 +9,10 @@
 
 The first start builds the app from `tools/cka`, which needs [Go](https://go.dev/doc/install) 1.23 or newer. You also need Docker, kind, kubectl, tmux and jq; some items additionally need helm, openssl and python3.
 
+## Which certification
+
+The menu's first line, **Studying for: ‹ CKA ›**, switches between CKA, CKAD and CKS (←/→ or Enter; the choice is remembered). Practice sessions, mock exams and statistics then follow that exam's curriculum and weights. There is one pool for all three: every item names the curriculum area it trains (`area`, optionally more in `areas`), and each exam takes the items whose areas its curriculum lists, so a NetworkPolicy task counts for CKA, CKAD and CKS without being duplicated. `exams: [cka]` keeps an admin-only task (static pods, crictl on a node, ...) out of the others.
+
 ## Two modes
 
 | | Practice session | Mock exam |
@@ -84,8 +88,9 @@ An item is a directory in `questions/<id>/` (or `exercises/<NN>-<name>/`) with t
 ```yaml
 title: Roll back a broken rollout
 topic: rollouts                # a generated session never has two items of one topic
-domain: workloads              # troubleshooting | architecture | networking | workloads | storage
-area: applications             # sub-area of the domain, see domainAreas in tools/cka/bank.go (troubleshooting: cluster-components | nodes | networking | observability | applications)
+area: rollouts                 # the curriculum area it trains (Exams in tools/cka/bank.go); it decides the domain in every exam
+areas: [probes]                # optional: further areas, e.g. one of another exam's curriculum
+exams: [cka]                   # optional: only these exams (default: every exam whose curriculum lists one of its areas)
 difficulty: 1                  # 1-3
 minutes: 7                     # recommended time when practising
 exam_minutes: 4                # realistic time at exam pace (the exam generator fits these into the duration)

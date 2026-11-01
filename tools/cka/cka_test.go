@@ -39,10 +39,10 @@ func TestRender(t *testing.T) {
 func testItems() []*Item {
 	var items []*Item
 	add := func(id, domain string, minutes int, ns []string, conflicts []string, cluster string) {
-		items = append(items, &Item{ID: id, Domain: domain, Minutes: minutes, Weight: minutes, Namespaces: ns,
+		items = append(items, &Item{ID: id, Area: Exams[0].domain(domain).Areas[0], Minutes: minutes, Weight: minutes, Namespaces: ns,
 			Conflicts: conflicts, Cluster: cluster, Modes: []string{"practice", "exam"}})
 	}
-	for i, d := range Domains {
+	for i, d := range Exams[0].Domains {
 		for j := 0; j < 6; j++ {
 			id := d.Key + string(rune('a'+j))
 			add(id, d.Key, 8, []string{id}, nil, "practice")
@@ -129,7 +129,7 @@ func TestGeneratePrefersNewThenFailed(t *testing.T) {
 	stats := map[string]ItemStat{}
 	now := time.Now()
 	for _, it := range items {
-		if it.Domain == "storage" {
+		if strings.HasPrefix(it.ID, "storage") {
 			stats[it.ID] = ItemStat{Attempts: 1, Passes: 1, Last: now, LastPass: true}
 		}
 	}
@@ -154,13 +154,19 @@ func TestPool(t *testing.T) {
 	if len(items) < 60 {
 		t.Fatalf("only %d items", len(items))
 	}
-	valid := map[string]bool{}
-	for _, d := range Domains {
-		valid[d.Key] = true
-	}
 	for _, it := range items {
-		if !valid[it.Domain] {
-			t.Errorf("%s: unknown domain %q", it.ID, it.Domain)
+		for _, a := range append([]string{it.Area}, it.Areas...) {
+			if areaNames[a] == "" {
+				t.Errorf("%s: unknown area %q", it.ID, a)
+			}
+		}
+		inExam := false
+		for _, ex := range Exams {
+			d, _ := ex.place(it)
+			inExam = inExam || d != ""
+		}
+		if !inExam {
+			t.Errorf("%s: area %q is in no exam's curriculum", it.ID, it.Area)
 		}
 		doc, err := it.Doc()
 		if err != nil {
@@ -179,15 +185,51 @@ func TestPool(t *testing.T) {
 		if it.Allows("exam") && it.ExamMins == 0 {
 			t.Errorf("%s: exam item without exam_minutes", it.ID)
 		}
-		if areas := domainAreas[it.Domain]; len(areas) > 0 {
-			found := false
-			for _, a := range areas {
-				found = found || a == it.Area
-			}
-			if !found {
-				t.Errorf("%s: area %q is not one of %v", it.ID, it.Area, areas)
+	}
+}
+
+// Every area has a name and appears at most once per curriculum; weights add up.
+func TestCurricula(t *testing.T) {
+	for _, ex := range Exams {
+		seen, weight := map[string]bool{}, 0
+		for _, d := range ex.Domains {
+			weight += d.Weight
+			for _, a := range d.Areas {
+				if areaNames[a] == "" {
+					t.Errorf("%s: area %q has no name", ex.Name, a)
+				}
+				if seen[a] {
+					t.Errorf("%s: area %q in two domains", ex.Name, a)
+				}
+				seen[a] = true
 			}
 		}
+		if weight != 100 {
+			t.Errorf("%s: weights add up to %d", ex.Name, weight)
+		}
+	}
+}
+
+// One item can count for several exams, in each with that exam's domain.
+func TestExamPools(t *testing.T) {
+	repoRoot = filepath.Join("..", "..")
+	items, err := LoadBank(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	place := map[string]string{}
+	for _, ex := range Exams {
+		for _, it := range ex.Pool(items) {
+			if it.ID == "netpol-three-tier" {
+				place[ex.Key] = it.Domain
+			}
+		}
+		if _, err := Generate(items, map[string]ItemStat{}, GenOptions{Exam: ex.Key, Mode: "exam", Minutes: 120, Count: 17, Seed: 1}, noParams); err != nil {
+			t.Errorf("%s exam: %v", ex.Name, err)
+		}
+	}
+	if place["cka"] != "networking" || place["ckad"] != "services" || place["cks"] != "cluster-setup" {
+		t.Errorf("netpol-three-tier placed %v", place)
 	}
 }
 
@@ -218,7 +260,7 @@ func TestExamView(t *testing.T) {
 }
 
 func TestDomainQuotas(t *testing.T) {
-	q := domainQuotas(17)
+	q := domainQuotas(Exams[0], 17)
 	sum := 0
 	for _, v := range q {
 		sum += v
@@ -261,7 +303,7 @@ func TestExamTroubleshootingAreas(t *testing.T) {
 				areas[p.Item.Area] = true
 			}
 		}
-		for _, a := range domainAreas["troubleshooting"] {
+		for _, a := range Exams[0].domain("troubleshooting").Areas {
 			if !areas[a] {
 				t.Errorf("seed %d: no troubleshooting item for %s (%v)", seed, a, areas)
 			}

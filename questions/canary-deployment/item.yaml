@@ -1,7 +1,6 @@
 title: Canary deployment behind one Service
 topic: canary
-domain: workloads
-area: deployments
+area: rollouts
 difficulty: 2
 minutes: 8
 exam_minutes: 5

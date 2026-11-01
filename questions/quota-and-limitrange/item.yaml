@@ -1,7 +1,6 @@
 title: ResourceQuota and LimitRange
 topic: quota
-domain: workloads
-area: scheduling
+area: resources
 difficulty: 1
 minutes: 8
 exam_minutes: 6

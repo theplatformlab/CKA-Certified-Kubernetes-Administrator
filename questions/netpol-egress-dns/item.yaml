@@ -1,6 +1,5 @@
 title: Egress NetworkPolicy with DNS
 topic: networkpolicy
-domain: networking
 area: network-policies
 difficulty: 2
 minutes: 9

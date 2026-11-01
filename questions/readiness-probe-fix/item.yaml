@@ -1,7 +1,7 @@
 title: Pods never become ready
 topic: probes
-domain: troubleshooting
 area: networking
+areas: [probes]
 difficulty: 2
 minutes: 8
 exam_minutes: 5

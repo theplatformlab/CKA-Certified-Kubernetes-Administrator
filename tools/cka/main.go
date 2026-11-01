@@ -5,6 +5,7 @@
 //	cka list            list the pool
 //	cka gen exam [min] [questions]  preview a generated exam (nothing is created)
 //	cka gen practice [domain] [count]
+//	                    (CKA_EXAM=ckad|cks: for another certification)
 //	cka render <id>     print an item's task as the app shows it
 //	cka keys            the key reference (exam environment, lab, app)
 package main
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -45,7 +47,13 @@ func main() {
 		for _, it := range items {
 			st := stats[it.ID]
 			state := map[int]string{StateNew: "new", StateFailed: "failed", StatePassed: "passed"}[st.State()]
-			fmt.Printf("%-32s %-16s %-8s %3dm w%-2d %-17v %-7s %s\n", it.ID, it.Domain, it.Cluster, it.Minutes, it.Weight, it.Modes, state, it.Title)
+			var exams []string
+			for _, ex := range Exams {
+				if d, _ := ex.place(it); d != "" {
+					exams = append(exams, ex.Name)
+				}
+			}
+			fmt.Printf("%-32s %-20s %-8s %3dm w%-2d %-17v %-7s %-14s %s\n", it.ID, it.Area, it.Cluster, it.Minutes, it.Weight, it.Modes, state, strings.Join(exams, ","), it.Title)
 		}
 	case "gen":
 		opt := GenOptions{Mode: "exam", Minutes: 120, Count: 3, Seed: time.Now().UnixNano()}
@@ -69,6 +77,7 @@ func main() {
 				opt.Count, _ = strconv.Atoi(args[3])
 			}
 		}
+		opt.Exam = os.Getenv("CKA_EXAM") // cka (default) | ckad | cks
 		if s := os.Getenv("CKA_GEN_SEED"); s != "" {
 			opt.Seed, _ = strconv.ParseInt(s, 10, 64)
 		}

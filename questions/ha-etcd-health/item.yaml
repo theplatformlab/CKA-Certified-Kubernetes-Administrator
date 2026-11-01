@@ -1,6 +1,5 @@
 title: Degraded etcd cluster
 topic: ha-control-plane
-domain: troubleshooting
 area: cluster-components
 difficulty: 3
 minutes: 12

@@ -1,6 +1,5 @@
 title: Expose an application with a NodePort
 topic: service-types
-domain: networking
 area: services
 difficulty: 1
 minutes: 6

@@ -1,6 +1,5 @@
 title: Install a local Helm chart
 topic: helm
-domain: architecture
 area: helm-kustomize
 difficulty: 1
 minutes: 8

@@ -1,7 +1,6 @@
 title: Namespace resource governance
 topic: quota
-domain: workloads
-area: scheduling
+area: resources
 difficulty: 1
 minutes: 7
 exam_minutes: 6

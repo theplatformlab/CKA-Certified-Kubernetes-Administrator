@@ -1,6 +1,5 @@
 title: Node Drain & Cordon
 topic: node-maintenance
-domain: architecture
 area: cluster-lifecycle
 difficulty: 1
 minutes: 10

@@ -1,7 +1,6 @@
 title: Pod Security Admission
 topic: pod-security
-domain: workloads
-area: pods
+area: pod-security
 difficulty: 2
 minutes: 8
 exam_minutes: 6

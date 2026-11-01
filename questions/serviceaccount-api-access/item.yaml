@@ -1,6 +1,5 @@
 title: Query the API with a ServiceAccount token
 topic: serviceaccount-api
-domain: architecture
 area: rbac
 difficulty: 2
 minutes: 9

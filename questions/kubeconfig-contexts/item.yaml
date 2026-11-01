@@ -1,7 +1,7 @@
 title: Read a kubeconfig file
 topic: kubeconfig
-domain: architecture
 area: rbac
+exams: [cka, ckad]
 difficulty: 1
 minutes: 6
 exam_minutes: 4

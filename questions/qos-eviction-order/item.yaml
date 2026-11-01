@@ -1,7 +1,6 @@
 title: Which pods are evicted first
 topic: qos-classes
-domain: workloads
-area: scheduling
+area: resources
 difficulty: 1
 minutes: 6
 exam_minutes: 4

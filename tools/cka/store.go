@@ -111,6 +111,7 @@ type Session struct {
 	ElapsedSec  int               `json:"elapsedSec"`
 	// RemainingSec freezes an exam's timer while it is paused.
 	RemainingSec int              `json:"remainingSec,omitempty"`
+	Exam        string            `json:"exam,omitempty"` // cka | ckad | cks ("" = cka)
 	Clusters    map[string]string `json:"clusters"`
 	Network     string            `json:"network,omitempty"`
 	Items       []*SessionItem    `json:"items"`
@@ -239,4 +240,25 @@ func (st *Store) Stats() map[string]ItemStat {
 		}
 	}
 	return stats
+}
+
+// Settings the app remembers between runs (next to the sessions directory).
+type Settings struct {
+	Exam string `json:"exam"`
+}
+
+func (st *Store) settingsPath() string { return filepath.Join(filepath.Dir(st.Dir), "settings.json") }
+
+func (st *Store) Settings() Settings {
+	var s Settings
+	if raw, err := os.ReadFile(st.settingsPath()); err == nil {
+		json.Unmarshal(raw, &s)
+	}
+	return s
+}
+
+func (st *Store) SaveSettings(s Settings) {
+	if raw, err := json.MarshalIndent(s, "", "  "); err == nil {
+		os.WriteFile(st.settingsPath(), raw, 0o644)
+	}
 }

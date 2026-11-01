@@ -1,6 +1,5 @@
 title: Renew control plane certificates
 topic: certificates
-domain: architecture
 area: cluster-lifecycle
 difficulty: 2
 minutes: 10

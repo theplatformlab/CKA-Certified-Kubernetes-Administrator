@@ -15,6 +15,7 @@ import (
 )
 
 type GenOptions struct {
+	Exam    string // cka | ckad | cks ("" = cka)
 	Mode    string // exam | practice
 	Minutes int    // exam duration
 	Domain  string // practice: "" = all
@@ -79,6 +80,8 @@ func extraClusters(items []*Item) (extra, copies int) {
 
 func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params ParamFunc) ([]Pick, error) {
 	rng := rand.New(rand.NewSource(opt.Seed))
+	ex := ExamByKey(opt.Exam)
+	items = ex.Pool(items)
 	var chosen []Pick
 
 	tryAdd := func(it *Item) bool {
@@ -123,7 +126,7 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		for _, id := range opt.Only {
 			it := findItem(items, id)
 			if it == nil {
-				return nil, fmt.Errorf("unknown item %q", id)
+				return nil, fmt.Errorf("unknown item %q (or not part of the %s)", id, ex.Name)
 			}
 			if !tryAdd(it) {
 				return nil, fmt.Errorf("item %q conflicts with another selected item", id)
@@ -151,10 +154,10 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		// "All domains": spread the items like the curriculum (for 10 items
 		// 3 troubleshooting, 2-3 architecture, 2 networking, ...).
 		if opt.Domain == "" && opt.Count > 1 {
-			quota := domainQuotas(opt.Count)
-			for _, d := range Domains {
+			quota := domainQuotas(ex, opt.Count)
+			for _, d := range ex.Domains {
 				got := 0
-				for _, area := range domainAreas[d.Key] {
+				for _, area := range d.Areas {
 					if got >= quota[d.Key] {
 						break
 					}
@@ -199,7 +202,7 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 	if n <= 0 {
 		n = DefaultExamQuestions
 	}
-	quota := domainQuotas(n)
+	quota := domainQuotas(ex, n)
 	budget := float64(opt.Minutes)
 	total := 0.0
 	fits := func(it *Item, strict bool) bool {
@@ -223,10 +226,10 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 	// Each domain gets its quota: first with items that keep the exam within
 	// the time budget, then (if a domain would stay short) without that limit.
 	got := map[string]int{}
-	// Domains with sub-areas (troubleshooting) take one item per area first,
+	// Every domain takes one item per area first,
 	// so e.g. cluster and node problems are always part of the exam.
-	for _, d := range Domains {
-		areas := domainAreas[d.Key]
+	for _, d := range ex.Domains {
+		areas := d.Areas
 		for ai, area := range areas {
 			if got[d.Key] >= quota[d.Key] {
 				break
@@ -248,7 +251,7 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 		}
 	}
 	for _, strict := range []bool{true, false} {
-		for _, d := range Domains {
+		for _, d := range ex.Domains {
 			for _, it := range ordered {
 				if got[d.Key] >= quota[d.Key] {
 					break
@@ -280,7 +283,7 @@ const DefaultExamQuestions = 17
 const minExamMinutes = 3.0
 
 // domainQuotas splits n questions over the domains by weight (largest remainder).
-func domainQuotas(n int) map[string]int {
+func domainQuotas(ex *Exam, n int) map[string]int {
 	quota := map[string]int{}
 	type rem struct {
 		key  string
@@ -288,7 +291,7 @@ func domainQuotas(n int) map[string]int {
 	}
 	var rems []rem
 	used := 0
-	for _, d := range Domains {
+	for _, d := range ex.Domains {
 		exact := float64(n) * float64(d.Weight) / 100
 		quota[d.Key] = int(exact)
 		used += int(exact)

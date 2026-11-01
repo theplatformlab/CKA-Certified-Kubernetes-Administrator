@@ -79,6 +79,8 @@ type model struct {
 	cursor int
 	flash  string // one-line message in the footer
 
+	exam *Exam // the certification being studied for
+
 	// practice config
 	domainIdx int // 0 = all
 	areaIdx   int // 0 = the whole domain
@@ -138,6 +140,21 @@ func (m *model) load() {
 }
 
 func (m *model) stats() map[string]ItemStat { m.load(); return m.cacheStats }
+
+// pool: the items of the chosen exam, with that exam's domains and areas.
+func (m *model) pool() []*Item { return m.exam.Pool(m.items) }
+
+func (m *model) switchExam(d int) {
+	i := 0
+	for j, ex := range Exams {
+		if ex == m.exam {
+			i = j
+		}
+	}
+	m.exam = Exams[(i+d+len(Exams))%len(Exams)]
+	m.domainIdx, m.areaIdx = 0, 0
+	m.store.SaveSettings(Settings{Exam: m.exam.Key})
+}
 func (m *model) sessions() []*Session      { m.load(); return m.cacheList }
 
 func (m *model) openSession() *Session {
@@ -159,6 +176,7 @@ var durations = []int{120, 90, 60}
 func newModel(items []*Item, store *Store) *model {
 	m := &model{items: items, store: store, picked: map[string]bool{}, renderCache: map[string]string{}, countIdx: 1,
 		questions: examQuestionsDefault()}
+	m.exam = ExamByKey(store.Settings().Exam)
 	m.vp = viewport.New(80, 20)
 	return m
 }
@@ -460,6 +478,7 @@ func (m *model) menuEntries() []menuEntry {
 		e = append(e, menuEntry{label, func() (tea.Model, tea.Cmd) { return m.resume(open) }})
 	}
 	e = append(e,
+		menuEntry{fmt.Sprintf("Studying for: ‹ %s › %s", m.exam.Name, m.exam.Title), func() (tea.Model, tea.Cmd) { m.switchExam(1); return m, nil }},
 		menuEntry{"Practice session", func() (tea.Model, tea.Cmd) { m.scr, m.cursor = scrPracticeCfg, 0; return m, nil }},
 		menuEntry{"Mock exam", func() (tea.Model, tea.Cmd) { m.scr, m.cursor = scrExamCfg, 0; return m, nil }},
 		menuEntry{"History", func() (tea.Model, tea.Cmd) { m.scr, m.cursor = scrHistory, 0; return m, nil }},
@@ -477,6 +496,14 @@ func (m *model) keyMenu(key string) (tea.Model, tea.Cmd) {
 		m.cursor = max(0, m.cursor-1)
 	case "down", "j":
 		m.cursor = min(len(entries)-1, m.cursor+1)
+	case "left", "h", "right", "l":
+		if strings.HasPrefix(entries[m.cursor].label, "Studying for") {
+			if key == "left" || key == "h" {
+				m.switchExam(-1)
+			} else {
+				m.switchExam(1)
+			}
+		}
 	case "enter":
 		return entries[m.cursor].action()
 	case "q":
@@ -501,7 +528,7 @@ func (m *model) keyPracticeCfg(key string) (tea.Model, tea.Cmd) {
 		}
 		switch m.cursor {
 		case 0:
-			m.domainIdx = (m.domainIdx + d + len(Domains) + 1) % (len(Domains) + 1)
+			m.domainIdx = (m.domainIdx + d + len(m.exam.Domains) + 1) % (len(m.exam.Domains) + 1)
 			m.areaIdx = 0
 		case 1:
 			if areas := m.practiceAreas(); len(areas) > 0 {
@@ -516,9 +543,9 @@ func (m *model) keyPracticeCfg(key string) (tea.Model, tea.Cmd) {
 			m.scr, m.cursor = scrPickItems, 0
 			m.picked = map[string]bool{}
 		case 4:
-			opt := GenOptions{Mode: "practice", Count: counts[m.countIdx]}
+			opt := GenOptions{Exam: m.exam.Key, Mode: "practice", Count: counts[m.countIdx]}
 			if m.domainIdx > 0 {
-				opt.Domain = Domains[m.domainIdx-1].Key
+				opt.Domain = m.exam.Domains[m.domainIdx-1].Key
 			}
 			if m.areaIdx > 0 {
 				opt.Area = m.practiceAreas()[m.areaIdx-1]
@@ -537,13 +564,13 @@ func (m *model) practiceAreas() []string {
 	if m.domainIdx == 0 {
 		return nil
 	}
-	return domainAreas[Domains[m.domainIdx-1].Key]
+	return m.exam.Domains[m.domainIdx-1].Areas
 }
 
 func (m *model) areaItemCount(area string) int {
 	n := 0
-	for _, it := range m.items {
-		if it.Allows("practice") && it.Area == area && it.Domain == Domains[m.domainIdx-1].Key {
+	for _, it := range m.pool() {
+		if it.Allows("practice") && it.Area == area {
 			n++
 		}
 	}
@@ -553,9 +580,9 @@ func (m *model) areaItemCount(area string) int {
 // Practice items grouped by domain (curriculum order), then by title.
 func (m *model) practiceItems() []*Item {
 	var out []*Item
-	for _, d := range Domains {
+	for _, d := range m.exam.Domains {
 		var group []*Item
-		for _, it := range m.items {
+		for _, it := range m.pool() {
 			if it.Allows("practice") && it.Domain == d.Key {
 				group = append(group, it)
 			}
@@ -590,7 +617,7 @@ func (m *model) keyPickItems(key string) (tea.Model, tea.Cmd) {
 		if len(only) == 0 {
 			only = []string{items[m.cursor].ID}
 		}
-		return m.startSession(GenOptions{Mode: "practice", Only: only})
+		return m.startSession(GenOptions{Exam: m.exam.Key, Mode: "practice", Only: only})
 	case "esc", "q":
 		m.scr, m.cursor = scrPracticeCfg, 2
 	}
@@ -616,7 +643,7 @@ func (m *model) keyExamCfg(key string) (tea.Model, tea.Cmd) {
 		}
 	case "enter":
 		if m.cursor == 2 {
-			return m.startSession(GenOptions{Mode: "exam", Minutes: durations[m.durIdx], Count: m.questions})
+			return m.startSession(GenOptions{Exam: m.exam.Key, Mode: "exam", Minutes: durations[m.durIdx], Count: m.questions})
 		}
 	case "esc", "q":
 		m.scr, m.cursor = scrMenu, 0
@@ -643,6 +670,7 @@ func (m *model) startSession(opt GenOptions) (tea.Model, tea.Cmd) {
 	}
 	s := &Session{
 		ID:          time.Now().Format("20060102-150405"),
+		Exam:        opt.Exam,
 		Mode:        opt.Mode,
 		Status:      StatusActive,
 		Created:     time.Now(),
@@ -1096,7 +1124,7 @@ func (m *model) refreshDetail() {
 	s := m.viewSess
 	si := s.Items[m.detailIdx]
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n%s · weight %d · %d/%d checks\n\n", stTitle.Render(si.Title), domainName(si.Domain), si.Weight, si.Passed(), len(si.Checks))
+	fmt.Fprintf(&b, "%s\n%s · weight %d · %d/%d checks\n\n", stTitle.Render(si.Title), ExamByKey(s.Exam).DomainName(si.Domain), si.Weight, si.Passed(), len(si.Checks))
 	if len(si.Checks) > 0 {
 		b.WriteString(renderChecks(si.Checks))
 	} else {
@@ -1249,10 +1277,11 @@ func (m *model) View() string {
 
 func (m *model) viewMenu() string {
 	var b strings.Builder
-	b.WriteString(stTitle.Render("CKA Lab") + "\n")
+	b.WriteString(stTitle.Render("Kubernetes Lab · "+m.exam.Name) + "\n")
 	stats := m.stats()
 	nNew, nFail, nPass := 0, 0, 0
-	for _, it := range m.items {
+	pool := m.pool()
+	for _, it := range pool {
 		switch stats[it.ID].State() {
 		case StateNew:
 			nNew++
@@ -1262,7 +1291,7 @@ func (m *model) viewMenu() string {
 			nPass++
 		}
 	}
-	b.WriteString(stDim.Render(fmt.Sprintf("%d items · %d new · %d failed last time · %d passed", len(m.items), nNew, nFail, nPass)) + "\n\n")
+	b.WriteString(stDim.Render(fmt.Sprintf("%d %s items · %d new · %d failed last time · %d passed", len(pool), m.exam.Name, nNew, nFail, nPass)) + "\n\n")
 	for i, e := range m.menuEntries() {
 		if i == m.cursor {
 			b.WriteString(stSel.Render("› "+e.label) + "\n")
@@ -1290,10 +1319,10 @@ func cursorLine(sel bool, s string) string {
 func (m *model) viewPracticeCfg() string {
 	domain := "All domains"
 	if m.domainIdx > 0 {
-		domain = Domains[m.domainIdx-1].Name
+		domain = m.exam.Domains[m.domainIdx-1].Name
 	}
 	var b strings.Builder
-	b.WriteString(stTitle.Render("Practice session") + "\n")
+	b.WriteString(stTitle.Render(m.exam.Name+" practice session") + "\n")
 	b.WriteString(m.info("Soft time targets, hints (h), checks (c) and solutions (s) on demand, pause anytime (P).") + "\n\n")
 	area := "All areas"
 	if m.domainIdx == 0 {
@@ -1348,14 +1377,14 @@ func (m *model) viewPickItems() string {
 
 func (m *model) viewExamCfg() string {
 	var b strings.Builder
-	b.WriteString(stTitle.Render("Mock exam") + "\n")
-	b.WriteString(m.info("Questions are drawn from the pool, weighted like the CKA curriculum, one per topic.\nHard timer, no hints, graded when you submit (S S) or the time runs out.") + "\n\n")
+	b.WriteString(stTitle.Render(m.exam.Name+" mock exam") + "\n")
+	b.WriteString(m.info("Questions are drawn from the pool, weighted like the "+m.exam.Name+" curriculum, one per topic.\nHard timer, no hints, graded when you submit (S S) or the time runs out.") + "\n\n")
 	b.WriteString(cursorLine(m.cursor == 0, fmt.Sprintf("Duration:  ‹ %d min ›", durations[m.durIdx])) + "\n")
 	b.WriteString(cursorLine(m.cursor == 1, fmt.Sprintf("Questions: ‹ %d ›", m.questions)) + "\n")
 	b.WriteString(cursorLine(m.cursor == 2, "Start") + "\n\n")
 	b.WriteString(m.info("Starting builds fresh clusters cka-exam and cka-exam-ops (2-3 minutes)\nand opens the docs-only browser. The timer starts when everything is ready."))
-	for _, d := range Domains {
-		b.WriteString("\n" + stDim.Render(fmt.Sprintf("  %-24s %d%%", d.Name, d.Weight)))
+	for _, d := range m.exam.Domains {
+		b.WriteString("\n" + stDim.Render(fmt.Sprintf("  %-38s %d%%", d.Name, d.Weight)))
 	}
 	return b.String()
 }
@@ -1381,7 +1410,7 @@ func (m *model) viewBusy() string {
 func (m *model) viewSession() string {
 	s := m.sess
 	si := s.Items[m.cur]
-	left := fmt.Sprintf(" Q%d/%d · %s · w%d", m.cur+1, len(s.Items), domainName(si.Domain), si.Weight)
+	left := fmt.Sprintf(" Q%d/%d · %s · w%d", m.cur+1, len(s.Items), ExamByKey(s.Exam).DomainName(si.Domain), si.Weight)
 	if s.Mode == "exam" {
 		// Like the real exam: question number and weight, no topic.
 		left = fmt.Sprintf(" Question %d of %d · weight %d%%", m.cur+1, len(s.Items), weightPercent(s, si))
@@ -1504,7 +1533,7 @@ func (m *model) viewHistory() string {
 		if s.Status != StatusFinished {
 			score = "  — "
 		}
-		line := fmt.Sprintf("%s  %-8s %-8s %2d items  %s", s.Created.Format("2006-01-02 15:04"), s.Mode, s.Status, len(s.Items), score)
+		line := fmt.Sprintf("%s  %-4s %-8s %-8s %2d items  %s", s.Created.Format("2006-01-02 15:04"), ExamByKey(s.Exam).Name, s.Mode, s.Status, len(s.Items), score)
 		b.WriteString(cursorLine(i == m.cursor, line) + "\n")
 	}
 	return b.String()
@@ -1513,12 +1542,12 @@ func (m *model) viewHistory() string {
 func (m *model) viewStats() string {
 	stats := m.stats()
 	var b strings.Builder
-	b.WriteString(stTitle.Render("Statistics") + "\n")
+	b.WriteString(stTitle.Render(m.exam.Name+" statistics") + "\n")
 	b.WriteString(stDim.Render("Computed from the sessions in "+m.storePath()) + "\n\n")
-	b.WriteString(fmt.Sprintf("  %-30s %6s %6s %6s %6s %8s\n", "Domain", "items", "new", "failed", "passed", "attempts"))
-	for _, d := range Domains {
+	b.WriteString(fmt.Sprintf("  %-44s %6s %6s %6s %6s %8s\n", "Domain", "items", "new", "failed", "passed", "attempts"))
+	for _, d := range m.exam.Domains {
 		var total, nNew, nFail, nPass, attempts int
-		for _, it := range m.items {
+		for _, it := range m.pool() {
 			if it.Domain != d.Key {
 				continue
 			}
@@ -1534,11 +1563,11 @@ func (m *model) viewStats() string {
 				nPass++
 			}
 		}
-		b.WriteString(fmt.Sprintf("  %-30s %6d %6d %6d %6d %8d\n", d.Name+fmt.Sprintf(" (%d%%)", d.Weight), total, nNew, nFail, nPass, attempts))
+		b.WriteString(fmt.Sprintf("  %-44s %6d %6d %6d %6d %8d\n", d.Name+fmt.Sprintf(" (%d%%)", d.Weight), total, nNew, nFail, nPass, attempts))
 	}
 	var exams []*Session
 	for _, s := range m.sessions() {
-		if s.Mode == "exam" && s.Status == StatusFinished {
+		if s.Mode == "exam" && s.Status == StatusFinished && ExamByKey(s.Exam) == m.exam {
 			exams = append(exams, s)
 		}
 	}

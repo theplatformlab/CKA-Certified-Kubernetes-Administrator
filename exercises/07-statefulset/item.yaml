@@ -1,7 +1,6 @@
 title: StatefulSet
 topic: statefulset
-domain: workloads
-area: deployments
+area: workload-controllers
 difficulty: 2
 minutes: 15
 exam_minutes: 7
