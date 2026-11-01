@@ -97,15 +97,15 @@ type model struct {
 	busyErr   error
 
 	// current session
-	sess     *Session
-	cur      int
-	vp        viewport.Model
-	vpContent string // what was last put into vp (for Ctrl+F)
-	checking bool
+	sess       *Session
+	cur        int
+	vp         viewport.Model
+	vpContent  string // what was last put into vp (for Ctrl+F)
+	checking   bool
 	bgChecking bool      // an exam question is being graded in the background
 	bgLast     time.Time // when the last background check finished
-	armed    string // key that must be pressed twice ("s" solution, "S" submit, "F" finish)
-	saveTick int
+	armed      string    // key that must be pressed twice ("s" solution, "S" submit, "F" finish)
+	saveTick   int
 
 	// results / history
 	viewSess  *Session
@@ -155,7 +155,7 @@ func (m *model) switchExam(d int) {
 	m.domainIdx, m.areaIdx = 0, 0
 	m.store.SaveSettings(Settings{Exam: m.exam.Key})
 }
-func (m *model) sessions() []*Session      { m.load(); return m.cacheList }
+func (m *model) sessions() []*Session { m.load(); return m.cacheList }
 
 func (m *model) openSession() *Session {
 	for _, s := range m.sessions() {
@@ -400,7 +400,7 @@ func (m *model) onKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "esc", "q":
 			m.scr, m.cursor = scrMenu, 0
-		m.invalidate()
+			m.invalidate()
 		}
 		return m, nil
 	case scrDetail:
@@ -438,13 +438,13 @@ func (m *model) onKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "esc", "q":
 			m.scr, m.cursor = scrMenu, 0
-		m.invalidate()
+			m.invalidate()
 		}
 		return m, nil
 	case scrStats:
 		if key == "esc" || key == "q" || key == "enter" {
 			m.scr, m.cursor = scrMenu, 0
-		m.invalidate()
+			m.invalidate()
 		}
 		return m, nil
 	case scrClusters:
@@ -1443,7 +1443,7 @@ func (m *model) viewSession() string {
 		footer = stWarn.Render(m.flash)
 	}
 	if m.finding {
-		footer = stSel.Render("find: " + m.findQuery + "▏") + stDim.Render("  (enter search · esc cancel)")
+		footer = stSel.Render("find: "+m.findQuery+"▏") + stDim.Render("  (enter search · esc cancel)")
 	}
 	return header + "\n" + m.vp.View() + "\n" + footer
 }

@@ -24,7 +24,7 @@ type SessionItem struct {
 	Seed           int64             `json:"seed"`
 	Params         map[string]string `json:"params,omitempty"`
 	Workdir        string            `json:"workdir"`
-	Cluster        string            `json:"cluster,omitempty"`   // key in Session.Clusters if not the item's profile (own_cluster)
+	Cluster        string            `json:"cluster,omitempty"` // key in Session.Clusters if not the item's profile (own_cluster)
 	Weight         int               `json:"weight"`
 	Minutes        int               `json:"minutes"`
 	SetupError     string            `json:"setupError,omitempty"`
@@ -38,7 +38,6 @@ type SessionItem struct {
 	Graded         bool              `json:"graded"`
 	GradedAt       time.Time         `json:"gradedAt,omitempty"`
 }
-
 
 // NeedsRecheck: never checked, or the question was on screen (and maybe
 // worked on) after its last check started.
@@ -75,20 +74,20 @@ const (
 )
 
 type Session struct {
-	ID          string            `json:"id"`
-	Mode        string            `json:"mode"` // exam | practice
-	Status      string            `json:"status"`
-	Created     time.Time         `json:"created"`
-	Finished    time.Time         `json:"finished,omitempty"`
-	DurationMin int               `json:"durationMin,omitempty"`
-	Deadline    time.Time         `json:"deadline,omitempty"`
-	ElapsedSec  int               `json:"elapsedSec"`
+	ID          string    `json:"id"`
+	Mode        string    `json:"mode"` // exam | practice
+	Status      string    `json:"status"`
+	Created     time.Time `json:"created"`
+	Finished    time.Time `json:"finished,omitempty"`
+	DurationMin int       `json:"durationMin,omitempty"`
+	Deadline    time.Time `json:"deadline,omitempty"`
+	ElapsedSec  int       `json:"elapsedSec"`
 	// RemainingSec freezes an exam's timer while it is paused.
-	RemainingSec int              `json:"remainingSec,omitempty"`
-	Exam        string            `json:"exam,omitempty"` // cka | ckad | cks ("" = cka)
-	Clusters    map[string]string `json:"clusters"`
-	Network     string            `json:"network,omitempty"`
-	Items       []*SessionItem    `json:"items"`
+	RemainingSec int               `json:"remainingSec,omitempty"`
+	Exam         string            `json:"exam,omitempty"` // cka | ckad | cks ("" = cka)
+	Clusters     map[string]string `json:"clusters"`
+	Network      string            `json:"network,omitempty"`
+	Items        []*SessionItem    `json:"items"`
 }
 
 // Score in percent, weighted by item weight.

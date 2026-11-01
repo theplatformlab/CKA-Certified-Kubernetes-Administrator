@@ -191,9 +191,9 @@ type Item struct {
 	Weight     int      `yaml:"weight"`
 	Modes      []string `yaml:"modes"`
 	Namespaces []string `yaml:"namespaces"`
-	Conflicts  []string `yaml:"conflicts"`      // cluster-wide things the item changes or breaks
-	Needs      []string `yaml:"needs"`          // things it relies on (never drawn with an item that breaks them)
-	OwnCluster bool     `yaml:"own_cluster"`    // its setup breaks the cluster: never shares it with other items
+	Conflicts  []string `yaml:"conflicts"`   // cluster-wide things the item changes or breaks
+	Needs      []string `yaml:"needs"`       // things it relies on (never drawn with an item that breaks them)
+	OwnCluster bool     `yaml:"own_cluster"` // its setup breaks the cluster: never shares it with other items
 }
 
 func (it *Item) Allows(mode string) bool {
@@ -432,4 +432,3 @@ func ExamView(question string, n int) string {
 	}
 	return strings.Join(out, "\n")
 }
-

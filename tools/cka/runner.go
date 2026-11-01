@@ -486,7 +486,6 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 	return nil
 }
 
-
 // Cleanup runs every item's cleanup (practice sessions, after grading).
 func Cleanup(s *Session, items []*Item, log func(string)) {
 	for _, si := range s.Items {
