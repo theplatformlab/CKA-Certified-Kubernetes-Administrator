@@ -1,0 +1,12 @@
+title: Audit log forensics and a fine-grained audit policy
+topic: audit-policy
+area: audit-logs
+exams: [cks]
+difficulty: 3
+minutes: 14
+exam_minutes: 10
+weight: 8
+modes: [practice, exam]
+namespaces: [payroll]
+conflicts: [apiserver-manifest]
+own_cluster: true

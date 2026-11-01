@@ -1,0 +1,10 @@
+title: Harden the ServiceAccounts of a namespace
+topic: serviceaccount-hardening
+area: serviceaccount-security
+areas: [rbac]
+difficulty: 2
+minutes: 9
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [crm-portal]

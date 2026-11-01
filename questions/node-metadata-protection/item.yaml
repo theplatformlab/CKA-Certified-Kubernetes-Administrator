@@ -1,0 +1,12 @@
+title: Protect the cloud metadata endpoint
+topic: node-metadata
+area: node-metadata
+areas: [network-policies]
+exams: [cks]
+difficulty: 2
+minutes: 8
+exam_minutes: 6
+weight: 6
+modes: [practice, exam]
+namespaces: [fleet-sync]
+needs: [cluster-dns]

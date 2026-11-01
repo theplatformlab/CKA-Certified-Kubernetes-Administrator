@@ -1,0 +1,10 @@
+title: Allow only trusted image registries
+topic: image-policy
+area: image-policy
+exams: [cks]
+difficulty: 2
+minutes: 10
+exam_minutes: 8
+weight: 7
+modes: [practice, exam]
+namespaces: [retail-prod]
