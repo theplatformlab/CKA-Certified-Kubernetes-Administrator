@@ -1,0 +1,13 @@
+title: Move new Services to another IP range
+topic: service-cidr
+area: services
+exams: [cka]
+difficulty: 3
+minutes: 14
+exam_minutes: 9
+weight: 9
+modes: [practice, exam]
+namespaces: [freight]
+conflicts: [apiserver-manifest, controller-manager-manifest]
+needs: [cluster-dns]
+own_cluster: true
