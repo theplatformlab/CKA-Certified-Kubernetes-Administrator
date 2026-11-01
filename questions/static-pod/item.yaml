@@ -1,4 +1,4 @@
-title: Static Pod
+title: Static pod on a worker node
 topic: static-pod
 area: pods
 exams: [cka]
@@ -7,6 +7,5 @@ minutes: 10
 exam_minutes: 5
 weight: 5
 modes: [practice, exam]
-namespaces: [exercise-10]
-exam_namespace: static-web
+namespaces: [static-web]
 needs: [worker-kubelet]

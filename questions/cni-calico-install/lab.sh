@@ -1,8 +1,8 @@
 # shellcheck shell=bash
-# Exercise 27 — Install Calico with the Tigera operator. Sourced by scripts/lab.sh.
+# Install Calico with the Tigera operator. Sourced by scripts/lab.sh.
 # The cni cluster is created without a CNI (nodes NotReady, podSubnet 192.168.0.0/16).
 LAB_CLUSTER=cni
-NS="${ITEM_NS:-exercise-27}"
+NS=calico-test
 POD_CIDR=192.168.0.0/16
 
 # _probe_on <node> <labels|-> <command> — like probe, but pinned to a node
@@ -18,7 +18,7 @@ _probe_on() {
 }
 
 lab_setup() {
-  kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -
+  ensure_ns "$NS"
   if exists deployment -n tigera-operator tigera-operator; then
     log_warn "Tigera operator is already installed. For a cluster without CNI: ./scripts/init-cluster.sh --profile cni --recreate"
   else
@@ -27,8 +27,8 @@ lab_setup() {
 }
 
 lab_check() {
-  check_eq "Deployment tigera-operator in tigera-operator is available" \
-    "$(jp -n tigera-operator deploy tigera-operator '{.status.conditions[?(@.type=="Available")].status}')" "True"
+  check_gate "Deployment tigera-operator in tigera-operator is available" test \
+    "$(jp -n tigera-operator deploy tigera-operator '{.status.conditions[?(@.type=="Available")].status}')" == "True"
   check_eq "Installation default has an IP pool with CIDR $POD_CIDR (the cluster's podSubnet)" \
     "$(jp installation default '{.spec.calicoNetwork.ipPools[*].cidr}')" "$POD_CIDR"
   check_eq "TigeraStatus calico is Available" \
@@ -70,7 +70,6 @@ lab_check() {
 }
 
 lab_cleanup() {
-  kc delete namespace "$NS" --ignore-not-found --wait=false
   echo "  Calico stays installed (removing a CNI leaves the nodes broken)."
   echo "  To practise the installation again: ./scripts/init-cluster.sh --profile cni --recreate"
 }

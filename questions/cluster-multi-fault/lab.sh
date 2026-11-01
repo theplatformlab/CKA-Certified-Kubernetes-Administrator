@@ -1,17 +1,16 @@
 # shellcheck shell=bash
-# Exercise 11 — Troubleshoot cluster components. Sourced by scripts/lab.sh.
+# Four faults at once on the ops cluster. Sourced by scripts/lab.sh.
 # Setup breaks four things at once (scenarios A-D in the README); the check
-# reports each scenario separately so they can be fixed in any order.
+# reports each scenario separately; it gates on A (B and C need a working node).
 #   A  worker kubelet stopped and disabled
 #   B  typo in the cluster domain of the CoreDNS Corefile
 #   C  invalid proxy mode in the kube-proxy ConfigMap (Service web created afterwards has no rules)
 #   D  audit logging enabled; a ServiceAccount is denied deleting Secret db-credentials
 LAB_CLUSTER=ops
-NS="${ITEM_NS:-exercise-11}"
+NS=ops-check
 APISERVER=/etc/kubernetes/manifests/kube-apiserver.yaml
 AUDIT_LOG=/var/log/kubernetes/audit/audit.log
-ANSWER=/opt/exercise-11/denied-user.txt
-MARK="# cka-lab-11"
+MARK="# cka-lab-multi-fault"
 
 _kc() { kc --request-timeout=5s "$@"; }
 _api_up() { _kc get --raw /readyz >/dev/null 2>&1; }
@@ -119,14 +118,14 @@ _cleanup_audit() {
     sleep 5
     _wait_api up 180 || log_warn "API server not ready yet — give it a minute"
   fi
-  node_exec "$cp" "rm -rf /etc/kubernetes/audit /var/log/kubernetes/audit /opt/exercise-11"
+  node_exec "$cp" "rm -rf /etc/kubernetes/audit /var/log/kubernetes/audit"
 }
 
 lab_setup() {
-  local cp worker
-  cp="$(control_plane_node)"
+  local worker
   worker="$(worker_node)"
-  kc create namespace "$NS" --dry-run=client -o yaml | kc apply -f -
+  ensure_ns "$NS"
+  mkdir -p "$WORKDIR"
 
   # D first: it restarts the API server.
   _setup_audit
@@ -163,64 +162,50 @@ lab_setup() {
     [[ "$(jp node "$worker" '{.status.conditions[?(@.type=="Ready")].status}')" != True ]] && break
     sleep 3
   done
-
-  echo "  Cluster broken (scenarios A-D). Nodes: docker exec -it $cp bash | docker exec -it $worker bash"
 }
 
 lab_check() {
-  local cp worker
-  cp="$(control_plane_node)"
+  local worker ready ip expected answer
   worker="$(worker_node)"
 
-  if ! _api_up; then
-    check "API server answers /readyz" false
-    echo "      All scenarios need the API server — fix it first."
-    return
-  fi
-
-  echo "  Scenario A — node $worker"
-  check_eq "[A] Node $worker is Ready" \
-    "$(jp --request-timeout=5s node "$worker" '{.status.conditions[?(@.type=="Ready")].status}')" "True"
+  echo "  Scenario A: node $worker"
+  ready="$(jp --request-timeout=5s node "$worker" '{.status.conditions[?(@.type=="Ready")].status}')"
+  check_gate "[A] Node $worker is Ready" test "$ready" == True
   check_eq "[A] kubelet is active on $worker" "$(node_exec "$worker" "systemctl is-active kubelet")" "active"
   check_eq "[A] kubelet is enabled on $worker (survives a reboot)" "$(node_exec "$worker" "systemctl is-enabled kubelet")" "enabled"
 
-  local ready_nodes
-  ready_nodes="$(jp --request-timeout=5s node "$worker" '{.status.conditions[?(@.type=="Ready")].status}')"
-
-  echo "  Scenario B — DNS"
+  echo "  Scenario B: DNS"
   check_match "[B] CoreDNS Corefile serves the cluster.local zone" \
     "$(jp --request-timeout=5s -n kube-system configmap coredns '{.data.Corefile}' | grep -E '^\s*kubernetes ' | sed 's/^ *//')" \
     '^kubernetes cluster\.local( |$)'
   check_eq "[B] Deployment coredns has all replicas ready" \
     "$(jp --request-timeout=5s -n kube-system deploy coredns '{.status.readyReplicas}/{.spec.replicas}')" \
     "$(jp --request-timeout=5s -n kube-system deploy coredns '{.spec.replicas}/{.spec.replicas}')"
-  if [[ "$ready_nodes" == True ]]; then
+  if [[ "$ready" == True ]]; then
     check "[B] A pod resolves kubernetes.default.svc.cluster.local" \
       probe "$NS" - "nslookup -timeout=3 kubernetes.default.svc.cluster.local"
   else
-    check "[B] A pod resolves kubernetes.default.svc.cluster.local (skipped: no schedulable node, fix A first)" false
+    check "[B] A pod resolves kubernetes.default.svc.cluster.local (skipped: no schedulable node)" false
   fi
 
-  echo "  Scenario C — Service web"
+  echo "  Scenario C: Service web"
   check_eq "[C] kube-proxy is ready on every node" \
     "$(jp --request-timeout=5s -n kube-system ds kube-proxy '{.status.numberReady}/{.status.desiredNumberScheduled}')" \
     "$(jp --request-timeout=5s -n kube-system ds kube-proxy '{.status.desiredNumberScheduled}/{.status.desiredNumberScheduled}')"
-  local ip
   ip="$(jp --request-timeout=5s -n "$NS" svc web '{.spec.clusterIP}')"
-  if [[ "$ready_nodes" == True && -n "$ip" ]]; then
+  if [[ "$ready" == True && -n "$ip" ]]; then
     check "[C] Service web answers on its ClusterIP ($ip:80)" probe "$NS" - "wget -qO- -T 5 http://$ip:80"
   else
     check "[C] Service web answers on its ClusterIP (skipped: no schedulable node or no Service web)" false
   fi
 
-  echo "  Scenario D — audit log"
-  local expected answer
+  echo "  Scenario D: audit log"
   expected="$(_denied_users | head -1)"
-  answer="$(node_exec "$cp" "cat $ANSWER 2>/dev/null" | tr -d '[:space:]')"
-  check "[D] $ANSWER exists on $cp" node_exec "$cp" "test -s $ANSWER"
+  answer="$(tr -d '[:space:]' 2>/dev/null <"$WORKDIR/denied-user.txt")"
+  check "[D] denied-user.txt exists" test -n "$answer"
   if [[ -n "$expected" ]]; then
     # No check_eq here: its failure message would print the answer.
-    check "[D] $ANSWER holds the full username that was denied deleting Secret db-credentials" \
+    check "[D] denied-user.txt holds the full username that was denied deleting Secret db-credentials" \
       test "$answer" == "$expected"
   else
     check "[D] Audit log still contains the denied delete (rerun setup if the log is gone)" false
@@ -243,5 +228,4 @@ lab_cleanup() {
   fi
 
   _cleanup_audit
-  kc delete namespace "$NS" --ignore-not-found --wait=false
 }
