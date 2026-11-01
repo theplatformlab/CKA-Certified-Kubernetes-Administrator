@@ -64,6 +64,7 @@ func clustersFor(mode string) map[string]string {
 			"cni":      env("CKA_EXAM_CNI_CLUSTER", "cka-exam-cni"),
 			"runtime":  env("CKA_EXAM_RUNTIME_CLUSTER", "cka-exam-runtime"),
 			"ha":       env("CKA_EXAM_HA_CLUSTER", "cka-exam-ha"),
+			"cks":      env("CKA_EXAM_CKS_CLUSTER", "cka-exam-cks"),
 		}
 	}
 	return map[string]string{
@@ -72,6 +73,7 @@ func clustersFor(mode string) map[string]string {
 		"cni":      env("CKA_CNI_CLUSTER", "cka-cni"),
 		"runtime":  env("CKA_RUNTIME_CLUSTER", "cka-runtime"),
 		"ha":       env("CKA_HA_CLUSTER", "cka-ha"),
+		"cks":      env("CKA_CKS_CLUSTER", "cka-cks"),
 	}
 }
 
@@ -129,7 +131,7 @@ func labEnv(s *Session, si *SessionItem, it *Item) []string {
 		env = append(env, "ITEM_NS="+si.Namespace)
 	}
 	clusters := s.ItemClusters(si, it)
-	for _, p := range []string{"practice", "ops", "cni", "runtime", "ha"} {
+	for _, p := range []string{"practice", "ops", "cni", "runtime", "ha", "cks"} {
 		if c := clusters[p]; c != "" {
 			env = append(env, fmt.Sprintf("CKA_%s_CLUSTER=%s", strings.ToUpper(p), c))
 		}

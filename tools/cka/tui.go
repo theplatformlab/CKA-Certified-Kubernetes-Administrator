@@ -1150,9 +1150,9 @@ type clusterRow struct{ profile, name, network string }
 
 func clusterRows() []clusterRow {
 	return []clusterRow{
-		{"practice", "cka-practice", ""}, {"ops", "cka-ops", ""}, {"ops", "cka-ops2", ""}, {"cni", "cka-cni", ""}, {"runtime", "cka-runtime", ""}, {"ha", "cka-ha", ""},
+		{"practice", "cka-practice", ""}, {"ops", "cka-ops", ""}, {"ops", "cka-ops2", ""}, {"cni", "cka-cni", ""}, {"runtime", "cka-runtime", ""}, {"ha", "cka-ha", ""}, {"cks", "cka-cks", ""},
 		{"practice", "cka-exam", "kind-exam"}, {"ops", "cka-exam-ops", "kind-exam"}, {"ops", "cka-exam-ops2", "kind-exam"}, {"cni", "cka-exam-cni", "kind-exam"},
-		{"runtime", "cka-exam-runtime", "kind-exam"}, {"ha", "cka-exam-ha", "kind-exam"},
+		{"runtime", "cka-exam-runtime", "kind-exam"}, {"ha", "cka-exam-ha", "kind-exam"}, {"cks", "cka-exam-cks", "kind-exam"},
 	}
 }
 

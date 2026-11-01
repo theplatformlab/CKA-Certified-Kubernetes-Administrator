@@ -62,12 +62,15 @@ func ClusterKeys(items []*Item) []string {
 // profileOf: the cluster profile of a session cluster key ("ops2" -> "ops").
 func profileOf(key string) string { return strings.TrimRight(key, "0123456789") }
 
-// extraClusters counts the clusters besides practice and ops, and the extra
+// baseClusters: the clusters a session of the exam normally uses anyway.
+var baseClusters = map[string]bool{"practice": true, "ops": true, "cks": true}
+
+// extraClusters counts the clusters besides the base ones, and the extra
 // copies of a profile (own_cluster items), that the items need.
 func extraClusters(items []*Item) (extra, copies int) {
 	seen := map[string]bool{}
 	for i, k := range ClusterKeys(items) {
-		if k != "practice" && k != "ops" && !seen[k] {
+		if !baseClusters[k] && !seen[k] {
 			seen[k] = true
 			extra++
 		}

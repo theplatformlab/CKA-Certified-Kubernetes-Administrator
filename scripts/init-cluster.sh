@@ -8,6 +8,7 @@
 #   ./scripts/init-cluster.sh --profile cni       # no CNI installed (exercise 27) -> 'cka-cni'
 #   ./scripts/init-cluster.sh --profile runtime   # cri-dockerd labs (18, 26) -> 'cka-runtime'
 #   ./scripts/init-cluster.sh --profile ha        # 3 control planes + 1 worker -> 'cka-ha'
+#   ./scripts/init-cluster.sh --profile cks       # CKS: security tooling on the nodes -> 'cka-cks'
 #   ./scripts/init-cluster.sh --recreate          # Delete and recreate the cluster
 #   CLUSTER_NAME=my-lab ./scripts/init-cluster.sh # Override the cluster name
 #   ./scripts/init-cluster.sh --help              # Show help
@@ -36,7 +37,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h|--help)
-      sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -49,7 +50,7 @@ done
 
 CONFIG_FILE="${SCRIPT_DIR}/config/${PROFILE}.yaml"
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  log_error "Unknown profile '${PROFILE}' (expected: practice, ops, cni, runtime, ha)"
+  log_error "Unknown profile '${PROFILE}' (expected: practice, ops, cni, runtime, ha, cks)"
   exit 1
 fi
 CLUSTER_NAME="${CLUSTER_NAME:-$(cluster_name "$PROFILE")}"

@@ -25,6 +25,7 @@ cluster_name() {
     cni)      echo "${CKA_CNI_CLUSTER:-cka-cni}" ;;
     runtime)  echo "${CKA_RUNTIME_CLUSTER:-cka-runtime}" ;;
     ha)       echo "${CKA_HA_CLUSTER:-cka-ha}" ;;
+    cks)      echo "${CKA_CKS_CLUSTER:-cka-cks}" ;;
     *) log_error "Unknown cluster profile: $1"; return 1 ;;
   esac
 }

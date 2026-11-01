@@ -442,6 +442,8 @@ var defaultClusters = map[string]string{
 	"ops":      "cka-ops",
 	"cni":      "cka-cni",
 	"runtime":  "cka-runtime",
+	"ha":       "cka-ha",
+	"cks":      "cka-cks",
 }
 
 func (it *Item) Doc() (Doc, error) {
