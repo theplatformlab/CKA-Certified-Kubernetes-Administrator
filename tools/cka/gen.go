@@ -33,9 +33,48 @@ type Pick struct {
 // ParamFunc evaluates an item's lab_params for a seed.
 type ParamFunc func(it *Item, seed int64) (map[string]string, error)
 
-// Items on these clusters need a cluster of their own; an exam includes at
-// most one of them so the start-up doesn't take forever.
-var specialClusters = map[string]bool{"cni": true, "runtime": true, "ha": true}
+// ClusterKeys gives each item the session cluster it runs on (a key of
+// Session.Clusters): its profile, or for an own_cluster item that would share
+// the profile with other items, a separate cluster ("ops2", "ops3", ...), so
+// the API server or kubelet it breaks never gets in their way.
+func ClusterKeys(items []*Item) []string {
+	used := map[string]int{}
+	for _, it := range items {
+		if !it.OwnCluster {
+			used[it.Cluster] = 1
+		}
+	}
+	keys := make([]string, len(items))
+	for i, it := range items {
+		keys[i] = it.Cluster
+		if it.OwnCluster {
+			used[it.Cluster]++
+			if used[it.Cluster] > 1 {
+				keys[i] = fmt.Sprintf("%s%d", it.Cluster, used[it.Cluster])
+			}
+		}
+	}
+	return keys
+}
+
+// profileOf: the cluster profile of a session cluster key ("ops2" -> "ops").
+func profileOf(key string) string { return strings.TrimRight(key, "0123456789") }
+
+// extraClusters counts the clusters besides practice and ops, and the extra
+// copies of a profile (own_cluster items), that the items need.
+func extraClusters(items []*Item) (extra, copies int) {
+	seen := map[string]bool{}
+	for i, k := range ClusterKeys(items) {
+		if k != "practice" && k != "ops" && !seen[k] {
+			seen[k] = true
+			extra++
+		}
+		if k != items[i].Cluster {
+			copies++
+		}
+	}
+	return extra, copies
+}
 
 func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params ParamFunc) ([]Pick, error) {
 	rng := rand.New(rand.NewSource(opt.Seed))
@@ -67,9 +106,13 @@ func Generate(items []*Item, stats map[string]ItemStat, opt GenOptions, params P
 			if len(opt.Only) == 0 && it.Topic != "" && it.Topic == c.Item.Topic {
 				return false
 			}
-			if opt.Mode == "exam" && specialClusters[it.Cluster] && specialClusters[c.Item.Cluster] {
-				return false
-			}
+		}
+		// Every cluster takes 1-2 minutes to start and memory: an exam has at
+		// most one besides practice and ops, a generated practice session at
+		// most one extra copy of a profile.
+		extra, copies := extraClusters(append(pickItems(chosen), it))
+		if opt.Mode == "exam" && extra > 1 || opt.Mode != "exam" && len(opt.Only) == 0 && copies > 1 {
+			return false
 		}
 		chosen = append(chosen, pick)
 		return true
@@ -304,6 +347,14 @@ func blocksAreas(it *Item, areas []string, domain string, ordered []*Item, chose
 	return false
 }
 
+func pickItems(picks []Pick) []*Item {
+	items := make([]*Item, len(picks))
+	for i, p := range picks {
+		items[i] = p.Item
+	}
+	return items
+}
+
 func inPicks(picks []Pick, it *Item) bool {
 	for _, p := range picks {
 		if p.Item == it {
@@ -320,6 +371,10 @@ func conflicts(a, b Pick) bool {
 				return true
 			}
 		}
+	}
+	// The tags describe one cluster; an own_cluster item shares it with no one.
+	if a.Item.Cluster != b.Item.Cluster || a.Item.OwnCluster || b.Item.OwnCluster {
+		return false
 	}
 	overlap := func(x, y []string) bool {
 		for _, a := range x {
@@ -338,9 +393,10 @@ func conflicts(a, b Pick) bool {
 func describePicks(picks []Pick) string {
 	var b strings.Builder
 	total := 0.0
+	keys := ClusterKeys(pickItems(picks))
 	for i, p := range picks {
 		total += examMinutes(p.Item)
-		fmt.Fprintf(&b, "%2d. %-34s %-16s %-8s %3.0f min  w%-2d %v\n", i+1, p.Item.ID, p.Item.Domain, p.Item.Cluster, examMinutes(p.Item), p.Item.Weight, p.Params)
+		fmt.Fprintf(&b, "%2d. %-34s %-16s %-8s %3.0f min  w%-2d %v\n", i+1, p.Item.ID, p.Item.Domain, keys[i], examMinutes(p.Item), p.Item.Weight, p.Params)
 	}
 	fmt.Fprintf(&b, "    %d items, ~%.0f min (exam pace)\n", len(picks), total)
 	return b.String()

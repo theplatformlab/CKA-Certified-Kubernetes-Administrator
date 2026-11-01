@@ -10,5 +10,5 @@ modes: [practice, exam]
 namespaces: [exercise-29]
 exam_namespace: etcd-check
 conflicts: [apiserver-manifest]
-order: late
 needs: [worker-kubelet]
+own_cluster: true

@@ -550,7 +550,13 @@ func (m *model) startSession(opt GenOptions) (tea.Model, tea.Cmd) {
 	if opt.Mode == "exam" {
 		s.Network = "kind-exam"
 	}
+	keys := ClusterKeys(pickItems(picks))
 	for i, p := range picks {
+		if keys[i] != p.Item.Cluster {
+			// An own_cluster item next to others: a copy of its profile's
+			// cluster ("ops2": cka-exam-ops -> cka-exam-ops2).
+			s.Clusters[keys[i]] = s.Clusters[p.Item.Cluster] + strings.TrimPrefix(keys[i], p.Item.Cluster)
+		}
 		s.Items = append(s.Items, &SessionItem{
 			ItemID: p.Item.ID, Title: p.Item.Title, Domain: p.Item.Domain,
 			Seed: p.Seed, Params: p.Params, Weight: p.Item.Weight, Minutes: p.Item.Minutes,
@@ -558,6 +564,9 @@ func (m *model) startSession(opt GenOptions) (tea.Model, tea.Cmd) {
 		})
 		if opt.Mode == "exam" {
 			s.Items[i].Namespace = examNamespace(p.Item)
+		}
+		if keys[i] != p.Item.Cluster {
+			s.Items[i].Cluster = keys[i]
 		}
 	}
 	m.store.Save(s)
@@ -601,8 +610,8 @@ func (m *model) resume(s *Session) (tea.Model, tea.Cmd) {
 	return m, m.runBusy("Resuming "+s.Mode+" session", scrSession, func(log func(string)) error {
 		// Paused sessions may have stopped clusters (exam pause stops them).
 		var stopped []string
-		for _, p := range sessionProfiles(s, m.items) {
-			name := s.Clusters[p]
+		for _, k := range sessionClusters(s, m.items) {
+			name := s.Clusters[k]
 			if !clusterExists(name) {
 				return fmt.Errorf("cluster %s no longer exists — the session can't be resumed", name)
 			}
@@ -673,9 +682,9 @@ func (m *model) stopExamClusters() tea.Cmd {
 	s := m.sess
 	return m.runBusy("Shutting down the exam clusters", scrMenu, func(log func(string)) error {
 		browser("stop")
-		for _, p := range sessionProfiles(s, m.items) {
-			log("Stopping cluster " + s.Clusters[p] + " ...")
-			if err := stopCluster(s.Clusters[p]); err != nil {
+		for _, k := range sessionClusters(s, m.items) {
+			log("Stopping cluster " + s.Clusters[k] + " ...")
+			if err := stopCluster(s.Clusters[k]); err != nil {
 				return err
 			}
 		}
@@ -704,8 +713,8 @@ func (m *model) startGrading() {
 	m.viewSess = s
 	cmd := m.runBusy("Grading ...", scrResults, func(log func(string)) error {
 		var stopped []string
-		for _, p := range sessionProfiles(s, m.items) {
-			if name := s.Clusters[p]; clusterExists(name) && !clusterRunning(name) {
+		for _, k := range sessionClusters(s, m.items) {
+			if name := s.Clusters[k]; clusterExists(name) && !clusterRunning(name) {
 				stopped = append(stopped, name)
 			}
 		}
@@ -875,24 +884,24 @@ func (m *model) refreshViewport(top bool) {
 		m.vp.SetContent(err.Error())
 		return
 	}
-	vars := itemVars(s, si, it)
+	vars, clusters := itemVars(s, si, it), s.ItemClusters(si, it)
 	var b strings.Builder
 	question := doc.Question
 	if s.Mode == "exam" && s.Status != StatusFinished {
 		question = ExamView(question, m.cur+1)
 	}
-	b.WriteString(Render(question, vars, s.Clusters))
+	b.WriteString(Render(question, vars, clusters))
 	if si.SetupError != "" {
 		b.WriteString("\n\n> ⚠ The setup of this item failed: " + si.SetupError + "\n")
 	}
 	if s.Mode == "practice" {
 		for i := 0; i < si.HintsShown && i < len(doc.Hints); i++ {
-			fmt.Fprintf(&b, "\n\n**Hint %d:** %s", i+1, Render(doc.Hints[i], vars, s.Clusters))
+			fmt.Fprintf(&b, "\n\n**Hint %d:** %s", i+1, Render(doc.Hints[i], vars, clusters))
 		}
 		if si.SolutionViewed {
-			b.WriteString("\n\n---\n\n## Solution\n\n" + Render(doc.Solution, vars, s.Clusters))
+			b.WriteString("\n\n---\n\n## Solution\n\n" + Render(doc.Solution, vars, clusters))
 			if doc.Notes != "" {
-				b.WriteString("\n\n" + Render(doc.Notes, vars, s.Clusters))
+				b.WriteString("\n\n" + Render(doc.Notes, vars, clusters))
 			}
 		}
 	}
@@ -988,10 +997,10 @@ func (m *model) refreshDetail() {
 	}
 	if it := findItem(m.items, si.ItemID); it != nil {
 		if doc, err := it.Doc(); err == nil {
-			vars := itemVars(s, si, it)
-			md := Render(doc.Question, vars, s.Clusters) + "\n\n# Solution\n\n" + Render(doc.Solution, vars, s.Clusters)
+			vars, clusters := itemVars(s, si, it), s.ItemClusters(si, it)
+			md := Render(doc.Question, vars, clusters) + "\n\n# Solution\n\n" + Render(doc.Solution, vars, clusters)
 			if doc.Notes != "" {
-				md += "\n\n" + Render(doc.Notes, vars, s.Clusters)
+				md += "\n\n" + Render(doc.Notes, vars, clusters)
 			}
 			b.WriteString(m.markdown(fmt.Sprintf("detail/%s/%s", s.ID, si.ItemID), md))
 		}
@@ -1006,8 +1015,8 @@ type clusterRow struct{ profile, name, network string }
 
 func clusterRows() []clusterRow {
 	return []clusterRow{
-		{"practice", "cka-practice", ""}, {"ops", "cka-ops", ""}, {"cni", "cka-cni", ""}, {"runtime", "cka-runtime", ""}, {"ha", "cka-ha", ""},
-		{"practice", "cka-exam", "kind-exam"}, {"ops", "cka-exam-ops", "kind-exam"}, {"cni", "cka-exam-cni", "kind-exam"},
+		{"practice", "cka-practice", ""}, {"ops", "cka-ops", ""}, {"ops", "cka-ops2", ""}, {"cni", "cka-cni", ""}, {"runtime", "cka-runtime", ""}, {"ha", "cka-ha", ""},
+		{"practice", "cka-exam", "kind-exam"}, {"ops", "cka-exam-ops", "kind-exam"}, {"ops", "cka-exam-ops2", "kind-exam"}, {"cni", "cka-exam-cni", "kind-exam"},
 		{"runtime", "cka-exam-runtime", "kind-exam"}, {"ha", "cka-exam-ha", "kind-exam"},
 	}
 }

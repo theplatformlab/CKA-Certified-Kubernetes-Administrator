@@ -75,6 +75,25 @@ func clustersFor(mode string) map[string]string {
 	}
 }
 
+// clusterKey: the key in s.Clusters of the cluster the item runs on.
+func (s *Session) clusterKey(si *SessionItem, it *Item) string {
+	if si.Cluster != "" {
+		return si.Cluster
+	}
+	return it.Cluster
+}
+
+// ItemClusters: the session's clusters as the item sees them, its own
+// cluster under its profile.
+func (s *Session) ItemClusters(si *SessionItem, it *Item) map[string]string {
+	clusters := map[string]string{}
+	for p, name := range s.Clusters {
+		clusters[p] = name
+	}
+	clusters[it.Cluster] = s.Clusters[s.clusterKey(si, it)]
+	return clusters
+}
+
 func nodeNames(cluster string) (cp, w1, w2 string) {
 	return cluster + "-control-plane", cluster + "-worker", cluster + "-worker2"
 }
@@ -85,7 +104,7 @@ func itemVars(s *Session, si *SessionItem, it *Item) map[string]string {
 	for k, v := range si.Params {
 		vars[k] = v
 	}
-	cluster := s.Clusters[it.Cluster]
+	cluster := s.Clusters[s.clusterKey(si, it)]
 	cp, w1, w2 := nodeNames(cluster)
 	vars["CLUSTER"] = cluster
 	vars["CONTEXT"] = "kind-" + cluster
@@ -99,11 +118,9 @@ func itemVars(s *Session, si *SessionItem, it *Item) map[string]string {
 	return vars
 }
 
-func labEnv(s *Session, si *SessionItem) []string {
+func labEnv(s *Session, si *SessionItem, it *Item) []string {
 	env := os.Environ()
 	env = append(env,
-		"CKA_PRACTICE_CLUSTER="+s.Clusters["practice"],
-		"CKA_OPS_CLUSTER="+s.Clusters["ops"],
 		"WORKDIR="+si.Workdir,
 		fmt.Sprintf("CKA_SEED=%d", si.Seed%32768),
 		"CKA_PARAMS=1",
@@ -111,8 +128,9 @@ func labEnv(s *Session, si *SessionItem) []string {
 	if si.Namespace != "" {
 		env = append(env, "ITEM_NS="+si.Namespace)
 	}
-	for _, p := range []string{"cni", "runtime", "ha"} {
-		if c := s.Clusters[p]; c != "" {
+	clusters := s.ItemClusters(si, it)
+	for _, p := range []string{"practice", "ops", "cni", "runtime", "ha"} {
+		if c := clusters[p]; c != "" {
 			env = append(env, fmt.Sprintf("CKA_%s_CLUSTER=%s", strings.ToUpper(p), c))
 		}
 	}
@@ -168,7 +186,7 @@ func RunCheck(s *Session, si *SessionItem, it *Item) ([]CheckResult, string, err
 	f.Close()
 	defer os.Remove(f.Name())
 	var out bytes.Buffer
-	env := append(labEnv(s, si), "CKA_RESULTS_FILE="+f.Name())
+	env := append(labEnv(s, si, it), "CKA_RESULTS_FILE="+f.Name())
 	runErr := runLab("check", it, env, &out)
 	raw, _ := os.ReadFile(f.Name())
 	var results []CheckResult
@@ -347,14 +365,14 @@ func startClusters(names []string, log func(string)) error {
 	return <-errs
 }
 
-// Profiles used by a session's items.
-func sessionProfiles(s *Session, items []*Item) []string {
+// Clusters used by a session's items (keys of s.Clusters).
+func sessionClusters(s *Session, items []*Item) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, si := range s.Items {
-		if it := findItem(items, si.ItemID); it != nil && !seen[it.Cluster] {
-			seen[it.Cluster] = true
-			out = append(out, it.Cluster)
+		if it := findItem(items, si.ItemID); it != nil && !seen[s.clusterKey(si, it)] {
+			seen[s.clusterKey(si, it)] = true
+			out = append(out, s.clusterKey(si, it))
 		}
 	}
 	sort.Strings(out)
@@ -386,18 +404,15 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 	for _, it := range items {
 		byID[it.ID] = it
 	}
-	profiles := map[string]bool{}
-	for _, si := range s.Items {
-		profiles[byID[si.ItemID].Cluster] = true
-	}
+	keys := sessionClusters(s, items)
 
 	// Clusters (in parallel).
 	var wg sync.WaitGroup
-	errs := make(chan error, len(profiles))
-	for p := range profiles {
-		name := s.Clusters[p]
+	errs := make(chan error, len(keys))
+	for _, k := range keys {
+		p, name := profileOf(k), s.Clusters[k]
 		if name == "" {
-			return fmt.Errorf("no cluster for profile %s", p)
+			return fmt.Errorf("no cluster for %s", k)
 		}
 		if !fresh && clusterExists(name) {
 			if !clusterRunning(name) {
@@ -431,7 +446,7 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 
 	// Item setups: independent items on the practice cluster run in parallel;
 	// items on the other clusters change the nodes/control plane, so they run
-	// one by one, and "late" items (which break the API server) last.
+	// one by one.
 	for _, si := range s.Items {
 		os.RemoveAll(si.Workdir)
 		os.MkdirAll(si.Workdir, 0o755)
@@ -440,9 +455,9 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 		it := byID[si.ItemID]
 		var out bytes.Buffer
 		if !fresh {
-			runLab("cleanup", it, labEnv(s, si), io.Discard)
+			runLab("cleanup", it, labEnv(s, si, it), io.Discard)
 		}
-		if err := runLab("setup", it, labEnv(s, si), &out); err != nil {
+		if err := runLab("setup", it, labEnv(s, si, it), &out); err != nil {
 			si.SetupError = lastLines(out.String(), 6)
 			log(fmt.Sprintf("✗ setup of %s failed: %s", si.ItemID, lastLines(out.String(), 2)))
 			return
@@ -453,15 +468,12 @@ func Prepare(s *Session, items []*Item, fresh bool, log func(string)) error {
 	sem := make(chan struct{}, 6)
 	var parallel, sequential []*SessionItem
 	for _, si := range s.Items {
-		if byID[si.ItemID].Cluster == "practice" && byID[si.ItemID].Order != "late" {
+		if s.clusterKey(si, byID[si.ItemID]) == "practice" {
 			parallel = append(parallel, si)
 		} else {
 			sequential = append(sequential, si)
 		}
 	}
-	sort.SliceStable(sequential, func(i, j int) bool {
-		return byID[sequential[i].ItemID].Order != "late" && byID[sequential[j].ItemID].Order == "late"
-	})
 	var pwg sync.WaitGroup
 	for _, si := range parallel {
 		pwg.Add(1)
@@ -493,7 +505,7 @@ func recordBaselines(s *Session, byID map[string]*Item, log func(string)) {
 		wg.Add(1)
 		go func(si *SessionItem, it *Item) {
 			defer wg.Done()
-			ctx := "kind-" + s.Clusters[it.Cluster]
+			ctx := "kind-" + s.Clusters[s.clusterKey(si, it)]
 			vars := map[string]string{"@NS": si.Namespace}
 			for k, v := range si.Params {
 				vars[k] = v
@@ -526,7 +538,7 @@ func Cleanup(s *Session, items []*Item, log func(string)) {
 			continue
 		}
 		var out bytes.Buffer
-		if err := runLab("cleanup", it, labEnv(s, si), &out); err != nil {
+		if err := runLab("cleanup", it, labEnv(s, si, it), &out); err != nil {
 			log(fmt.Sprintf("✗ cleanup of %s: %s", si.ItemID, lastLines(out.String(), 2)))
 		} else {
 			log("✓ cleaned up " + it.Title)

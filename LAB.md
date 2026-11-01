@@ -17,7 +17,7 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 | Time | Soft: each item shows its recommended time next to your time on it | Hard countdown (120/90/60 min); grading starts automatically at 0 |
 | Help | Hints one at a time (`h`), check any time (`c`), solution on demand (`s s`) | None. Only the docs-only browser (kubernetes.io, helm.sh, gateway-api.sigs.k8s.io) |
 | Pause | `P` pauses; the menu offers "Continue" later, and clusters keep running | `P` freezes the timer, hides the question and locks the shell (pause screen). From there `u` resumes, `x` also shuts the exam clusters down (frees memory; "Continue" starts them again), `m` goes to the menu. `q` leaves the panel with the timer still running |
-| Clusters | Persistent `cka-practice`, `cka-ops`, `cka-cni`, `cka-runtime`, `cka-ha`, created on demand | Fresh `cka-exam`, `cka-exam-ops`, and `cka-exam-cni/-runtime/-ha` when an item needs one; built in parallel on their own docker network |
+| Clusters | Persistent `cka-practice`, `cka-ops` (`cka-ops2`), `cka-cni`, `cka-runtime`, `cka-ha`, created on demand | Fresh `cka-exam`, `cka-exam-ops`, and `cka-exam-ops2/-cni/-runtime/-ha` when an item needs one (at most one of these per exam); built in parallel on their own docker network |
 | End | `F F` grades all items, then cleans them up | `S S` submits; the exam clusters stay up so you can inspect them |
 
 **One item per topic.** Every item has a topic (pod-security, networkpolicy, priorityclass, ...). A generated session never contains two items of the same topic, so you don't get three Pod Security questions in one exam.
@@ -31,7 +31,7 @@ The first start builds the app from `tools/cka`, which needs [Go](https://go.dev
 **Namespaces in exams.** Exercises use `exercise-NN` namespaces when practising; in an exam each one gets a realistic name instead (`web-store`, `dev-team`, `payment-api`, ...), in the task text, the setup and the grading. Every namespace in the pool is unique, so no two questions of an exam share one.
 
 **Exams vs. the real CKA.**
-- On the real exam every task has its own cluster. Here, tasks share `cka-exam` (namespaced work) and `cka-exam-ops` (control-plane work). Items that touch the same component, such as two that break the API server, are never drawn together.
+- On the real exam every task has its own cluster. Here, tasks share `cka-exam` (namespaced work) and `cka-exam-ops` (control-plane work). An item whose setup breaks the cluster (API server down, broken scheduler or kubelet, etcd restore, upgrade) gets a cluster of its own, `cka-exam-ops2`, so it never blocks the other tasks. Other items that touch the same component are never drawn together.
 - At most one item per exam needs a special cluster (CNI, container runtime, HA), so startup stays at a few minutes.
 
 ## Keys
@@ -93,9 +93,9 @@ weight: 7                      # exam points
 modes: [practice, exam]        # or [practice] for tutorial-style labs
 namespaces: [payments]         # every namespace it uses; must be unique in the pool ({{PARAM}} allowed)
 exam_namespace: storefront     # exercises only: replaces exercise-NN in exams (lab.sh: NS="${ITEM_NS:-exercise-NN}")
-conflicts: [apiserver-manifest] # shared cluster-wide things it changes or breaks; items sharing a tag are never drawn together
-needs: [cluster-dns]           # things it relies on; never drawn with an item whose conflicts break them
-order: late                    # only if its setup leaves the API server down
+conflicts: [apiserver-manifest] # shared cluster-wide things it changes or breaks; items on one cluster sharing a tag are never drawn together
+needs: [cluster-dns]           # things it relies on; never drawn with an item on the same cluster whose conflicts break them
+own_cluster: true              # only if its setup breaks the cluster (API server, etcd, scheduler, a kubelet, ...): it gets a cluster of its own (cka-exam-ops2) when other items use its profile
 ```
 
 **`README.md`**: `# Title`, then the task, `## Hints` (a bullet list, gentlest hint first) and `## Solution`. The app fills these placeholders:

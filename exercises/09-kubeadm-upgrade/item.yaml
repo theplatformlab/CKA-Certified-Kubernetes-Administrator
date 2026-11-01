@@ -9,3 +9,4 @@ modes: [practice, exam]
 namespaces: [exercise-09]
 exam_namespace: upgrade
 conflicts: [cluster-version, apiserver-manifest, scheduler-manifest, controller-manager-manifest, worker-kubelet, pki]
+own_cluster: true

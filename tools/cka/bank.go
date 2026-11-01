@@ -60,9 +60,9 @@ type Item struct {
 	Modes      []string `yaml:"modes"`
 	Namespaces []string `yaml:"namespaces"`
 	ExamNS     string   `yaml:"exam_namespace"` // exercises: replaces exercise-NN in exams
-	Conflicts  []string `yaml:"conflicts"` // cluster-wide things the item changes or breaks
-	Needs      []string `yaml:"needs"`     // things it relies on (never drawn with an item that breaks them)
-	Order      string   `yaml:"order"` // "late": set up after the other items on its cluster
+	Conflicts  []string `yaml:"conflicts"`      // cluster-wide things the item changes or breaks
+	Needs      []string `yaml:"needs"`          // things it relies on (never drawn with an item that breaks them)
+	OwnCluster bool     `yaml:"own_cluster"`    // its setup breaks the cluster: never shares it with other items
 }
 
 func (it *Item) Allows(mode string) bool {

@@ -8,4 +8,4 @@ exam_minutes: 7
 weight: 9
 modes: [practice, exam]
 conflicts: [apiserver-manifest]
-order: late
+own_cluster: true

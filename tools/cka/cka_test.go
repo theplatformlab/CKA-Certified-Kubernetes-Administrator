@@ -58,6 +58,9 @@ func testItems() []*Item {
 	items[len(items)-2].Topic, items[len(items)-1].Topic = "same-topic", "same-topic"
 	add("special-1", "architecture", 8, []string{"s1"}, nil, "ha")
 	add("special-2", "architecture", 8, []string{"s2"}, nil, "cni")
+	add("own-1", "troubleshooting", 8, []string{"o1"}, []string{"apiserver"}, "ops")
+	add("own-2", "troubleshooting", 8, []string{"o2"}, []string{"apiserver"}, "ops")
+	items[len(items)-2].OwnCluster, items[len(items)-1].OwnCluster = true, true
 	return items
 }
 
@@ -72,13 +75,9 @@ func TestGenerateExam(t *testing.T) {
 		}
 		perDomain := map[string]int{}
 		ids := map[string]bool{}
-		special := 0
 		for _, p := range picks {
 			perDomain[p.Item.Domain] += p.Item.Minutes
 			ids[p.Item.ID] = true
-			if specialClusters[p.Item.Cluster] {
-				special++
-			}
 		}
 		if ids["conflict-1"] && ids["conflict-2"] {
 			t.Errorf("seed %d: conflicting items together", seed)
@@ -92,12 +91,36 @@ func TestGenerateExam(t *testing.T) {
 		if ids["topic-1"] && ids["topic-2"] {
 			t.Errorf("seed %d: two items of one topic", seed)
 		}
-		if special > 1 {
-			t.Errorf("seed %d: %d special-cluster items", seed, special)
+		if extra, _ := extraClusters(pickItems(picks)); extra > 1 {
+			t.Errorf("seed %d: %d clusters besides practice and ops", seed, extra)
 		}
 		if perDomain["troubleshooting"] < perDomain["storage"] {
 			t.Errorf("seed %d: weighting off: %v", seed, perDomain)
 		}
+	}
+}
+
+func TestClusterKeys(t *testing.T) {
+	ops := &Item{Cluster: "ops"}
+	own := &Item{Cluster: "ops", OwnCluster: true}
+	cni := &Item{Cluster: "cni", OwnCluster: true}
+	for _, c := range []struct {
+		items []*Item
+		want  string
+	}{
+		{[]*Item{own}, "ops"},
+		{[]*Item{own, cni}, "ops cni"},
+		{[]*Item{ops, own}, "ops ops2"},
+		{[]*Item{own, ops, own}, "ops2 ops ops3"},
+		{[]*Item{own, own}, "ops ops2"},
+	} {
+		if got := strings.Join(ClusterKeys(c.items), " "); got != c.want {
+			t.Errorf("got %q, want %q", got, c.want)
+		}
+	}
+	// Tags don't keep an own_cluster item away from the others.
+	if conflicts(Pick{Item: &Item{Cluster: "ops", Conflicts: []string{"x"}, OwnCluster: true}}, Pick{Item: &Item{Cluster: "ops", Needs: []string{"x"}}}) {
+		t.Error("own_cluster item conflicts")
 	}
 }
 

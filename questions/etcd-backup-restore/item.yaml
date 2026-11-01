@@ -8,4 +8,4 @@ weight: 9
 modes: [practice, exam]
 namespaces: [vault-records]
 conflicts: [etcd-data, apiserver-manifest, extra-node]
-order: late
+own_cluster: true

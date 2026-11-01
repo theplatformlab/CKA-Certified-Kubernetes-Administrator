@@ -10,3 +10,4 @@ modes: [practice, exam]
 namespaces: [ledger]
 conflicts: [controller-manager-manifest]
 needs: [worker-kubelet]
+own_cluster: true

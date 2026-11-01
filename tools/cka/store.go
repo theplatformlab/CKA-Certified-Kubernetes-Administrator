@@ -25,6 +25,7 @@ type SessionItem struct {
 	Params         map[string]string `json:"params,omitempty"`
 	Workdir        string            `json:"workdir"`
 	Namespace      string            `json:"namespace,omitempty"` // exams: replaces an exercise's exercise-NN
+	Cluster        string            `json:"cluster,omitempty"`   // key in Session.Clusters if not the item's profile (own_cluster)
 	Weight         int               `json:"weight"`
 	Minutes        int               `json:"minutes"`
 	SetupError     string            `json:"setupError,omitempty"`
