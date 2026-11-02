@@ -1,6 +1,6 @@
 # Contributing
 
-This is my personal CKA study guide. If you found a mistake, an outdated command, or a better way to do something — I want to hear about it. Don't write me an essay though. Show me what's broken and how to fix it.
+This repo is a hands-on lab for the CKA, CKAD and CKS plus a CKA study guide. If you found a mistake, an outdated command, or a better way to do something, open an issue or a PR. Keep it short: show what's broken and how to fix it.
 
 ## How to Contribute
 
@@ -32,14 +32,14 @@ Examples: `fix: correct etcd restore flags in etcd-backup-restore`, `feat: add a
 
 ## What to Avoid
 
-- **Do not submit real exam questions.** The CNCF has revoked people's certifications for this. I'm not kidding. General topics and "I got a question about etcd" is fine. Exact wording or screenshots is not.
-- Don't add AI-generated filler text. I can tell. Everyone can tell.
+- **Do not submit real exam questions.** The CNCF has revoked people's certifications for this. General topics and "I got a question about etcd" is fine. Exact wording or screenshots is not.
+- Don't add filler text. Every sentence should help someone pass or fix something.
 - Don't refactor working YAML because you prefer a different style. If it works and it's correct, leave it alone.
 - Don't duplicate a skill the pool already trains. The lab serves CKA, CKAD and CKS from one pool; give an item the right `area` instead of copying it for another exam.
 
 ## Style
 
-- First person, casual tone — matches the rest of the repo
+- Direct, practical tone — advice, not anecdotes
 - No emojis
 - Valid YAML and working kubectl commands
 - Use the aliases defined in `scripts/exam-setup.sh` (k, do, now)
@@ -56,4 +56,4 @@ The pool test loads every item and checks its metadata, README parts, areas and 
 
 ## Questions?
 
-Open an issue. I'll get back to you.
+Open an issue.
