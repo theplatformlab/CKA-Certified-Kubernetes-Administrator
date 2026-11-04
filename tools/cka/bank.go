@@ -264,7 +264,7 @@ type Doc struct {
 	Question string
 	Hints    []string
 	Solution string
-	Notes    string // "What tripped me up" / "Key Learning"
+	Notes    string // "Pitfalls"
 }
 
 var (
@@ -304,7 +304,7 @@ func ParseReadme(md string) Doc {
 			if doc.Solution == "" {
 				doc.Solution = body
 			}
-		case lower == "what tripped me up", lower == "key learning":
+		case lower == "pitfalls":
 			notes = append(notes, "## "+title+"\n\n"+body)
 		}
 	}

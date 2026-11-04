@@ -53,7 +53,7 @@ k get nodes
 
 When the API server is down, `kubectl logs` is useless. Use `crictl logs` on the node, or read `/var/log/pods/kube-system_kube-apiserver-*/kube-apiserver/*.log`. If the container doesn't even get created (YAML syntax error), the kubelet logs show why: `journalctl -u kubelet | grep apiserver`.
 
-## What tripped me up
+## Pitfalls
 
 - etcd's client port is `2379`; `2380` is the peer port. Take the endpoint from `--listen-client-urls` in `etcd.yaml` instead of typing what you think it is.
 - `kubectl apply` of a static pod manifest does nothing useful: edit the file in `/etc/kubernetes/manifests/` in place. If the pod doesn't come back within a minute, `journalctl -u kubelet -f` shows what the kubelet is doing with it.

@@ -46,7 +46,7 @@ exit
 k -n static-web get pods -o wide             # static-web-{{NODE_W1}}  1/1  Running
 ```
 
-## What tripped me up
+## Pitfalls
 
 - `kubectl delete pod static-web-{{NODE_W1}}` only deletes the mirror pod; the kubelet brings it back a few seconds later. The only way to remove a static pod is to delete its manifest on the node.
 - Don't assume `/etc/kubernetes/manifests`: read `staticPodPath` from the kubelet config. A manifest in the wrong directory just never appears.

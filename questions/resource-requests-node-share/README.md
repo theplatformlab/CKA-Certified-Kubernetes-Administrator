@@ -50,7 +50,7 @@ k -n capacity scale deploy web --replicas=3
 k -n capacity get pods -o wide              # 3 Running on {{NODE_W1}}
 ```
 
-## What tripped me up
+## Pitfalls
 
 - Fixed rules like "reserve 10% per node" don't work: check the node's real Allocatable and what is already allocated, then divide.
 - Requests are a scheduling promise, not usage: a pod requesting 512Mi never lands on a node with 256Mi unallocated, even if it only uses 10Mi.

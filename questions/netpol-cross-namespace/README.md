@@ -164,8 +164,8 @@ k -n frontend run t --rm -it --image=busybox:1.37 --labels=tier=frontend --resta
   wget -qO- -T 3 http://backend.backend:{{API_PORT}}
 ```
 
-## What tripped me up
+## Pitfalls
 
-- I wrote a perfect ingress rule on the backend and traffic was still blocked: the frontend's default-deny egress dropped it at the source. Both sides must allow it.
+- A correct ingress rule on the backend can still leave traffic blocked: the frontend's default-deny egress dropped it at the source. Both sides must allow it.
 - Writing app rules before the DNS rule makes every test by Service name fail, which looks like a broken app rule. Allow DNS first.
 - A blocked connection times out; "connection refused" means the policy let it through and nothing listens on that port.

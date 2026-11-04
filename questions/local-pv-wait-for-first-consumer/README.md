@@ -87,7 +87,7 @@ k -n local-disks exec app-pod -- sh -c 'echo hello > /data/test.txt'
 
 The scheduler places `app-pod` on `{{NODE_W1}}` because the PV's node affinity allows no other node; only then is the PVC bound.
 
-## What tripped me up
+## Pitfalls
 
-- I expected the PVC to be `Bound` right away and started debugging. With `WaitForFirstConsumer` binding waits for the first pod, so the volume's node can be taken into account.
+- The PVC is not `Bound` right away, and that is not a fault: with `WaitForFirstConsumer` binding waits for the first pod, so the volume's node can be taken into account.
 - A `local` volume's directory must already exist on the node; the pod stays in `ContainerCreating` otherwise.

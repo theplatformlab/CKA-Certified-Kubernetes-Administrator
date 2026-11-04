@@ -28,7 +28,7 @@ echo <ticket> > {{WORKDIR}}/ticket.txt
 
 The ephemeral container stays in the pod spec after you exit (`k -n debugging get pod dns-cache -o jsonpath='{.spec.ephemeralContainers}'`), and the node debugger pod stays in the namespace as `Completed`. Delete it when you are done.
 
-## What tripped me up
+## Pitfalls
 
 - Without `--target` the debug container gets its own process namespace: `ps` shows only busybox, no `coredns`.
 - In a node debug session the node is under `/host`. `chroot /host` makes it the root, so node paths and tools (`systemctl`, `crictl`, `journalctl`) work as usual.

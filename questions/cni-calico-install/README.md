@@ -88,7 +88,7 @@ k -n calico-test run ok  --image=busybox:1.37 --rm -it --restart=Never -l access
 k -n calico-test run bad --image=busybox:1.37 --rm -it --restart=Never -- wget -qO- -T 5 web                 # times out
 ```
 
-## What tripped me up
+## Pitfalls
 
-- I installed Calico with its default pool before checking the cluster's pod CIDR. With a mismatch, pods on different nodes can't reach each other, and fixing it means reinstalling. Read `podSubnet` first.
+- Installing Calico with its default pool before checking the cluster's pod CIDR is easy to do. With a mismatch, pods on different nodes can't reach each other, and fixing it means reinstalling. Read `podSubnet` first.
 - The operator needs a few seconds before `tigerastatus calico` even exists, and Calico takes 2-3 minutes after that. `k wait` fails right away on an object that doesn't exist yet.

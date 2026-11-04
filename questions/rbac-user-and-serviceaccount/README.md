@@ -41,7 +41,7 @@ k auth can-i delete nodes --as system:serviceaccount:staging:ci-bot         # no
 
 `--resource=deployments` resolves to `deployments.apps`. A Role and RoleBinding only grant access inside their namespace. That is what keeps `dev-user` out of other namespaces. Cluster-scoped resources like Nodes need a ClusterRole bound with a ClusterRoleBinding.
 
-## What tripped me up
+## Pitfalls
 
 - `--as=ci-bot` silently answers "no": a ServiceAccount is always `system:serviceaccount:<namespace>:<name>`.
 - Core resources (pods, services, nodes) have the API group `""` in YAML, not `v1`.

@@ -67,7 +67,7 @@ k -n argocd get application guestbook -w     # Synced / Healthy after about a mi
 k -n guestbook get deploy,svc
 ```
 
-## What tripped me up
+## Pitfalls
 
 - The argo-cd chart renders its CRDs as ordinary templates, so `helm template` includes them unless `crds.install=false`. `--skip-crds` only affects charts that keep CRDs in a `crds/` directory.
 - `helm template` without `--namespace argocd` renders objects for namespace `default`, and the ClusterRoleBindings then point to ServiceAccounts in the wrong namespace.

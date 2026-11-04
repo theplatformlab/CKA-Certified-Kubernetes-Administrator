@@ -35,7 +35,7 @@ k -n helm-apps get deploy web-podinfo   # {{REPLICAS_OLD}}/{{REPLICAS_OLD}}
 
 A rollback is a new revision (3) with the chart and values of revision 1; the history only moves forward.
 
-## What tripped me up
+## Pitfalls
 
 - `helm rollback web` without a revision goes back one step. With more revisions, read `helm history` and name the target explicitly.
 - `helm upgrade` without `--set` (or `--reuse-values`) resets every value you set at install time to the chart default.

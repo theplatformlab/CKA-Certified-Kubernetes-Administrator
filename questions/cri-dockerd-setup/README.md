@@ -99,7 +99,7 @@ crictl --runtime-endpoint unix:///run/cri-dockerd.sock version   # RuntimeName: 
 
 On a new node you would now pass the socket to kubeadm: `kubeadm join ... --cri-socket unix:///run/cri-dockerd.sock`. The release page also has `.deb` packages; `dpkg -i` installs `/usr/bin/cri-dockerd` and the unit files in one go.
 
-## What tripped me up
+## Pitfalls
 
 - Check `uname -m` before downloading: the arm64 tarball on an amd64 node fails with a confusing error that looks like a service problem.
 - Don't create `/run/cri-dockerd.sock` by hand: starting `cri-docker.socket` creates it.

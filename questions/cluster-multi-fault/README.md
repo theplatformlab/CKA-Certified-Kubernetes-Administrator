@@ -77,7 +77,7 @@ exit
 echo "system:serviceaccount:ops-check:<name from the query>" > {{WORKDIR}}/denied-user.txt
 ```
 
-## What tripped me up
+## Pitfalls
 
 - For a `NotReady` node, `kubectl describe node` shows conditions, not the cause. The cause is in `journalctl -u kubelet` on the node itself.
 - `systemctl start` alone fixes the node until the next reboot; the task wants `enable` as well.

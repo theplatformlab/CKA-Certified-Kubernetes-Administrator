@@ -9,7 +9,7 @@ import (
 
 func TestParseReadme(t *testing.T) {
 	md := "# Demo\n\n> Related: [x](y)\n\nIntro.\n\n## Hints\n\n<details>\n<summary>Stuck?</summary>\n\n- first\n- second\n  continued\n\n</details>\n\n" +
-		"## Solution\n\nk apply\n\n## What tripped me up\n\n> trap\n"
+		"## Solution\n\nk apply\n\n## Pitfalls\n\n> trap\n"
 	doc := ParseReadme(md)
 	if strings.Contains(doc.Question, "Related") || !strings.Contains(doc.Question, "Intro.") {
 		t.Errorf("question:\n%s", doc.Question)

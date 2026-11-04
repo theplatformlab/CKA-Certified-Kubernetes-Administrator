@@ -70,8 +70,8 @@ k get nodes                                   # both Ready, v1.36.6
 
 On a real kubeadm node you are not root: prefix the node commands with `sudo`.
 
-## What tripped me up
+## Pitfalls
 
-- After installing the new kubelet package it didn't come up: `systemctl daemon-reload` before `systemctl restart kubelet`, in that order.
+- After installing the new kubelet package it doesn't come up without `systemctl daemon-reload` before `systemctl restart kubelet`, in that order.
 - `kubeadm upgrade apply` is for the first control plane node only. On workers (and further control plane nodes) it's `kubeadm upgrade node`; `apply` on a worker fails halfway with a confusing error.
 - Drain the worker before the upgrade, not after. With a single worker, draining it also evicts CoreDNS (the control plane is tainted), so DNS is down until you uncordon.

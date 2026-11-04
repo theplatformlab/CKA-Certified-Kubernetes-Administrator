@@ -14,4 +14,4 @@ Short version: be helpful, be respectful, don't share real exam questions.
 
 ## Enforcement
 
-I'll edit or remove anything that breaks these rules. Repeat offenders get blocked. If you see something off, open an issue.
+Anything that breaks these rules is edited or removed. Repeat offenders get blocked. If you see something off, open an issue.

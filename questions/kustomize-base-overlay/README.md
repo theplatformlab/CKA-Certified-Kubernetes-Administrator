@@ -94,7 +94,7 @@ k apply -k overlays/staging
 k -n staging-apps get pods -l env=staging
 ```
 
-## What tripped me up
+## Pitfalls
 
 - An overlay without `resources: [../../base]` renders nothing, and applying it silently creates nothing. Preview with `kubectl kustomize` first.
 - Absolute paths in `resources` fail with an error about files outside the kustomization root. Keep them relative.

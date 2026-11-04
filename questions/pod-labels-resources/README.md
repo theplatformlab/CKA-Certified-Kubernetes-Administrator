@@ -43,7 +43,7 @@ k -n webshop label pod web tier-
 k -n webshop get pod web --show-labels
 ```
 
-## What tripped me up
+## Pitfalls
 
 - Forgetting `-n webshop` on `k apply` creates the pod in `default`: the grader only looks in the given namespace.
 - Don't fight `kubectl run` over resources: redirect `$do` to a file, edit, apply.
