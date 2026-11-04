@@ -1,0 +1,9 @@
+title: Reuse a Released PersistentVolume
+topic: persistent-volumes
+area: volumes
+difficulty: 2
+minutes: 8
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [archive]

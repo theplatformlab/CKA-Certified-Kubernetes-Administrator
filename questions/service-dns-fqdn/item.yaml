@@ -1,0 +1,10 @@
+title: Service discovery and DNS
+topic: service-discovery
+area: services
+difficulty: 1
+minutes: 6
+exam_minutes: 4
+weight: 5
+modes: [practice, exam]
+namespaces: [portal, orders]
+needs: [cluster-dns]

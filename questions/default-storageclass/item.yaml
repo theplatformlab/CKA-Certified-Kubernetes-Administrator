@@ -1,0 +1,10 @@
+title: StorageClass and default class
+topic: storageclass
+area: storage-classes
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 8
+modes: [practice, exam]
+namespaces: [storage]
+conflicts: [default-storageclass]

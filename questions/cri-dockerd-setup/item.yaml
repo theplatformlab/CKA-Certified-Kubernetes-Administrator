@@ -1,0 +1,9 @@
+title: Install Docker Engine and cri-dockerd
+topic: cri-dockerd
+area: extensions
+difficulty: 2
+minutes: 15
+exam_minutes: 10
+weight: 8
+modes: [practice, exam]
+conflicts: [docker-on-worker]

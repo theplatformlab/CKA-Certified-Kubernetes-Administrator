@@ -1,0 +1,10 @@
+title: Immutable containers
+topic: immutability
+area: immutability
+exams: [cks]
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [invoice-svc]

@@ -1,0 +1,8 @@
+# Default practice cluster: 1 control plane + 2 workers.
+# Used by most questions (namespaced work).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+- role: worker

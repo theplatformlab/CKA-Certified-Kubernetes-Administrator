@@ -1,0 +1,9 @@
+title: Local PersistentVolume with WaitForFirstConsumer
+topic: persistent-volumes
+area: storage-classes
+difficulty: 2
+minutes: 12
+exam_minutes: 8
+weight: 8
+modes: [practice, exam]
+namespaces: [local-disks]

@@ -1,0 +1,9 @@
+title: Pod Security Standards
+topic: pod-security
+area: pod-security
+difficulty: 2
+minutes: 8
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [restricted]

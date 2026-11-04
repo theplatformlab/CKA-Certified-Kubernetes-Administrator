@@ -1,0 +1,9 @@
+title: Canary deployment behind one Service
+topic: canary
+area: rollouts
+difficulty: 2
+minutes: 8
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [release]

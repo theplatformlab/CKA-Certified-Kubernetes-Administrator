@@ -1,0 +1,32 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: App and item pool
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/cka/go.mod
+
+      # The pool test loads every questions/<id>/ item and checks its
+      # metadata, README parts, areas and namespaces.
+      - name: go vet and go test
+        working-directory: tools/cka
+        run: |
+          go vet ./...
+          go test ./...
+
+      - name: Shell syntax of the scripts and item labs
+        run: |
+          for f in cka scripts/*.sh scripts/lib/*.sh questions/*/lab.sh; do
+            bash -n "$f" || exit 1
+          done

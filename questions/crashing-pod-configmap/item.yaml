@@ -1,0 +1,9 @@
+title: Fix a crashing pod with a ConfigMap
+topic: app-failure
+area: applications
+difficulty: 1
+minutes: 8
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [production]

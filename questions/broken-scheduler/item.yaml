@@ -1,0 +1,12 @@
+title: Pods stuck in Pending
+topic: control-plane-repair
+area: cluster-components
+difficulty: 2
+minutes: 10
+exam_minutes: 6
+weight: 8
+modes: [practice, exam]
+namespaces: [default]
+conflicts: [scheduler-manifest]
+needs: [worker-kubelet]
+own_cluster: true

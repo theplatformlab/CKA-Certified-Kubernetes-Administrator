@@ -1,0 +1,92 @@
+#!/bin/bash
+# Start the CKA lab: practice sessions and mock exams from the item pool.
+#
+#   ./cka            open the lab (tmux: app on the left, your shell on the right)
+#   ./cka --here     attach in this terminal instead of opening a new window (WSL)
+#   ./cka <cmd>      run a CLI command of the app: list, gen exam, render <id>, ...
+#
+# Builds bin/cka from tools/cka on first use (needs Go, see README).
+
+set -euo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BIN="$REPO/bin/cka"
+SESSION="cka-lab"
+
+build() {
+  local go_bin
+  go_bin="$(command -v go || true)"
+  [[ -z "$go_bin" && -x "$HOME/.local/go/bin/go" ]] && go_bin="$HOME/.local/go/bin/go"
+  [[ -z "$go_bin" && -x /usr/local/go/bin/go ]] && go_bin=/usr/local/go/bin/go
+  if [[ -z "$go_bin" ]]; then
+    echo "Go is needed to build the app: https://go.dev/doc/install" >&2
+    exit 1
+  fi
+  echo "Building bin/cka ..." >&2
+  (cd "$REPO/tools/cka" && "$go_bin" build -o "$BIN" .)
+}
+
+# Rebuild when any Go source is newer than the binary.
+if [[ ! -x "$BIN" ]] || [[ -n "$(find "$REPO/tools/cka" -newer "$BIN" -type f -print -quit)" ]]; then
+  build
+fi
+
+here=false
+if [[ "${1:-}" == "--here" ]]; then here=true; shift; fi
+if [[ $# -gt 0 ]]; then
+  exec "$BIN" "$@"
+fi
+
+for cmd in tmux kubectl kind docker; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "'$cmd' is required" >&2; exit 1; }
+done
+
+# Quitting the app closes the whole lab session (shells included; sessions
+# and exams are saved and can be continued with ./cka). An error stays
+# visible until Enter. If only the app pane was closed, ./cka brings it back.
+app_cmd="'$BIN' ui || { echo; echo 'cka exited with an error — press enter to close'; read; }; tmux kill-session -t '$SESSION'"
+
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  rc="$REPO/scripts/exam/bashrc"
+  mkdir -p "$HOME/cka-lab"
+  tmux new-session -d -s "$SESSION" -n lab -x 220 -y 50 -c "$HOME/cka-lab" "bash --rcfile '$rc'"
+  tmux set -t "$SESSION" default-command "bash --rcfile '$rc'"
+  tmux set -t "$SESSION" mouse on
+  tmux set -t "$SESSION" status-style "bg=colour24,fg=white"
+  tmux set -t "$SESSION" status-left " CKA Lab │ "
+  tmux set -t "$SESSION" status-right " Ctrl-b ←/→ switch pane · Ctrl-b c new shell "
+  tmux set -t "$SESSION" status-right-length 60
+fi
+# tmux holds a lone Esc for escape-time (default 500 ms) to see whether an
+# escape sequence follows — that made "Esc = back" feel sluggish. It is a
+# server-wide option; 10 ms is what most vim users configure anyway.
+tmux set -s escape-time 10
+
+# Key behaviour of the real exam terminal (docs.linuxfoundation.org/tc-docs/
+# certification/tips-cka-and-ckad), only inside this session:
+#   Ctrl+W does nothing (on the exam it would close the browser tab),
+#   Ctrl+Alt+W deletes the previous word instead, the Insert key is disabled.
+# Mouse selections are copied to the system clipboard (OSC 52), so selecting
+# + Ctrl+Shift+V works like on the exam desktop.
+in_lab="#{==:#{session_name},$SESSION}"
+tmux bind -n C-w if -F "$in_lab" "" "send-keys C-w"
+tmux bind -n C-M-w if -F "$in_lab" "send-keys C-w" "send-keys C-M-w"
+tmux bind -n IC if -F "$in_lab" "" "send-keys IC"
+tmux set -s set-clipboard on
+
+if ! tmux list-panes -s -t "$SESSION" -F '#{pane_title}' | grep -qx cka-app; then
+  tmux split-window -t "$SESSION:lab" -h -b -l 50% "$app_cmd"
+  tmux select-pane -t "$SESSION:lab" -T cka-app
+fi
+tmux select-window -t "$SESSION:lab"
+
+if [[ -n "${TMUX:-}" ]]; then
+  exec tmux switch-client -t "$SESSION"
+elif [[ "$here" != true ]] && command -v wt.exe >/dev/null 2>&1 && [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
+  wt.exe -w new wsl.exe -d "$WSL_DISTRO_NAME" -- tmux attach -t "$SESSION" >/dev/null 2>&1 &
+  echo "CKA lab opened in a new Windows Terminal window (re-open: ./cka --here or tmux attach -t $SESSION)"
+elif [[ -t 0 ]]; then
+  exec tmux attach -t "$SESSION"
+else
+  echo "Attach with: tmux attach -t $SESSION"
+fi

@@ -1,0 +1,10 @@
+title: Init container prepares content
+topic: init-containers
+area: pods
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [docs]
+needs: [cluster-dns]

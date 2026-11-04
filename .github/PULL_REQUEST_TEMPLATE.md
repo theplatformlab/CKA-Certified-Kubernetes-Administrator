@@ -5,24 +5,22 @@
 ## Type of change
 
 - [ ] Bug fix (broken command, invalid YAML, dead link)
-- [ ] New content (exercise, skeleton, troubleshooting scenario)
+- [ ] New content (lab item, template, troubleshooting scenario)
 - [ ] Documentation update (README, comments, wording)
 - [ ] Chore (CI, tooling, repo housekeeping)
 
-## Which CKA domain does this relate to?
+## Which exam does this relate to?
 
-- [ ] Storage (10%)
-- [ ] Troubleshooting (30%)
-- [ ] Workloads & Scheduling (15%)
-- [ ] Cluster Architecture, Installation & Configuration (25%)
-- [ ] Services & Networking (20%)
+- [ ] CKA
+- [ ] CKAD
+- [ ] CKS
 - [ ] N/A
 
 ## Checklist
 
-- [ ] I ran `bash scripts/validate-local.sh` with no errors
+- [ ] I ran `go test ./...` in `tools/cka` with no errors (and, for a lab item, setup → check 0 → solution → full pass → cleanup)
 - [ ] I tested any YAML/commands on Kubernetes v1.35
 - [ ] I did not include real CKA exam questions
-- [ ] I followed the writing style (first-person, casual, no emojis, no AI filler)
+- [ ] I followed the writing style (direct, practical, no emojis, no filler)
 - [ ] I used the repo aliases (`k`, `$do`, `$now`) where applicable
 - [ ] I verified all links point to existing files or valid URLs

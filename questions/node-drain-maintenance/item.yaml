@@ -1,0 +1,10 @@
+title: Node maintenance
+topic: node-maintenance
+area: cluster-lifecycle
+difficulty: 1
+minutes: 6
+exam_minutes: 4
+weight: 6
+modes: [practice, exam]
+namespaces: [maintenance]
+conflicts: [worker2-drain]

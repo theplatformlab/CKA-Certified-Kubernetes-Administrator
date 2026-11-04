@@ -1,0 +1,9 @@
+title: Repair an HA control plane
+topic: ha-control-plane
+area: cluster-lifecycle
+difficulty: 2
+minutes: 10
+exam_minutes: 8
+weight: 8
+modes: [practice, exam]
+conflicts: [ha-control-plane]

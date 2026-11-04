@@ -1,0 +1,9 @@
+title: kubectl debug for a pod and a node
+topic: kubectl-debug
+area: observability
+difficulty: 2
+minutes: 10
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [debugging]

@@ -1,0 +1,9 @@
+title: Read a kubeconfig file
+topic: kubeconfig
+area: rbac
+exams: [cka, ckad]
+difficulty: 1
+minutes: 6
+exam_minutes: 4
+weight: 4
+modes: [practice, exam]

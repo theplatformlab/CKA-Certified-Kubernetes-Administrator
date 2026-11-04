@@ -1,0 +1,11 @@
+title: Four faults at once
+topic: multi-fault
+area: nodes
+difficulty: 3
+minutes: 25
+exam_minutes: 18
+weight: 12
+modes: [practice]
+namespaces: [ops-check]
+conflicts: [worker-kubelet, coredns, kube-proxy, apiserver-manifest]
+own_cluster: true

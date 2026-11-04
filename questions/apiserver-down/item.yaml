@@ -1,0 +1,10 @@
+title: API server is down
+topic: control-plane-repair
+area: cluster-components
+difficulty: 3
+minutes: 12
+exam_minutes: 7
+weight: 9
+modes: [practice, exam]
+conflicts: [apiserver-manifest]
+own_cluster: true

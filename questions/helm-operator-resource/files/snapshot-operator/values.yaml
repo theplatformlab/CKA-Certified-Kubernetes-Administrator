@@ -1,0 +1,20 @@
+# Install the CustomResourceDefinitions together with the operator.
+# Off by default so that several releases can share one set of CRDs.
+crds:
+  enabled: false
+  # Keep the CRDs (and with them every SnapshotPolicy) on helm uninstall.
+  keep: true
+
+replicaCount: 1
+
+image:
+  repository: busybox
+  tag: "1.37"
+
+# Log verbosity of the controller: info | debug
+logLevel: info
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 16Mi

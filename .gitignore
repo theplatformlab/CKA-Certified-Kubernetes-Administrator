@@ -34,3 +34,9 @@ __pycache__/
 *.tfstate
 *.tfstate.backup
 .terraform/
+
+# Mock exam runtime state (timer, browser profile, proxy logs)
+.exam-runtime/
+
+# Built lab app (./cka builds it from tools/cka)
+bin/

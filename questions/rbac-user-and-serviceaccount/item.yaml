@@ -1,0 +1,9 @@
+title: RBAC for a user and a ServiceAccount
+topic: rbac
+area: rbac
+difficulty: 1
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [staging]

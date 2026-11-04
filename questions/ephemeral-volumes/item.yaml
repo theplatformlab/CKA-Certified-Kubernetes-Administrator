@@ -1,0 +1,9 @@
+title: emptyDir in memory and a generic ephemeral volume
+topic: ephemeral-volumes
+area: volumes
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 6
+modes: [practice, exam]
+namespaces: [scratch-space]

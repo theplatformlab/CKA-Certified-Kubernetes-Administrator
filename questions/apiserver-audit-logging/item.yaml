@@ -1,0 +1,10 @@
+title: API server audit logging
+topic: audit-logging
+area: cluster-lifecycle
+areas: [audit-logs]
+difficulty: 3
+minutes: 12
+exam_minutes: 9
+weight: 7
+modes: [practice, exam]
+conflicts: [apiserver-manifest]

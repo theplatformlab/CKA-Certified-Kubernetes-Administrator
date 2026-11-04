@@ -1,0 +1,10 @@
+title: StatefulSet with stable storage
+topic: statefulset
+area: workload-controllers
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [db-cluster]
+needs: [cluster-dns]

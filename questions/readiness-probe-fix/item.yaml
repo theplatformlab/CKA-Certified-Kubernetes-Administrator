@@ -1,0 +1,11 @@
+title: Pods never become ready
+topic: probes
+area: networking
+areas: [probes]
+difficulty: 2
+minutes: 8
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [inventory]
+needs: [cluster-dns]

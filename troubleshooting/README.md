@@ -368,7 +368,7 @@ k get csidrivers
 
 ## Kustomize Apply Not Working
 
-Run `k kustomize <directory>/` first to see the rendered output. If that looks wrong, the problem is in kustomization.yaml. If it looks right but `k apply -k` fails, it's usually a namespace or resource conflict.\n\nMost common cause: paths in kustomization.yaml are relative to where the file is, not where you're running the command from. I got bitten by this in exercise 14.\n\n```bash\nk kustomize <directory>/ | less    # preview before applying\nk apply -k <directory>/\n```
+Run `k kustomize <directory>/` first to see the rendered output. If that looks wrong, the problem is in kustomization.yaml. If it looks right but `k apply -k` fails, it's usually a namespace or resource conflict.\n\nMost common cause: paths in kustomization.yaml are relative to where the file is, not where you're running the command from. I got bitten by this more than once.\n\n```bash\nk kustomize <directory>/ | less    # preview before applying\nk apply -k <directory>/\n```
 
 ---
 

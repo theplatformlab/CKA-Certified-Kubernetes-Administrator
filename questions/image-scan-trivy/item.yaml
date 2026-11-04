@@ -1,0 +1,10 @@
+title: Scan Pod images with trivy and remove vulnerable Pods
+topic: image-scanning
+area: static-analysis
+exams: [cks]
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [media-portal]

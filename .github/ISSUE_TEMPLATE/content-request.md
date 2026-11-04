@@ -1,13 +1,13 @@
 ---
 name: Content Request
-about: Suggest a new exercise, topic, or improvement
+about: Suggest a new lab question, topic, or improvement
 title: "[Request] "
 labels: enhancement
 assignees: ''
 ---
 
 **What's missing?**
-<!-- Describe the topic, exercise, or section you'd like to see. -->
+<!-- Describe the topic, lab question, or section you'd like to see. -->
 
 **Which CKA domain does it relate to?**
 - [ ] Storage (10%)

@@ -1,0 +1,9 @@
+title: Tune the kubelet configuration
+topic: kubelet-config
+area: cluster-lifecycle
+difficulty: 2
+minutes: 8
+exam_minutes: 6
+weight: 6
+modes: [practice, exam]
+conflicts: [worker-kubelet]

@@ -1,0 +1,11 @@
+title: Forward a private DNS zone in CoreDNS
+topic: coredns
+area: dns
+difficulty: 2
+minutes: 9
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [corp-dns]
+conflicts: [coredns]
+needs: [cluster-dns]

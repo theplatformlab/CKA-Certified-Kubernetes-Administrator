@@ -1,0 +1,10 @@
+title: Kubelet and container runtime
+topic: node-kubelet
+area: nodes
+difficulty: 2
+minutes: 8
+exam_minutes: 6
+weight: 8
+modes: [practice, exam]
+conflicts: [worker-kubelet]
+own_cluster: true

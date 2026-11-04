@@ -1,0 +1,9 @@
+title: Install Calico with the Tigera operator
+topic: cni
+area: extensions
+difficulty: 3
+minutes: 30
+exam_minutes: 12
+weight: 12
+modes: [practice, exam]
+namespaces: [calico-test]

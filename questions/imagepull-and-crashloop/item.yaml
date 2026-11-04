@@ -1,0 +1,9 @@
+title: Two broken Deployments
+topic: app-failure
+area: applications
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [checkout]

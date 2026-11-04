@@ -1,0 +1,11 @@
+title: Confine a Pod with an AppArmor profile
+topic: apparmor
+area: kernel-hardening
+exams: [cks]
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+# practice only: needs the AppArmor LSM in the host kernel (off by default on WSL2, see docs/CKS-WSL.md)
+modes: [practice]
+namespaces: [doc-render]

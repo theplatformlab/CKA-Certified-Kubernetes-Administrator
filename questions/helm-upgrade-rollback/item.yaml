@@ -1,0 +1,9 @@
+title: Helm repository, upgrade and rollback
+topic: helm-rollback
+area: helm-kustomize
+difficulty: 2
+minutes: 12
+exam_minutes: 7
+weight: 8
+modes: [practice, exam]
+namespaces: [helm-apps]

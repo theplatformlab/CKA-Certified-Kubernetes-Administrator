@@ -1,0 +1,9 @@
+title: Roll back a broken rollout
+topic: rollouts
+area: rollouts
+difficulty: 1
+minutes: 8
+exam_minutes: 5
+weight: 7
+modes: [practice, exam]
+namespaces: [payments]

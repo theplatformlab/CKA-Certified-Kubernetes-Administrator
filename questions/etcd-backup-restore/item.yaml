@@ -1,0 +1,11 @@
+title: etcd backup and restore
+topic: etcd-backup
+area: cluster-lifecycle
+difficulty: 3
+minutes: 15
+exam_minutes: 11
+weight: 9
+modes: [practice, exam]
+namespaces: [vault-records]
+conflicts: [etcd-data, apiserver-manifest, extra-node]
+own_cluster: true

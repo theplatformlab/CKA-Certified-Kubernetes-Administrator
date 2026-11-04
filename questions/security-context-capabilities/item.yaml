@@ -1,0 +1,9 @@
+title: Harden a Deployment with security contexts
+topic: security-context
+area: pod-security
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [hardened-apps]

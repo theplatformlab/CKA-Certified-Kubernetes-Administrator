@@ -1,0 +1,9 @@
+title: Renew control plane certificates
+topic: certificates
+area: cluster-lifecycle
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 8
+modes: [practice, exam]
+conflicts: [pki, apiserver-manifest-restart]

@@ -1,0 +1,11 @@
+title: Ingress with TLS
+topic: ingress
+area: ingress-gateway
+areas: [ingress-tls]
+difficulty: 1
+minutes: 7
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [api]
+conflicts: [ingressclass-nginx]

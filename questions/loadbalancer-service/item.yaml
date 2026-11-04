@@ -1,0 +1,10 @@
+title: Service of type LoadBalancer
+topic: service-types
+area: services
+difficulty: 1
+minutes: 7
+exam_minutes: 5
+weight: 6
+modes: [practice, exam]
+namespaces: [edge-lb]
+conflicts: [cloud-provider-kind]

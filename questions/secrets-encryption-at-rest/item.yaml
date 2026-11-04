@@ -1,0 +1,11 @@
+title: Encrypt Secrets at rest
+topic: encryption-at-rest
+area: secrets-management
+difficulty: 3
+minutes: 14
+exam_minutes: 10
+weight: 8
+modes: [practice, exam]
+namespaces: [treasury]
+conflicts: [apiserver-manifest]
+own_cluster: true

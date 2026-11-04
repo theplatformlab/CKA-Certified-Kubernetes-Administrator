@@ -1,0 +1,9 @@
+title: Manifests with removed API versions
+topic: api-deprecations
+area: api-deprecations
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [legacy-apps]

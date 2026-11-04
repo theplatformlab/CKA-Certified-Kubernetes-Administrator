@@ -1,0 +1,9 @@
+title: Pod Pending on its volume
+topic: pvc-binding
+area: storage-classes
+difficulty: 2
+minutes: 8
+exam_minutes: 5
+weight: 7
+modes: [practice, exam]
+namespaces: [reports]

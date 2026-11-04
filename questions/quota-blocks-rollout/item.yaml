@@ -1,0 +1,9 @@
+title: Rollout stuck in a namespace with a quota
+topic: quota
+area: applications
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [billing]

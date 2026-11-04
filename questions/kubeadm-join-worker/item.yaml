@@ -1,0 +1,9 @@
+title: Join a worker node with kubeadm
+topic: kubeadm-join
+area: cluster-lifecycle
+difficulty: 2
+minutes: 8
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+conflicts: [extra-node]

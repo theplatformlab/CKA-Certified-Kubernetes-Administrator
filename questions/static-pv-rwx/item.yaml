@@ -1,0 +1,10 @@
+title: Static PersistentVolume
+topic: persistent-volumes
+area: volumes
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [databases]
+conflicts: [storageclass-fast-ssd]

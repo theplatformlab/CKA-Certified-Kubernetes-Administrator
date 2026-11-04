@@ -1,0 +1,10 @@
+title: Egress NetworkPolicy with DNS
+topic: networkpolicy
+area: network-policies
+difficulty: 2
+minutes: 9
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [ledger-app, audit-log]
+needs: [cluster-dns]

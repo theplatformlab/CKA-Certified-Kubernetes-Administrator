@@ -1,0 +1,6 @@
+apiVersion: v2
+name: monitoring
+description: Minimal monitoring stack used by the helm-local-chart question
+type: application
+version: 0.1.0
+appVersion: "1.28"

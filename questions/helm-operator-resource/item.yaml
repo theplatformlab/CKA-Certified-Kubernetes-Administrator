@@ -1,0 +1,10 @@
+title: Install an operator chart with CRDs
+topic: helm-operator
+area: helm-kustomize
+difficulty: 2
+minutes: 9
+exam_minutes: 6
+weight: 7
+modes: [practice, exam]
+namespaces: [snapshot-system, warehouse-db]
+conflicts: [crd-snapshotpolicies]

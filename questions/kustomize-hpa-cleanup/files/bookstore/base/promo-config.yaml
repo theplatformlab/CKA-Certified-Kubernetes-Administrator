@@ -1,0 +1,9 @@
+# Settings for the summer promotion banner (campaign ended).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promo-config
+data:
+  PROMO_ENABLED: "true"
+  PROMO_BANNER: summer-sale
+  PROMO_DISCOUNT: "15"

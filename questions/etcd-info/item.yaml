@@ -1,0 +1,9 @@
+title: Collect etcd facts from the control plane
+topic: etcd-info
+area: cluster-lifecycle
+difficulty: 1
+minutes: 6
+exam_minutes: 4
+weight: 5
+modes: [practice, exam]
+needs: [pki]

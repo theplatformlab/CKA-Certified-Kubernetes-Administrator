@@ -1,0 +1,9 @@
+title: User certificate and kubeconfig
+topic: user-csr
+area: rbac
+difficulty: 3
+minutes: 12
+exam_minutes: 9
+weight: 8
+modes: [practice, exam]
+namespaces: [insights]

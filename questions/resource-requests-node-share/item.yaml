@@ -1,0 +1,10 @@
+title: Size resource requests to fit a node
+topic: resource-requests
+area: resources
+difficulty: 3
+minutes: 15
+exam_minutes: 9
+weight: 10
+modes: [practice]
+namespaces: [capacity]
+conflicts: [worker1-capacity]

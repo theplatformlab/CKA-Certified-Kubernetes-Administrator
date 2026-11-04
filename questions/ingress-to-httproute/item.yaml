@@ -1,0 +1,10 @@
+title: Migrate an Ingress to an HTTPRoute
+topic: gateway-header-routing
+area: ingress-gateway
+difficulty: 2
+minutes: 10
+exam_minutes: 7
+weight: 7
+modes: [practice, exam]
+namespaces: [media-hub]
+conflicts: [gateway-api-crds]
