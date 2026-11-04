@@ -1,8 +1,1 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Questions & Discussion
-    url: https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/discussions
-    about: Ask questions, share study tips, or discuss CKA prep strategies.
-  - name: Exam Feedback
-    url: https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/discussions/categories/exam-feedback
-    about: Share your CKA exam experience and score.
+blank_issues_enabled: true

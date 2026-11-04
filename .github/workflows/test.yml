@@ -11,9 +11,9 @@ jobs:
     name: App and item pool
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: tools/cka/go.mod
 
@@ -25,8 +25,9 @@ jobs:
           go vet ./...
           go test ./...
 
-      - name: Shell syntax of the scripts and item labs
+      - name: Shell syntax of the scripts, exam shims and item labs
         run: |
-          for f in cka scripts/*.sh scripts/lib/*.sh questions/*/lab.sh; do
+          for f in cka scripts/*.sh scripts/lib/*.sh scripts/exam/*.sh \
+                   scripts/exam/bashrc scripts/exam/bin/* questions/*/lab.sh; do
             bash -n "$f" || exit 1
           done

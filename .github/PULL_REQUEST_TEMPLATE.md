@@ -20,7 +20,7 @@
 
 - [ ] I ran `go test ./...` in `tools/cka` with no errors (and, for a lab item, setup → check 0 → solution → full pass → cleanup)
 - [ ] I tested any YAML/commands on Kubernetes v1.35
-- [ ] I did not include real CKA exam questions
+- [ ] I did not include real CKA, CKAD or CKS exam questions
 - [ ] I followed the writing style (direct, practical, no emojis, no filler)
 - [ ] I used the repo aliases (`k`, `$do`, `$now`) where applicable
 - [ ] I verified all links point to existing files or valid URLs

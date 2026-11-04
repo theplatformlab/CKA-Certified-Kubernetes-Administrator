@@ -9,13 +9,13 @@ assignees: ''
 **What's missing?**
 <!-- Describe the topic, lab question, or section you'd like to see. -->
 
-**Which CKA domain does it relate to?**
-- [ ] Storage (10%)
-- [ ] Troubleshooting (30%)
-- [ ] Workloads & Scheduling (15%)
-- [ ] Cluster Architecture, Installation & Configuration (25%)
-- [ ] Services & Networking (20%)
-- [ ] General / not domain-specific
+**Which exam does it relate to?**
+- [ ] CKA
+- [ ] CKAD
+- [ ] CKS
+
+**Which curriculum domain?**
+<!-- The domain from that exam's curriculum, e.g. CKA "Troubleshooting", CKAD "Application Environment, Configuration and Security", CKS "Minimize Microservice Vulnerabilities". Or "general / not domain-specific". -->
 
 **Why would this help?**
-<!-- Did you encounter this on the exam? During practice? Saw it in the syllabus but it's not covered here? -->
+<!-- Did you encounter this on the exam? During practice? Saw it in the curriculum but it's not covered here? -->
