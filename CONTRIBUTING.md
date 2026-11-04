@@ -1,16 +1,15 @@
 # Contributing
 
-This repo is a hands-on lab for the CKA, CKAD and CKS plus a CKA study guide. If you found a mistake, an outdated command, or a better way to do something, open an issue or a PR. Keep it short: show what's broken and how to fix it.
+This repo is a hands-on lab for the CKA, CKAD and CKS plus study guides for all three. If you found a mistake, an outdated command, or a better way to do something, open an issue or a PR. Keep it short: show what's broken and how to fix it.
 
 ## How to Contribute
 
-1. Fork the repo
-2. Create a branch (`git checkout -b fix/your-fix`)
-3. Make your changes
-4. For a lab item: run its setup, check, solution and cleanup for real (see [LAB.md](LAB.md#writing-an-item)), then `cd tools/cka && go test ./...`
-5. Test any commands on Kubernetes v1.35 — if you haven't actually run the command, don't submit it
-6. Commit (`git commit -m "fix: description"`)
-7. Push and open a PR
+1. Create a branch (`git checkout -b fix/your-fix`)
+2. Make your changes
+3. For a lab item: run its setup, check, solution and cleanup for real (see [docs/lab.md](docs/lab.md#writing-an-item)), then `cd tools/cka && go test ./...`
+4. Test any commands on Kubernetes v1.35 — if you haven't actually run the command, don't submit it
+5. Commit (`git commit -m "fix: description"`)
+6. Push and open a PR against `main`
 
 ## Commit Convention
 
@@ -25,7 +24,7 @@ Examples: `fix: correct etcd restore flags in etcd-backup-restore`, `feat: add a
 
 ## What's Helpful
 
-- Catching a broken command or wrong flag (these slip through more than I'd like)
+- Catching a broken command or wrong flag (these slip through)
 - Fixing outdated YAML — API versions change, flags get deprecated
 - Adding lab items that match real exam style — practical tasks, not theory questions
 - Sharing what tripped you up during the exam (without sharing actual questions — see below)
@@ -52,7 +51,7 @@ Before pushing, run:
 cd tools/cka && go test ./...
 ```
 
-The pool test loads every item and checks its metadata, README parts, areas and namespaces. CI runs it too, plus a syntax check of every `lab.sh`.
+The pool test loads every item and checks its metadata, README parts, areas and namespaces. CI runs it too, plus a syntax check of every `lab.sh` and script.
 
 ## Questions?
 

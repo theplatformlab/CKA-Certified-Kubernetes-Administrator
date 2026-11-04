@@ -10,8 +10,9 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - CKAD and CKS next to CKA: choose the certification in `./cka`; one pool of 110 questions, each tagged with the curriculum area it trains, so an item counts for every exam that lists its area (93 CKA, 61 CKAD, 33 CKS).
 - Practice sessions by area (e.g. Helm & Kustomize, NetworkPolicies, CoreDNS).
 - Exams are graded in the background while they run, so submitting only re-checks what changed.
-- `cks` cluster profile with Falco (modern eBPF), trivy, kube-bench, kubesec and gVisor; `docs/CKS-WSL.md`.
+- `cks` cluster profile with Falco (modern eBPF), trivy, kube-bench, kubesec and gVisor; `docs/cks-wsl.md`.
 - Items that break their cluster get a cluster of their own in a session (`own_cluster`).
+- CKAD and CKS study guides in `docs/ckad/` and `docs/cks/`, imported from the theplatformlab CKAD and CKS repos (MIT) without their exercises, mock exams and skeletons.
 - `scripts/lab.sh`: setup / check / cleanup for every item; validators check the end state on the live cluster.
 - Cluster profiles in `init-cluster.sh` (`practice`, `ops`, `cni`, `runtime`). The ops cluster has the next-minor pkgs.k8s.io repo on every node for real kubeadm upgrades.
 - `./cka` (Go app in `tools/cka`): practice sessions and generated mock exams from one item pool (`questions/`). Curriculum-weighted selection that prefers unseen and failed items, parametrized items, hints and checks on demand, pause/resume, history and statistics in `~/.local/share/cka-lab`.
@@ -21,11 +22,14 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - Fixed mock exams replaced by generated exams; the old questions were rewritten to be precise, kind-compatible and gradable.
 - The practice cluster now has 1 control plane + 2 workers.
+- The README is a short entry point; the CKA guide moved to `docs/cka/` (exam guide, syllabus, kubectl, cheat sheet, troubleshooting, study plan), and LAB.md, TEMPLATES.md and the CKS WSL notes to `docs/`.
 
 ### Removed
 - `exercises/`: every exercise is now a standard question in `questions/` or was removed as a duplicate.
 - `skeletons/` (duplicated TEMPLATES.md), the exercise validation/lint scripts and the YAML-lint CI (replaced by `go test` + script syntax checks), GRADING.md, DOMAINS.md, EXAM_STRATEGY.md and REDDIT_FEEDBACK.md (exercise-based study planning that the lab replaces).
 - `scripts/run-mock-exam.sh` and the fixed `mock-exams/`, replaced by `./cka`.
+- The README's practice scenarios and 17 practice questions (the lab's graded items cover them) and its duplicate kubectl cheat sheet.
+- The exam-feedback issue template and the Discussions links (internal repo).
 
 ---
 

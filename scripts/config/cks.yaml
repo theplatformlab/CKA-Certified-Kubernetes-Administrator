@@ -1,7 +1,7 @@
 # CKS cluster: security tooling on the nodes, installed by init-cluster.sh
 # (prepare_cks_nodes): kube-bench everywhere, trivy + kubesec on the control
 # plane, Falco (modern eBPF, systemd service 'falco') and gVisor (containerd
-# handler 'runsc') on the worker. WSL2 notes: docs/CKS-WSL.md
+# handler 'runsc') on the worker. WSL2 notes: docs/cks-wsl.md
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:

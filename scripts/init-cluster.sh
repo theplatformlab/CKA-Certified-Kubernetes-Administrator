@@ -179,7 +179,7 @@ prepare_ops_nodes() {
 # cks profile: the tools the CKS exam provides on its nodes.
 #   every node:     kube-bench (/etc/kube-bench/cfg), apparmor (apparmor_parser,
 #                   aa-status; profiles only load if the host kernel has the
-#                   AppArmor LSM active, see docs/CKS-WSL.md)
+#                   AppArmor LSM active, see docs/cks-wsl.md)
 #   control plane:  trivy (vulnerability DB pre-downloaded) and kubesec
 #   workers:        Falco as systemd service 'falco' (modern eBPF driver,
 #                   rules in /etc/falco, alerts in journalctl -u falco), and
@@ -278,7 +278,7 @@ prepare_cks_nodes() {
   (( failed )) && return 1
 
   if [[ "$(node_exec "${CLUSTER_NAME}-worker" 'cat /sys/module/apparmor/parameters/enabled 2>/dev/null')" != Y ]]; then
-    log_warn "AppArmor is not active in the host kernel: AppArmor items will not work (see docs/CKS-WSL.md)."
+    log_warn "AppArmor is not active in the host kernel: AppArmor items will not work (see docs/cks-wsl.md)."
   fi
   return 0
 }

@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Load an AppArmor profile on the worker and apply it to a Pod. kind nodes
 # share the host kernel, so this only works if the host has the AppArmor LSM
-# active (WSL2 doesn't by default: docs/CKS-WSL.md). Sourced by scripts/lab.sh.
+# active (WSL2 doesn't by default: docs/cks-wsl.md). Sourced by scripts/lab.sh.
 LAB_CLUSTER=cks
 NS=doc-render
 PROFILE_DIR=/root/apparmor
@@ -31,7 +31,7 @@ lab_setup() {
   if ! _apparmor_ready "$w"; then
     log_error "AppArmor is not active in the kernel of this host, so profiles can't be loaded on the kind nodes."
     echo "  The kind nodes share your kernel. WSL2's kernel has AppArmor built in but not enabled;" >&2
-    echo "  docs/CKS-WSL.md (section AppArmor) shows how to turn it on. Other Linux hosts need AppArmor" >&2
+    echo "  docs/cks-wsl.md (section AppArmor) shows how to turn it on. Other Linux hosts need AppArmor" >&2
     echo "  enabled too (Ubuntu and Debian have it by default; SELinux distributions like Fedora don't)." >&2
     return 1
   fi

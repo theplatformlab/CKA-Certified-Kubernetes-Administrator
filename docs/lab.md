@@ -1,6 +1,6 @@
 # Kubernetes Lab — practice sessions and mock exams for CKA, CKAD and CKS
 
-`./cka` is the interactive way to use this repo. It draws tasks from a single pool of exam-style [questions](questions/). It sets up each task on a local kind cluster, checks your result against the live cluster state, and records every attempt.
+`./cka` is the interactive way to use this repo. It draws tasks from a single pool of exam-style [questions](../questions/). It sets up each task on a local kind cluster, checks your result against the live cluster state, and records every attempt.
 
 ```bash
 ./cka            # opens the lab: the app on the left, your shell on the right (tmux)
@@ -8,6 +8,92 @@
 ```
 
 The first start builds the app from `tools/cka`, which needs [Go](https://go.dev/doc/install) 1.23 or newer. You also need Docker, kind, kubectl, tmux and jq; some items additionally need helm, openssl and python3.
+
+## Clusters
+
+**Don't have a Kubernetes cluster?** Use the included script to bootstrap a local k8s 1.35.1 cluster via [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Perfect for the lab without needing a kubeadm setup.
+
+### Quick Start: One Command
+
+```bash
+bash scripts/init-cluster.sh
+```
+
+**What it does:**
+- ✅ Auto-installs `kind` if missing (v0.31.0)
+- ✅ Validates Docker is running
+- ✅ Creates cluster `cka-practice` (k8s 1.35.1, 1 control plane + 2 workers)
+- ✅ Configures kubeconfig automatically
+- ✅ Prints next steps on success
+
+### Cluster Profiles
+
+Some tasks need a cluster you can break or rebuild. Each profile is a separate kind cluster with its own config in [`scripts/config/`](../scripts/config/):
+
+| Profile | Cluster | Used for |
+|---|---|---|
+| `practice` (default) | `cka-practice` | Almost all tasks |
+| `ops` | `cka-ops` | kubeadm upgrade and join, static pods, broken control plane, etcd. Every node has the pkgs.k8s.io apt repo for the **next** minor version, so `apt-get install kubeadm=1.36.x-*` + `kubeadm upgrade apply` work like on a real kubeadm cluster. etcdctl is installed. |
+| `cni` | `cka-cni` | Created without a CNI, so you install Calico yourself |
+| `runtime` | `cka-runtime` | Docker Engine + cri-dockerd on a node |
+| `ha` | `cka-ha` | 3 control planes + 1 worker behind a load balancer |
+| `cks` | `cka-cks` | CKS tooling on the nodes: Falco, trivy, kube-bench, gVisor ([cks-wsl.md](cks-wsl.md)) |
+
+```bash
+bash scripts/init-cluster.sh                     # practice
+bash scripts/init-cluster.sh --profile ops       # ops (recreate it after each upgrade run)
+bash scripts/init-cluster.sh --profile ops --recreate
+bash scripts/init-cluster.sh --help
+```
+
+**Prerequisites:**
+- [Docker](https://docs.docker.com/get-docker/) — installed and running
+- `kubectl` — installed (via [official docs](https://kubernetes.io/docs/tasks/tools/) or `brew install kubectl`)
+- `jq` and `helm` for some validators, `tmux` and `python3` for the mock exam
+- ~5 GB free disk space, ~2 GB RAM per cluster
+
+**Running several clusters:** each kind node uses inotify instances. If a second cluster fails with `too many open files` (containerd) or the kubelet never becomes healthy, raise the limits:
+
+```bash
+echo -e 'fs.inotify.max_user_instances=1024\nfs.inotify.max_user_watches=1048576' | sudo tee /etc/sysctl.d/99-kind.conf
+sudo sysctl --system
+```
+
+If `kind create` fails with `no available IPv4 addresses`, your `kind` docker network has a small IP range. Put the extra clusters on their own network: `KIND_EXPERIMENTAL_DOCKER_NETWORK=kind-labs bash scripts/init-cluster.sh --profile ops`.
+
+### Practice Sessions, Mock Exams and Validation
+
+`./cka` opens the lab: practice sessions with hints and on-demand checks, and mock exams generated from the pool and weighted like the curriculum. Results are tracked, and items you haven't done or failed come first; see [Two modes](#two-modes).
+
+Every item can also be run by hand. Each one has a setup step (namespace, pre-existing or deliberately broken objects) and a validator that checks the end state of your solution:
+
+```bash
+./scripts/lab.sh list                    # all items and the cluster each one uses
+./scripts/lab.sh setup rollout-rollback  # items are addressed by their directory name
+./scripts/lab.sh check rollout-rollback  # ✓/✗ per requirement, exit code 0 when everything passes
+./scripts/lab.sh cleanup rollout-rollback
+```
+
+The runner always talks to the item's cluster (`--context kind-cka-practice`, `kind-cka-ops`, ...), whatever your current context is.
+
+**After setup:**
+1. Run the exam-setup script to configure aliases: `bash scripts/exam-setup.sh`
+2. Verify connection: `kubectl get nodes` — should show `cka-practice-control-plane`, `cka-practice-worker` and `cka-practice-worker2`
+3. Start the lab: `./cka`
+
+### Using Your Own Cluster
+
+If you already have:
+- A kubeadm cluster (bare metal / VMs)
+- An existing kind cluster
+- A cloud cluster (EKS, GKE, AKS) — **not recommended for CKA practice** (different tooling)
+
+Then skip init-cluster.sh and just run:
+```bash
+bash scripts/exam-setup.sh        # Configure aliases, etc.
+kubectl get nodes                 # Verify connection
+./cka                             # Start practicing
+```
 
 ## Which certification
 
@@ -80,6 +166,20 @@ History is stored in `~/.local/share/cka-lab/sessions/` (one JSON file per sessi
 ./scripts/lab.sh params <id>     # the item's parameter values (CKA_SEED=<n> for other ones)
 ```
 
+## Kubernetes v1.35 Lab Notes
+
+These notes describe the repository's v1.35 lab baseline. They are not a list of changes guaranteed to appear on the current CKA exam. For exam scope, use the current [official curriculum](https://github.com/cncf/curriculum/blob/master/CKA_Curriculum_v1.37.pdf).
+
+| Feature | Status in v1.35 | Lab note |
+|---|---|---|
+| **Native sidecars** | Stable | Sidecars can be declared in `initContainers` with `restartPolicy: Always`. |
+| **In-place pod vertical scaling** | Beta | Can resize CPU or memory resources without replacing the pod, subject to feature support. |
+| **Gateway API** | Stable APIs available | See the Gateway API questions; controller installation and configuration vary by cluster. |
+| **kubectl debug** | Stable | The command is useful for pod and node troubleshooting. |
+| **ValidatingAdmissionPolicy** | Stable | CEL-based admission policy is available without a webhook. |
+
+Check the documentation for the Kubernetes version used by your practice cluster before using version-specific features.
+
 ## Writing an item
 
 An item is a directory `questions/<id>/` with three files:
@@ -108,13 +208,13 @@ own_cluster: true              # only if its setup breaks the cluster (API serve
 - `{{WORKDIR}}`
 - every key the item's `lab_params` prints
 
-An optional `## What tripped me up` section after the solution is shown together with it.
+An optional `## Pitfalls` section after the solution is shown together with it.
 
 **`lab.sh`**:
-- `LAB_CLUSTER`: `practice` | `ops` | `cni` | `runtime` | `ha` | `cks` (CKS tooling on the nodes: Falco, trivy, kube-bench, gVisor; see [docs/CKS-WSL.md](docs/CKS-WSL.md))
-- `lab_params` (optional): prints `KEY=VALUE` lines using `pick`, `rand_int` and `rand_suffix` from [`scripts/lib/params.sh`](scripts/lib/params.sh)
+- `LAB_CLUSTER`: `practice` | `ops` | `cni` | `runtime` | `ha` | `cks` (CKS tooling on the nodes: Falco, trivy, kube-bench, gVisor; see [cks-wsl.md](cks-wsl.md))
+- `lab_params` (optional): prints `KEY=VALUE` lines using `pick`, `rand_int` and `rand_suffix` from [`scripts/lib/params.sh`](../scripts/lib/params.sh)
 - `lab_setup`: idempotent; creates the starting state or breaks things
-- `lab_check`: starts with a `check_gate` so an untouched item scores 0, then uses the helpers from [`scripts/lib/check.sh`](scripts/lib/check.sh). Exams run it in the background every few minutes, so it must not change what the candidate works on (throwaway `probe` pods are fine) and should be quick
+- `lab_check`: starts with a `check_gate` so an untouched item scores 0, then uses the helpers from [`scripts/lib/check.sh`](../scripts/lib/check.sh). Exams run it in the background every few minutes, so it must not change what the candidate works on (throwaway `probe` pods are fine) and should be quick
 - `lab_cleanup` (optional): the item's namespaces are deleted automatically; this function undoes everything else
 
 Test every item:

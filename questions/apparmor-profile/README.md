@@ -49,4 +49,4 @@ k -n doc-render exec {{POD}} -- touch /tmp/x                 # touch: /tmp/x: Pe
 
 The profile must be loaded on the node where the Pod runs. Otherwise the Pod is rejected with `Cannot enforce AppArmor: profile "{{PROFILE}}" is not loaded`. A profile loaded with `apparmor_parser` is gone after a reboot unless the file is also placed in `/etc/apparmor.d/`. Before Kubernetes 1.30 the profile was set with the annotation `container.apparmor.security.beta.kubernetes.io/<container>: localhost/<name>`, which is deprecated now.
 
-In this lab the kind nodes share the kernel of your machine, so AppArmor has to be active there. On WSL2 it is off by default: see `docs/CKS-WSL.md`.
+In this lab the kind nodes share the kernel of your machine, so AppArmor has to be active there. On WSL2 it is off by default: see `docs/cks-wsl.md`.
