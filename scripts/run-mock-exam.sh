@@ -18,6 +18,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 MOCK_EXAMS_DIR="$REPO_ROOT/mock-exams"
 
+# Show usage
+usage() {
+  cat <<EOF
+Usage: bash scripts/run-mock-exam.sh [exam-num] [time-minutes]
+
+Examples:
+  bash scripts/run-mock-exam.sh           # Mock Exam 01, 120 minutes
+  bash scripts/run-mock-exam.sh 2         # Mock Exam 02, 120 minutes
+  bash scripts/run-mock-exam.sh 1 90      # Mock Exam 01, 90 minutes
+
+Available Exams:
+  01 — Mock Exam 01 (15 questions)
+  02 — Mock Exam 02 (15 questions)
+
+Use a second terminal for kubectl commands while the timer runs.
+EOF
+}
+
+if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
 # Defaults
 EXAM_NUM="${1:-1}"
 TIME_MINUTES="${2:-120}"
@@ -64,24 +87,24 @@ main() {
   echo -e "${NC}"
   
   echo "📋 Exam Rules:"
-  echo "  • Answer in /tmp/cka-exam-answers (create one file per question)"
+  echo "  • Keep your notes in /tmp/cka-exam-answers/ if useful"
   echo "  • Use kubectl and bash to solve tasks"
-  echo "  • You may reference: kubernetes.io/docs, kubernetes.io/blog, github.com/kubernetes"
-  echo "  • No copy-pasting from solutions"
+  echo "  • Use a second terminal for kubectl commands while the timer runs"
+  echo "  • Use only the reference material you choose for this practice session"
+  echo "  • Keep the solution file closed until you finish"
   echo "  • Time limit: $TIME_MINUTES minutes"
   echo ""
+  mkdir -p /tmp/cka-exam-answers
   
   # Show exam questions
   echo -e "${BLUE}=== EXAM QUESTIONS ===${NC}"
   echo ""
-  head -100 "$EXAM_FILE" | tail -n +2  # Skip title, show first 100 lines
+  tail -n +2 "$EXAM_FILE"  # Skip title and show every question
   echo ""
   
   # Confirmation
   echo -n "Press ENTER to start timer (or Ctrl+C to quit)..."
   read -r
-  
-  clear
   
   # Start timer countdown
   local start_time=$(date +%s)
@@ -92,7 +115,7 @@ main() {
   echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
   echo ""
   echo "📝 Questions are above. Solve them using kubectl."
-  echo "💾 Create answer files in /tmp/cka-exam-answers/"
+  echo "💾 Keep notes in /tmp/cka-exam-answers/ if useful"
   echo ""
   
   # Timer loop
@@ -117,8 +140,8 @@ main() {
   echo "📊 Next Steps:"
   echo "  1. Review your answers in /tmp/cka-exam-answers/"
   echo "  2. Check SOLUTIONS: less $SOLUTION_FILE"
-  echo "  3. Self-score using GRADING.md scale (9-10 = mastered)"
-  echo "  4. Identify weak domains for final prep"
+  echo "  3. Compare each result with the requirements and solution"
+  echo "  4. Note topics to practice again"
   echo ""
   
   # Ask if ready to see solutions
@@ -132,40 +155,7 @@ main() {
   fi
   
   echo ""
-  echo -e "${GREEN}✓ Mock Exam complete. Ready for real CKA? Use GRADING.md to self-assess.${NC}"
+  echo -e "${GREEN}✓ Mock Exam practice session ended.${NC}"
 }
-
-# Show usage
-usage() {
-  cat <<EOF
-Usage: bash scripts/run-mock-exam.sh [exam-num] [time-minutes]
-
-Examples:
-  bash scripts/run-mock-exam.sh           # Mock Exam 01, 120 minutes
-  bash scripts/run-mock-exam.sh 2         # Mock Exam 02, 120 minutes
-  bash scripts/run-mock-exam.sh 1 90      # Mock Exam 01, 90 minutes
-
-Available Exams:
-  01 — Mock Exam 01 (15 questions)
-  02 — Mock Exam 02 (15 questions)
-
-Time Recommendations:
-  120 minutes — Full exam simulation (real CKA time)
-  90 minutes  — Quick practice
-  60 minutes  — Speed test
-
-After exam:
-  • Review answers in /tmp/cka-exam-answers/
-  • Check SOLUTIONS file for explanations
-  • Score yourself using GRADING.md rubric
-  • Use DOMAINS.md to identify weak areas
-EOF
-}
-
-# Main
-if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
-  usage
-  exit 0
-fi
 
 main
