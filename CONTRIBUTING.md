@@ -12,6 +12,8 @@ This is my personal CKA study guide. If you found a mistake, an outdated command
 6. Commit (`git commit -m "fix: description"`)
 7. Push and open a PR
 
+For exercise changes, also follow the [clean-cluster testing checklist](EXERCISE-TESTING.md). YAML lint alone does not confirm that setup, verification, and cleanup work.
+
 ## Commit Convention
 
 Use a prefix so the changelog stays readable:
@@ -53,6 +55,7 @@ bash scripts/validate-local.sh
 ```
 
 This checks YAML syntax across `skeletons/` and `exercises/`. CI runs the same checks, but catching errors locally is faster.
+For an end-to-end exercise test, use the [clean-cluster testing checklist](EXERCISE-TESTING.md).
 
 ## Questions?
 

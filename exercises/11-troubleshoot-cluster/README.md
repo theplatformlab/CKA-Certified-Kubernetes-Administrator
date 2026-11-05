@@ -78,7 +78,7 @@ Before working through these scenarios, understand the trap architecture:
 >
 > **CoreDNS Gotcha (May 2026):** In k8s 1.35+, CoreDNS respects search domain order. If your test pod gets DNS timeout, check the search domains in `resolv.conf` — they're often set by the kubelet's `--cluster-domain` flag. A misconfigured search domain can cause subtle timeouts (too many attempted SRV records).
 >
-> **kube-proxy Trap:** Not all nodes have kube-proxy running. In some environments (e.g., kind, GKE with eBPF mode), kube-proxy may not exist. Check the actual cluster setup before assuming kube-proxy absence = failure. Always verify: `k get ds -n kube-system | grep proxy` or `k get pods -n kube-system -l k8s-app=kube-proxy`.
+> **kube-proxy Trap:** Not all clusters run kube-proxy. Clusters using an eBPF-based data plane may replace it. Check the actual cluster setup before treating its absence as a failure. Verify with `k get ds -n kube-system | grep proxy` or `k get pods -n kube-system -l k8s-app=kube-proxy`.
 >
 > **Audit Logs Gotcha:** I initially searched `grep "error"` which gave me nothing useful. The audit log format is JSON — you need to grep for specific verb patterns like `grep "verb.*delete"` or look for status codes. Also, not all clusters enable audit logging, so check if the apiserver was even started with audit flags before spending time looking for logs that don't exist. **May 2026 update:** Use `jq` if available: `cat /var/log/audit/audit.log | jq 'select(.user.username=="admin")' | jq '.verb'`
 

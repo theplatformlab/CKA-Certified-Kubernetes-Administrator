@@ -99,7 +99,7 @@ k get hpa -n exercise-16
 
 > **Metrics-Server Isn't Always Installed**
 >
-> `k top pods` returned an error. Metrics-server wasn't installed on the cluster. HPA cannot function without metrics-server (or equivalent metrics provider). On managed clusters (EKS, GKE, AKS), it's usually pre-installed. On kubeadm clusters, you have to install it manually: `k apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
+> `k top pods` returned an error because no metrics API was available. HPA needs metrics-server or an equivalent metrics provider. Some managed clusters include one; on kubeadm labs you may need to install and configure it. Check the cluster before assuming it exists: `k top pods` and `k get apiservices v1beta1.metrics.k8s.io`.
 
 ## Verify
 

@@ -155,9 +155,16 @@ CKA-Certified-Kubernetes-Administrator/
 
 ---
 
-## Local Cluster Setup — Practice with Kind
+## Local Cluster Setup
 
-**Don't have a Kubernetes cluster?** Use the included script to bootstrap a local k8s 1.35.1 cluster via [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Perfect for running through the exercises without needing a kubeadm setup.
+The easiest local option is the included [kind](https://kind.sigs.k8s.io/) bootstrap script, which uses Docker to create a Kubernetes v1.35.1 cluster. If you don't want Docker, use [Minikube](https://minikube.sigs.k8s.io/) with a virtual-machine driver instead.
+
+For kind, the supported setup is:
+- Linux: Docker Engine, `kubectl`, and Bash
+- macOS: Docker Desktop, `kubectl`, and Bash
+- Windows: WSL2 with Ubuntu, Docker Desktop's WSL integration enabled, `kubectl`, and Bash. Run the commands from the WSL terminal, not PowerShell.
+
+Both options switch the current `kubectl` context. Before running exercise commands, verify it points to the practice cluster. The default kind and Minikube profiles are single-node clusters; exercises requiring multiple nodes, a specific CNI or storage provisioner, or host-level kubeadm changes need a separately prepared lab.
 
 ### Quick Start: One Command
 
@@ -166,11 +173,10 @@ bash scripts/init-cluster.sh
 ```
 
 **What it does:**
-- ✅ Detects your OS and architecture (x86_64, aarch64, etc.)
+- ✅ Checks Docker and `kubectl`
 - ✅ Auto-installs `kind` if missing (v0.31.0)
-- ✅ Validates Docker is running
-- ✅ Creates a named cluster `cka-practice` with k8s 1.35.1
-- ✅ Configures kubeconfig automatically
+- ✅ Creates a kind cluster named `cka-practice` with Kubernetes 1.35.1
+- ✅ Exports its kubeconfig and switches the current context to `kind-cka-practice`
 - ✅ Prints next steps on success
 
 ### Detailed Setup (if needed manually)
@@ -184,10 +190,13 @@ bash scripts/init-cluster.sh
 **Script Options:**
 
 ```bash
-# Create a new cluster (or use existing)
+# Create or select the default cluster
 bash scripts/init-cluster.sh
 
-# Recreate the cluster (wipe and start fresh)
+# Use a separate name for a disposable test cluster
+CLUSTER_NAME=cka-check-01 bash scripts/init-cluster.sh
+
+# Delete and recreate the named cluster; this destroys its data
 bash scripts/init-cluster.sh --recreate
 
 # Show help
@@ -196,19 +205,71 @@ bash scripts/init-cluster.sh --help
 
 **After setup:**
 1. Run the exam-setup script to configure aliases: `bash scripts/exam-setup.sh`
-2. Verify connection: `kubectl get nodes` — should show one node `cka-practice-control-plane`
-3. Start an exercise: `cd exercises/01-pod-basics && cat README.md`
+2. Verify context: `kubectl config current-context` — should show `kind-cka-practice` (or your chosen name)
+3. Verify connection: `kubectl get nodes` — the default cluster has one control-plane node
+4. Start an exercise: `cd exercises/01-pod-basics && cat README.md`
+
+When finished, delete only the kind cluster you created, using the same name:
+
+```bash
+kind delete cluster --name cka-practice
+```
+
+### No Docker: Use Minikube with a VM Driver
+
+Install `kubectl`, Minikube, and the VM driver for your operating system. This avoids Docker, but still requires hardware virtualization and a supported hypervisor.
+
+**Windows Home:** Install [Minikube](https://minikube.sigs.k8s.io/docs/start/) and [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (Minikube lists VirtualBox as its most stable driver for Windows Home). Run Minikube from PowerShell:
+
+```powershell
+minikube start -p cka-practice --driver=virtualbox --kubernetes-version=v1.35.1
+kubectl config current-context
+kubectl get nodes
+```
+
+Install Git for Windows if you want to use this repository's Bash aliases and scripts. Run `scripts/exam-setup.sh` from Git Bash after confirming `kubectl` is available there.
+
+**Windows Pro, Enterprise, or Education:** Minikube can use Hyper-V instead of Docker. Hyper-V must be enabled, and Windows may require a reboot. See the [Hyper-V driver requirements](https://minikube.sigs.k8s.io/docs/drivers/hyperv/), then run `minikube start -p cka-practice --driver=hyperv --kubernetes-version=v1.35.1` from an elevated PowerShell terminal.
+
+**macOS:** Install [Minikube](https://minikube.sigs.k8s.io/docs/start/) and a supported VM driver. VFkit is the preferred current driver and requires macOS 14 or later; networking may also require `vmnet-helper`. See the [VFkit setup](https://minikube.sigs.k8s.io/docs/drivers/vfkit/), then run:
+
+```bash
+minikube start -p cka-practice --driver=vfkit --kubernetes-version=v1.35.1
+kubectl config current-context
+kubectl get nodes
+```
+
+**Linux:** Install [Minikube](https://minikube.sigs.k8s.io/docs/start/) and configure [KVM2](https://minikube.sigs.k8s.io/docs/drivers/kvm2/) (QEMU/KVM and libvirt are required), then run:
+
+```bash
+minikube start -p cka-practice --driver=kvm2 --kubernetes-version=v1.35.1
+kubectl config current-context
+kubectl get nodes
+```
+
+After starting Minikube, check `kubectl config current-context` and `kubectl get nodes` before using the cluster. When finished, delete only the profile created for practice:
+
+```bash
+minikube delete -p cka-practice
+```
+
+Minikube's VM-driver setup varies by OS and may require administrator privileges or a one-time network helper. Follow its current [driver documentation](https://minikube.sigs.k8s.io/docs/drivers/) if the command cannot start the VM.
+
+### Which Lab Should I Use?
+
+Use kind or Minikube for everyday single-node practice: Pods, Deployments, Services, ConfigMaps, Secrets, and other workload tasks. For exercises that drain or join nodes, upgrade kubeadm, break kubelet or control-plane services, install a CNI, or troubleshoot etcd (for example 08, 09, 11, 26-29), use a disposable multi-VM kubeadm lab. A single-node local cluster cannot reproduce those conditions faithfully.
 
 ### Using Your Own Cluster
 
 If you already have:
 - A kubeadm cluster (bare metal / VMs)
 - An existing kind cluster
-- A cloud cluster (EKS, GKE, AKS) — **not recommended for CKA practice** (different tooling)
+- Another disposable lab cluster that you control and can safely reset
 
-Then skip init-cluster.sh and just run:
+Then verify the current context and cluster before starting. Avoid production or shared clusters, especially for node, networking, storage, and control-plane exercises:
 ```bash
 bash scripts/exam-setup.sh        # Configure aliases, etc.
+kubectl config current-context    # Confirm this is the intended practice cluster
 kubectl get nodes                 # Verify connection
 cd exercises/01-pod-basics        # Start practicing
 ```

@@ -59,3 +59,5 @@ I ordered these roughly by difficulty. If you're short on time, prioritize 09 (k
 6. Run cleanup before moving to the next exercise
 
 Every exercise assumes you have a running cluster (kind, minikube, or kubeadm) and the aliases from [`scripts/exam-setup.sh`](../scripts/exam-setup.sh).
+
+Contributors changing an exercise can use the [clean-cluster testing checklist](../EXERCISE-TESTING.md) to check setup, verification, and cleanup from a disposable kind cluster.
