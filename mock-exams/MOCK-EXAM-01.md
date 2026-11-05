@@ -1,182 +1,229 @@
-# Mock Exam 01 — CKA Practice (Kubernetes 1.35)
+# Mock Exam 01 — CKA Practice (Kubernetes 1.37)
 
 Duration: 2 hours (120 minutes)
 Questions: 15
 Passing Score: 66% (approximately 10 questions correct)
 
-Do not look at the solutions until you complete this exam.
+Do not look at the solutions until you complete the exam.
 
 ---
 
-## Question 1: Pod Deployment Troubleshooting
+## Question 1: Fix a CrashLoopBackOff Deployment
 
-A pod named `app-frontend` in namespace `production` is stuck in `CrashLoopBackOff`. The pod's container is looking for a configuration file at `/etc/app/config.yaml`, but this file doesn't exist in the image.
+The deployment `payments-api` in namespace `prod` is stuck in `CrashLoopBackOff`.
 
-You need to:
-1. Create a ConfigMap named `app-config` with the file content: `database_host: postgres.production.svc.cluster.local`
-2. Mount this ConfigMap as a file at `/etc/app/config.yaml` in the pod
-3. Verify the pod starts successfully
+Investigate the pod and identify the root cause. Then fix the configuration so the application starts successfully.
 
-The pod manifest already exists; you only need to update it.
+Requirements:
+1. The application expects a configuration file at `/etc/app/app.env`
+2. The file content must include the setting `DB_HOST=postgres.prod.svc.cluster.local`
+3. The pod should start and become Ready without manual container restarts
 
-**Time: 8 minutes**
-
-
-## Question 2: RBAC and Service Account
-
-A developer needs to be able to list Deployments and Pods in the `staging` namespace, but not in other namespaces. Currently, they cannot perform these actions.
-
-Create:
-1. A Role that allows listing Pods and Deployments in `staging`
-2. A RoleBinding that grants this Role to the user `dev-user`
-
-Verify the permissions work using `kubectl auth can-i`.
+The deployment manifest already exists. You only need to fix the configuration.
 
 **Time: 7 minutes**
 
 
-## Question 3: Node Maintenance
+## Question 2: Service Selector Mismatch
 
-Node `worker-2` needs maintenance and will be offline for 1 hour. Currently, there are several running pods on this node including a critical database pod and a deployment with 3 replicas.
+The application `web` in namespace `dev` is not reachable through its Service even though the Deployment exists and the Pods are Running.
 
-1. Prepare the node for maintenance without losing pod data
-2. Ensure the database pod is NOT evicted (it has local persistent data)
-3. Verify the node is ready for maintenance
+Your task:
+1. Inspect the Service and Deployment labels
+2. Identify why the Service has no endpoints
+3. Fix the selector mismatch
+4. Verify the Service resolves traffic to the pod successfully
+
+Use `kubectl get endpoints`, `kubectl describe svc`, and `kubectl get pods -o wide` to confirm the fix.
+
+**Time: 8 minutes**
+
+
+## Question 3: Namespace-Scoped RBAC
+
+A junior engineer needs permission to list Pods and Deployments only in the `staging` namespace. They must not be able to view resources in other namespaces.
+
+Create:
+1. A `Role` named `staging-reader`
+2. A `RoleBinding` that grants the user `dev-user` access in `staging`
+
+Verify with `kubectl auth can-i list pods --namespace staging --as dev-user` and `kubectl auth can-i list pods --namespace default --as dev-user`.
 
 **Time: 6 minutes**
 
 
-## Question 4: Persistent Volume Configuration
+## Question 4: Prepare a Node for Maintenance
 
-An application needs persistent storage that:
-1. Size: 5Gi
-2. Access mode: can be used by multiple pods simultaneously
-3. Storage class: `fast-ssd`
-4. Mounted at `/data` in the pod
+Node `worker-2` needs maintenance. There are multiple pods on the node, including one critical database pod whose only data copy is on local storage and must not be evicted or interrupted.
 
-Create the necessary resources (StorageClass if needed, PV, PVC, and update a deployment to use it). The deployment `db-app` already exists in the `databases` namespace.
+Perform the required maintenance preparation:
+1. Mark the node unschedulable
+2. Evict or move the non-critical workloads safely
+3. Ensure the database pod is not evicted
+4. Identify whether the node can safely be taken offline now, and state what must happen before it can be shut down
 
-**Time: 10 minutes**
-
-
-## Question 5: Network Policy Troubleshooting
-
-Currently, all pods in namespace `shop` can communicate with each other. You need to implement network isolation:
-1. Frontend pods (label: `tier=frontend`) can receive traffic on port 80 only
-2. Backend pods (label: `tier=backend`) can receive traffic from frontend pods on port 3000 only
-3. Database pods (label: `tier=database`) should not receive any incoming traffic except from backend pods on port 5432
-
-Create the appropriate NetworkPolicies.
-
-**Time: 10 minutes**
-
-
-## Question 6: Helm Chart Deployment
-
-A Helm chart named `monitoring` exists in the `helm-charts` directory locally. It has default values that need to be overridden:
-- Set `replica_count` to 3
-- Set `storage_size` to 50Gi
-- Enable `persistence`
-
-Deploy the chart to namespace `monitoring`. If the namespace doesn't exist, create it. The deployment should be named `monitoring-stack`.
-
-**Time: 8 minutes**
-
-
-## Question 7: Container Runtime Configuration
-
-The cluster is having issues with container image pulls. After investigation, you realize the cluster needs to use CRI-dockerd instead of the default containerd runtime. The necessary binaries are already installed.
-
-Configure the kubelet on worker nodes to use CRI-dockerd and verify the configuration works.
-
-**Time: 8 minutes**
-
-
-## Question 8: API Server Audit Logs
-
-The cluster has been experiencing unauthorized API requests. You need to enable and review API server audit logs to identify:
-1. Who accessed ConfigMaps in the `default` namespace
-2. When the access occurred
-3. Whether it was successful
-
-Enable API server audit logging and examine the logs for ConfigMap access patterns.
-
-**Time: 10 minutes**
-
-
-## Question 9: HPA and Application Scaling
-
-An application deployment named `web-app` in namespace `production` runs with 2 replicas. Create a Horizontal Pod Autoscaler that maintains an average CPU utilization of 70% across pods, scaling between a minimum of 2 and a maximum of 10 replicas.
+Use the correct drain strategy and explain why this is safe.
 
 **Time: 7 minutes**
 
 
-## Question 10: Ingress Configuration with TLS
+## Question 5: Persistent Storage with a StorageClass
 
-A service `api` needs to be exposed via Ingress with:
-1. Hostname: `api.example.com`
-2. TLS enabled with certificate secret `api-tls-cert`
-3. Path-based routing: `/api/*` routes to the service
-4. Health check endpoint at `/health` should not require TLS termination
+An application in namespace `data` needs a persistent volume of 5Gi that can be mounted by multiple pods at the same time. The lab environment provides an RWX-capable StorageClass named `fast-rwx`.
 
-Create the Ingress resource (assume the TLS certificate secret already exists).
+Create the required resources:
+1. Inspect the provided `fast-rwx` StorageClass and determine whether dynamic provisioning is available
+2. Create a `PersistentVolumeClaim` of 5Gi using that class
+3. Create a `PersistentVolume` only if the lab requires static provisioning and supplies backend details
+4. Update the Deployment `db-app` to mount the volume at `/data`
 
-**Time: 8 minutes**
+Requirements:
+- Access mode should allow multiple pods to read and write concurrently
+- The application must start successfully with the mounted volume
 
-
-## Question 11: Cluster Troubleshooting
-
-The `kube-scheduler` component has stopped running. Investigate:
-1. Check the status of all control plane components
-2. Review kubelet logs on the control plane node
-3. Identify why the scheduler pod is not running
-4. Restart the scheduler if needed
-
-Document the issue and resolution.
-
-**Time: 12 minutes**
+**Time: 9 minutes**
 
 
-## Question 12: StatefulSet with Persistent Storage
+## Question 6: Restrict Network Traffic in a Namespace
 
-Deploy a StatefulSet named `database-cluster` with:
+The namespace `shop` currently allows unrestricted communication between all Pods. You must enforce a basic least-privilege policy.
+
+Implement NetworkPolicies so that:
+1. Pods labeled `app=frontend` can receive HTTP traffic on port 80 from Pods in the `shop` namespace
+2. Pods labeled `app=backend` accept traffic from `app=frontend` only on port 8080
+3. Pods labeled `app=database` accept traffic from `app=backend` only on port 5432
+4. No other ingress should be allowed
+
+Test the policies using a pod from the same namespace where needed.
+
+**Time: 9 minutes**
+
+
+## Question 7: Horizontal Pod Autoscaler
+
+The deployment `web-app` in namespace `prod` currently runs with 2 replicas. The application normally uses CPU, and you need to scale automatically to handle load.
+
+Create a `HorizontalPodAutoscaler` that:
+1. Maintains an average CPU utilization of 60%
+2. Keeps the minimum replicas at 2
+3. Keeps the maximum replicas at 8
+
+Verify the HPA is created and can scale the deployment based on CPU usage.
+
+**Time: 7 minutes**
+
+
+## Question 8: Ingress with TLS and Host Routing
+
+The service `api-server` in namespace `apps` must be exposed through an Ingress resource.
+
+Create an Ingress that:
+1. Uses hostname `api.example.com`
+2. Serves TLS using the secret `api-tls-cert`
+3. Routes `/api` to service `api-server` on port 80
+4. Routes `/health` to the same backend
+
+Assume the TLS secret already exists and that the Ingress controller is installed.
+
+**Time: 7 minutes**
+
+
+## Question 9: StatefulSet with Stable Identity
+
+Deploy a StatefulSet named `redis-cluster` in namespace `db` with the following requirements:
 1. 3 replicas
-2. Each pod needs a persistent volume (PVC) of 10Gi
-3. Pods should have stable DNS names like `database-cluster-0.database-cluster`, etc.
-4. Service port 5432 should be exposed via a headless service
+2. Each pod gets a stable network identity such as `redis-cluster-0.redis-cluster.db.svc.cluster.local`
+3. Pods use a headless Service named `redis-cluster`
+4. Each pod has a 10Gi PVC mounted at `/data`
 
-**Time: 10 minutes**
+Verify that the pods come up in order and that each has its own persistent volume.
 
-
-## Question 13: Resource Quotas and Limits
-
-The `test` namespace is consuming too many resources. Implement:
-1. ResourceQuota that limits the namespace to 4 CPU cores and 8Gi memory total
-2. LimitRange that ensures individual pods request at least 100m CPU and 128Mi memory
-3. Verify that a pod requesting 2 CPUs and 2Gi memory is rejected
-
-**Time: 8 minutes**
+**Time: 9 minutes**
 
 
-## Question 14: Pod Security Standards
+## Question 10: Resource Quotas and Admission Control
 
-Namespace `restricted` needs to enforce security policies. Configure:
-1. Pod Security Standards in `enforce` mode: `restricted`
-2. Pod Security Standards in `audit` mode: `baseline`
-3. Test by deploying a pod with `privileged: true` and verify it's denied
+The namespace `team-a` is overcommitting resources. You need to enforce a quota and a default minimum request policy.
+
+Create:
+1. A `ResourceQuota` that limits total requested CPU to 4 cores and requested memory to 8Gi
+2. A `LimitRange` that ensures all containers request at least 100m CPU and 128Mi memory
+3. A check showing that a pod requesting 5 CPU and 9Gi memory is rejected by quota admission
 
 **Time: 8 minutes**
 
 
-## Question 15: Multi-Container Pod with Sidecar
+## Question 11: Pod Security Admission
 
-Create a pod named `app-with-logger` that:
-1. Main container: runs `nginx` image
-2. Sidecar container: runs `busybox` that tails nginx logs from a shared volume
-3. Both containers share a volume at `/var/log/nginx` (for main) and `/logs` (for sidecar)
-4. The pods should continue running and logging without errors
+The namespace `restricted` must enforce a secure baseline for workloads.
+
+Configure Pod Security Admission so that:
+1. `enforce` mode is set to `restricted`
+2. `audit` mode is set to `baseline`
+3. A pod with `securityContext.privileged: true` is rejected
+
+Use a test pod to validate that the admission policy is working.
 
 **Time: 8 minutes**
+
+
+## Question 12: CronJob Scheduling and Retry Behavior
+
+The cluster needs a CronJob that runs a database cleanup job every 5 minutes. The job should be reliable but should not keep retrying forever.
+
+Create a CronJob named `db-cleanup` in namespace `ops` with:
+1. Schedule: `*/5 * * * *`
+2. Container image: `busybox`
+3. Command: `sh -c 'echo cleanup; date'`
+4. `backoffLimit: 2`
+5. `concurrencyPolicy: Forbid`
+
+Trigger the job manually once and verify it completes successfully.
+
+**Time: 8 minutes**
+
+
+## Question 13: Diagnose a Node That Is Not Ready
+
+The lab has deliberately stopped kubelet on one worker node, which is now marked `NotReady`. Identify the cause and restore the node.
+
+Investigate:
+1. `kubectl get nodes`
+2. `kubectl describe node <node-name>`
+3. `journalctl` or kubelet logs
+4. The actual issue preventing the node from reporting ready
+
+Start kubelet on the affected worker and confirm the node becomes `Ready` again.
+
+**Time: 11 minutes**
+
+
+## Question 14: API Server Audit Log Review
+
+You suspect unauthorized access to ConfigMaps in the `default` namespace.
+
+Investigate the audit logs to determine:
+1. Which user or service account accessed the ConfigMaps
+2. Which ConfigMap was targeted
+3. Whether the access was successful
+4. When the access occurred
+
+You may need to inspect the API server configuration, audit policy, and log output.
+
+**Time: 9 minutes**
+
+
+## Question 15: Job Completion and Failure Handling
+
+Create a Job in namespace `batch` configured for three successful completions:
+1. Runs a container using `busybox`
+2. Executes a script that prints the current date and exits successfully after a short delay
+3. Uses `restartPolicy: Never`
+4. Uses `completions: 3` and `parallelism: 1`
+
+Verify that the Job completes and all three task Pods succeed.
+
+**Time: 7 minutes**
 
 ---
 

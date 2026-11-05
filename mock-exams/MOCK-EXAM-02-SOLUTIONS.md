@@ -1,616 +1,488 @@
-# Mock Exam 02 — Solutions
+# Mock Exam 02 — Solutions (Kubernetes 1.37)
+
+These solutions target the repository's stated CKA environment, Kubernetes 1.37. They assume the resources named in each task already exist unless the question says to create them. Cluster-specific facilities such as metrics, storage provisioners, audit policies, and external network access must be provided by the lab.
 
 ---
 
 ## Solution 1: Service Discovery and DNS
 
-The correct DNS name format within a cluster is:
-```
-<service-name>.<namespace>.svc.cluster.local
-```
+The fully qualified Service DNS name is:
 
-For this case:
-```
+```text
 web-ui.frontend.svc.cluster.local
 ```
 
-Or simply:
-```
-web-ui.frontend
-```
+The short cross-namespace form from a Pod in `backend` is `web-ui.frontend`. Verify DNS and connectivity from a temporary Pod:
 
-Both work from within the cluster. Connect with port 3000:
-```
-web-ui.frontend:3000
-```
-
-Verify DNS resolution with nslookup:
 ```bash
-k run debug-pod --image=busybox --rm -it -- nslookup web-ui.frontend
+kubectl run dns-check -n backend --rm -i --restart=Never \
+  --image=busybox:1.36 -- nslookup web-ui.frontend.svc.cluster.local
+
+kubectl run service-check -n backend --rm -i --restart=Never \
+  --image=busybox:1.36 -- wget -qO- http://web-ui.frontend:3000/
 ```
 
-Or:
+If the name resolves but the request fails, inspect the Service selector, ready Pods, and endpoints:
+
 ```bash
-k run debug-pod --image=busybox --rm -it -- nslookup web-ui.frontend.svc.cluster.local
+kubectl describe service web-ui -n frontend
+kubectl get pods -n frontend --show-labels
+kubectl get endpoints web-ui -n frontend
+kubectl get endpointslices -n frontend \
+  -l kubernetes.io/service-name=web-ui
 ```
 
-Expected output shows the service's Cluster IP address. From a test pod in `backend` namespace:
-```bash
-k run test -n backend --image=nginx --rm -it -- wget -qO- http://web-ui.frontend:3000
-```
-
-**Key insight:** DNS name includes namespace. Short names work only when querying from the same namespace. Full names work cluster-wide. CoreDNS handles this resolution automatically.
+**Key insight:** DNS resolution proves the Service name resolves, not that it has ready endpoints or that the application is listening on the target port.
 
 ---
 
-## Solution 2: Deployment Rolling Update and Rollback
+## Solution 2: Deployment Rollback
 
-Check rollout history:
+Inspect the rollout history and revision details:
+
 ```bash
-k rollout history deployment/payment-service
+kubectl rollout history deployment/payment-service -n prod
+kubectl rollout history deployment/payment-service -n prod --revision=<revision>
 ```
 
-Each revision shows the image versions. Identify the problematic revision and check details:
+Roll back one revision, or choose the known-good revision explicitly:
+
 ```bash
-k rollout history deployment/payment-service --revision=3
+kubectl rollout undo deployment/payment-service -n prod
+# Or:
+kubectl rollout undo deployment/payment-service -n prod --to-revision=<good-revision>
 ```
 
-Rollback to the previous revision:
+Verify rollout status and the image in the Deployment template:
+
 ```bash
-k rollout undo deployment/payment-service
+kubectl rollout status deployment/payment-service -n prod
+kubectl get deployment payment-service -n prod \
+  -o jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+kubectl rollout history deployment/payment-service -n prod
 ```
 
-Or rollback to a specific revision:
-```bash
-k rollout undo deployment/payment-service --to-revision=2
-```
-
-Verify rollback status:
-```bash
-k rollout status deployment/payment-service
-k get pods -o wide  # New pods should be coming up with old image
-k describe deployment payment-service  # Check image version
-```
-
-Check the new revision history:
-```bash
-k rollout history deployment/payment-service
-```
-
-**Key insight:** Each update creates a new ReplicaSet. Rollback simply scales down the bad ReplicaSet and scales up the good one. Pods are recreated with old image.
+**Key insight:** Rollback creates a new rollout revision using the prior Pod template. Use revision details to select the intended known-good version rather than guessing a revision number.
 
 ---
 
-## Solution 3: Secrets and Environment Variables
+## Solution 3: Secret as Environment Variables
 
-Create Secret:
+Create the Secret in the same namespace as the Deployment. For real credentials, avoid committing plaintext values or placing them in shell history; use an approved secret-management workflow.
+
 ```bash
-k create secret generic db-creds \
+kubectl create secret generic db-creds -n apps \
   --from-literal=username=dbuser \
   --from-literal=password=secret123 \
   --from-literal=database=appdb
 ```
 
-Or via YAML:
+Add explicit environment variable references to the Deployment's container:
+
 ```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: db-creds
-type: Opaque
-stringData:
-  username: dbuser
-  password: secret123
-  database: appdb
+env:
+  - name: DB_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: db-creds
+        key: username
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: db-creds
+        key: password
+  - name: DB_DATABASE
+    valueFrom:
+      secretKeyRef:
+        name: db-creds
+        key: database
 ```
 
-Update deployment to use Secret as environment variables:
+Apply the updated Deployment and verify the Pod template rolled out:
+
 ```bash
-k set env deployment/app-deploy --from=secret/db-creds --prefix=DB_
+kubectl rollout status deployment/app-deploy -n apps
+kubectl get pods -n apps
 ```
 
-Or edit deployment to add:
-```yaml
-spec:
-  template:
-    spec:
-      containers:
-      - name: app
-        image: myapp:latest
-        env:
-        - name: DB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: db-creds
-              key: username
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-creds
-              key: password
-        - name: DB_DATABASE
-          valueFrom:
-            secretKeyRef:
-              name: db-creds
-              key: database
-```
+Check the variables exist without printing their values:
 
-Verify the environment variables are available (they won't show in pod describe because they're secret):
 ```bash
-k exec <pod-name> -- env | grep DB_
+kubectl exec -n apps deployment/app-deploy -- sh -c \
+  'test -n "$DB_USERNAME" && test -n "$DB_PASSWORD" && test -n "$DB_DATABASE"'
 ```
 
-Check pod logs don't expose secrets:
-```bash
-k logs <pod-name>
-```
+The command exits successfully if all variables are non-empty and does not display the credentials. Do not log or print their values.
 
-**Key insight:** Using `valueFrom.secretKeyRef` ensures secrets aren't exposed in pod definitions. Environment variables are injected at runtime. Never echo secrets in logs.
+**Key insight:** `secretKeyRef` injects selected Secret keys into the container environment. Environment variables are set when a container starts, so changing the Secret alone does not update existing container environments.
 
 ---
 
-## Solution 4: DaemonSet Configuration
+## Solution 4: DaemonSet Tolerations
 
-Create DaemonSet with toleration for control plane:
+Inspect the DaemonSet and node taints, then add a toleration to its Pod template. For example, edit the DaemonSet:
+
+```bash
+kubectl edit daemonset monitoring-agent -n monitoring
+```
+
+Add under `spec.template.spec` while preserving any existing tolerations:
+
 ```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: monitoring-agent
-spec:
-  selector:
-    matchLabels:
-      app: monitoring
-  template:
-    metadata:
-      labels:
-        app: monitoring
-    spec:
-      tolerations:
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/control-plane
-      containers:
-      - name: agent
-        image: datadog/agent:latest
-        resources:
-          requests:
-            cpu: 100m
-            memory: 64Mi
-          limits:
-            cpu: 200m
-            memory: 256Mi
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
 ```
 
-Apply:
+Verify the DaemonSet rollout and its placement:
+
 ```bash
-k apply -f daemonset.yaml
+kubectl rollout status daemonset/monitoring-agent -n monitoring
+kubectl get daemonset monitoring-agent -n monitoring
+kubectl get pods -n monitoring -o wide
+kubectl get nodes --show-labels
+kubectl describe node <control-plane-node>
 ```
 
-Verify on all nodes:
-```bash
-k get daemonset monitoring-agent
-k get pods -o wide -l app=monitoring
-```
+Compare the DaemonSet's desired number with eligible nodes. A node selector, affinity rule, or other untolerated taint can still prevent scheduling.
 
-Should see pods on control plane and all worker nodes:
-```bash
-k get pods -A -l app=monitoring
-```
-
-Count should match number of nodes:
-```bash
-k get nodes --no-headers | wc -l
-```
-
-**Key insight:** DaemonSets respect taints only if toleration is specified. Control plane has `node-role.kubernetes.io/control-plane:NoSchedule` taint by default. Without toleration, the pod won't schedule there.
+**Key insight:** A toleration allows a Pod to schedule onto a matching tainted node; it does not force scheduling or override node selectors and affinity.
 
 ---
 
-## Solution 5: Cluster API Server Debugging
+## Solution 5: API Server Troubleshooting
 
-Check API server logs:
+Check control-plane Pod status and recent API server logs:
+
 ```bash
-ssh controlplane
-sudo journalctl -u kubelet -n 100  # Kubelet logs
-sudo journalctl -u kube-apiserver -n 100  # Direct systemd service
+kubectl get pods -n kube-system -o wide | grep kube-apiserver
+kubectl logs -n kube-system <kube-apiserver-pod> --since=10m
+kubectl get --raw='/readyz?verbose'
+kubectl get --raw='/livez?verbose'
 ```
 
-Or for static pod (common in kubeadm clusters):
+On the control-plane node, check kubelet logs and resource pressure:
+
 ```bash
-k logs -n kube-system kube-apiserver-controlplane
-k logs -n kube-system kube-apiserver-controlplane --tail=50
+sudo journalctl -u kubelet -n 100 --no-pager
+kubectl describe node <control-plane-node>
+kubectl top node <control-plane-node>
 ```
 
-Verify API server is listening:
+Check etcd Pod health and logs when that component is available in the lab:
+
 ```bash
-netstat -tlnp | grep 6443
-sudo ss -tlnp | grep apiserver
-curl -k https://localhost:6443
+kubectl get pods -n kube-system -l component=etcd -o wide
+kubectl logs -n kube-system <etcd-pod> --since=10m
 ```
 
-Check for audit events if audit logging is enabled:
+If audit logging is already configured, locate the configured audit log path from the API server manifest and inspect recent failed requests. For a JSON-lines audit log:
+
 ```bash
-sudo tail -f /var/log/kubernetes/audit.log | jq '.[] | select(.responseStatus.code >= 500)'
+sudo jq 'select(.stage == "ResponseComplete" and
+  .responseStatus.code >= 400) |
+  {time: .requestReceivedTimestamp,
+   user: .user.username,
+   verb,
+   resource: .objectRef.resource,
+   namespace: .objectRef.namespace,
+   name: .objectRef.name,
+   code: .responseStatus.code}' <audit-log-path>
 ```
 
-Look for request patterns:
-```bash
-sudo tail -f /var/log/kubernetes/audit.log | jq '.[] | .user.username' | sort | uniq -c
-```
+Summarize repeated requests by authenticated user only after selecting relevant events. Do not enable audit logging or change API server configuration during this diagnostic task.
 
-Check load on API server:
-```bash
-k top nodes
-k top pods -n kube-system | grep apiserver
-```
-
-Identify slow requests:
-```bash
-sudo tail -f /var/log/kubernetes/audit.log | jq '.[] | select(.requestReceivedTimestamp < .responseReceivedTimestamp) | .responseReceivedTimestamp - .requestReceivedTimestamp'
-```
-
-**Key insight:** API server logs are usually in journalctl for systemd or as a static pod in `-n kube-system`. High latency often indicates etcd performance issues or excessive requests from a client.
+**Key insight:** Check readiness, logs, node pressure, and etcd health before assuming the API server itself is the root cause. Audit data is available only if the cluster already collects it.
 
 ---
 
-## Solution 6: ConfigMap Updates and Pod Restarts
+## Solution 6: Apply a ConfigMap Update
 
-Problem: ConfigMap is mounted as a volume, but changes don't immediately reflect in running pods.
+Trigger a rolling restart of the Deployment so the application process reloads the mounted configuration:
 
-Solution 1 — Manual pod restart:
 ```bash
-k rollout restart deployment/my-app
+kubectl rollout restart deployment/catalog -n apps
+kubectl rollout status deployment/catalog -n apps
 ```
 
-This recreates all pods which reload the ConfigMap.
+Verify new Pods are Ready and inspect the mounted configuration file without changing it:
 
-Solution 2 — Automatic reloader (Stakater Reloader):
-This is a third-party tool but shows the pattern:
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-config
-data:
-  config.yaml: |
-    key: value
-```
-
-Annotation on deployment:
-```yaml
-spec:
-  template:
-    metadata:
-      annotations:
-        configmap.reloader.stakater.com/match: "app-config"
-```
-
-When ConfigMap changes, the reloader updates pod annotations, triggering a rollout.
-
-Solution 3 — Ignore for now (reload on next deployment):
-Some teams accept that ConfigMap changes require manual redeploy. Document this as a known limitation.
-
-For immediate needs:
 ```bash
-k patch configmap app-config -p '{"data":{"config":"new-value"}}'
-k rollout restart deployment/my-app
+kubectl get pods -n apps -l app=catalog
+kubectl exec -n apps deployment/catalog -- cat <mount-path>/<config-file>
 ```
 
-**Key insight:** Kubernetes doesn't automatically restart pods when ConfigMaps change. Volume mounts may update over time (depends on kubelet settings), but the best practice is explicit restart or a reloader controller.
+Use the actual labels, mount path, and filename from the Deployment. Confirm the mounted file contains the updated value specified in the lab.
+
+**Key insight:** A ConfigMap mounted as a volume is eventually projected into the Pod, but the application may not watch or reload the file. A rollout restart is a straightforward way to ensure the process starts with the updated configuration.
 
 ---
 
-## Solution 7: PriorityClass and Pod Eviction
+## Solution 7: PriorityClass and Scheduling
 
-Create critical PriorityClass:
+Create the two PriorityClasses:
+
 ```yaml
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: critical
+  name: critical-workload
 value: 1000
 globalDefault: false
-description: "Critical priority workloads"
 preemptionPolicy: PreemptLowerPriority
 ---
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: standard
+  name: standard-workload
 value: 100
-globalDefault: true
-description: "Standard priority workloads"
+globalDefault: false
 preemptionPolicy: PreemptLowerPriority
 ```
 
-Deploy critical pods with priority:
+Create the requested Pods with `priorityClassName` set in each Pod spec. For example:
+
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: critical-pod-1
+  name: critical-1
+  namespace: default
 spec:
-  priorityClassName: critical
+  priorityClassName: critical-workload
   containers:
-  - name: app
-    image: nginx
-```
-
-Deploy standard pod:
-```yaml
+    - name: app
+      image: registry.k8s.io/pause:3.9
+---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: standard-pod
+  name: critical-2
+  namespace: default
 spec:
-  priorityClassName: standard
+  priorityClassName: critical-workload
   containers:
-  - name: app
-    image: nginx
+    - name: app
+      image: registry.k8s.io/pause:3.9
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: standard-1
+  namespace: default
+spec:
+  priorityClassName: standard-workload
+  containers:
+    - name: app
+      image: registry.k8s.io/pause:3.9
 ```
 
-When node runs out of memory, kublet evicts pods in priority order. If `preemptionPolicy: PreemptLowerPriority`, higher priority pods can preempt lower ones.
+Verify the classes and Pod priorities:
 
-Verify by checking which pods remain:
 ```bash
-k get pods
+kubectl get priorityclass
+kubectl get pods -o custom-columns=NAME:.metadata.name,CLASS:.spec.priorityClassName,PRIORITY:.spec.priority
 ```
 
-Standard pod should be evicted before critical pods.
-
-**Key insight:** PriorityClass value (higher number = higher priority). PreemptionPolicy controls whether higher priority pods can evict lower ones. Without preemption, priority only affects scheduling order.
+**Key insight:** Higher priority affects scheduling order and can enable scheduler preemption of lower-priority Pods when a higher-priority Pod cannot fit. Priority alone does not guarantee a specific kubelet memory-pressure eviction order; resource requests and usage, quality of service, and node conditions also matter.
 
 ---
 
-## Solution 8: Service Types and Exposure
+## Solution 8: Expose a Service with NodePort
 
-Use NodePort Service:
+Create the Service:
+
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: legacy-app
+  namespace: legacy
 spec:
   type: NodePort
   selector:
     app: legacy
   ports:
-  - protocol: TCP
-    port: 3000        # Internal pod port
-    targetPort: 3000  # Pod listens on this
-    nodePort: 8080    # External node port
+    - name: http
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 30080
 ```
 
-Apply:
+Apply and verify endpoints:
+
 ```bash
-k apply -f service.yaml
+kubectl apply -f legacy-app-service.yaml
+kubectl get service legacy-app -n legacy
+kubectl get endpoints legacy-app -n legacy
+kubectl get pods -n legacy -l app=legacy -o wide
 ```
 
-Verify:
+From a host that can reach a node's IP and the NodePort:
+
 ```bash
-k get svc legacy-app
+curl http://<node-ip>:30080
 ```
 
-Output shows:
-```
-NAME         TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-legacy-app   NodePort   10.100.100.100  <none>        3000:8080/TCP    5s
-```
+The default NodePort range includes `30080`. External reachability depends on the lab network and firewall configuration.
 
-Access externally:
-```bash
-curl http://<node-ip>:8080
-```
-
-Verify from outside cluster:
-```bash
-curl http://192.168.1.10:8080  # Where 192.168.1.10 is a node IP
-```
-
-**Key insight:** NodePort opens a port on every node. External traffic comes to node:port, then kube-proxy routes to the pod. Port range is typically 30000-32767 (unless custom), but can specify any port in that range.
+**Key insight:** `port` is the Service port, `targetPort` is the Pod port, and `nodePort` is opened on cluster nodes. A NodePort Service does not itself create a public external IP.
 
 ---
 
-## Solution 9: CronJob Scheduling
+## Solution 9: CronJob Schedule and Suspension
 
-Create CronJob:
+Create the suspended CronJob with an explicit UTC schedule:
+
 ```yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: backup-job
+  name: daily-backup
+  namespace: ops
 spec:
-  schedule: "0 2 * * *"  # Every day at 2 AM
-  concurrencyPolicy: Forbid
+  schedule: "0 2 * * *"
+  timeZone: "Etc/UTC"
+  suspend: true
   successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 1
-  suspend: false
   jobTemplate:
     spec:
       template:
         spec:
-          containers:
-          - name: backup
-            image: backup-tool:latest
-            command: ["/bin/sh", "-c", "echo 'Running backup'; sleep 5"]
           restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: busybox:1.36
+              command: ["sh", "-c", "echo backup started"]
 ```
 
-Apply:
+Apply and inspect:
+
 ```bash
-k apply -f cronjob.yaml
+kubectl apply -f daily-backup-cronjob.yaml
+kubectl get cronjob daily-backup -n ops -o yaml
+kubectl describe cronjob daily-backup -n ops
 ```
 
-Verify the schedule:
+Resume scheduled runs when appropriate:
+
 ```bash
-k get cronjob backup-job
-k describe cronjob backup-job
+kubectl patch cronjob daily-backup -n ops --type=merge \
+  -p '{"spec":{"suspend":false}}'
 ```
 
-Suspend the CronJob (won't run for next month):
-```bash
-k patch cronjob backup-job -p '{"spec":{"suspend":true}}'
-```
-
-Resume when needed:
-```bash
-k patch cronjob backup-job -p '{"spec":{"suspend":false}}'
-```
-
-Check successful job history:
-```bash
-k get jobs -l cronjob-name=backup-job
-```
-
-**Key insight:** CronJob schedule uses cron syntax (minute hour day month dayOfWeek). `0 2 * * *` = 2 AM daily. `successfulJobsHistoryLimit: 3` keeps only last 3 successful jobs; older ones are deleted automatically.
+**Key insight:** `suspend: true` prevents future scheduled Jobs; it does not delete Jobs that already exist. `timeZone: Etc/UTC` makes the intended schedule explicit.
 
 ---
 
-## Solution 10: Cluster Certificate Rotation
+## Solution 10: Renew kubeadm Certificates
 
-Check current certificate expiration:
+On the control-plane node, inspect expiration and renew the certificates managed by kubeadm:
+
 ```bash
 sudo kubeadm certs check-expiration
-```
-
-Output shows each certificate and when it expires.
-
-Renew all certificates:
-```bash
 sudo kubeadm certs renew all
-```
-
-Check they were renewed:
-```bash
 sudo kubeadm certs check-expiration
 ```
 
-Restart the API server and other control plane components to pick up new certs:
+Renewal does not automatically reload every certificate into already-running static control-plane Pods. Follow the cluster's maintenance procedure to restart the control-plane static Pods one at a time. In a single-control-plane lab, the general mechanism is to temporarily move the relevant manifest out of `/etc/kubernetes/manifests/`, wait for the static Pod to stop, then move the manifest back and wait for it to become healthy. Keep the API server available between component restarts where possible, and do not leave backup manifests in the watched directory.
+
+After restart, verify the control-plane Pods and API server health:
+
 ```bash
-sudo systemctl restart kubelet
+kubectl get pods -n kube-system -o wide
+kubectl get --raw='/readyz?verbose'
+sudo kubeadm certs check-expiration
 ```
 
-Or if static pods:
-```bash
-kubectl -n kube-system delete pod kube-apiserver-<controlplane>
-```
+For HA clusters, renew and restart one control-plane node at a time according to the cluster's operational runbook. Certificate authority certificates are not renewed by `kubeadm certs renew all`.
 
-Kubelet will automatically recreate it with the new manifest and certs.
-
-Verify API server is using new certs:
-```bash
-openssl s_client -connect localhost:6443 </dev/null | openssl x509 -noout -dates
-```
-
-Check the notAfter date matches the renewed date.
-
-**Key insight:** Kubeadm manages certificate renewal. Certificates are typically valid for 1 year from cluster initialization. Renewal doesn't require cluster restart, but API server must reload (usually happens when the pod is deleted/recreated).
+**Key insight:** Check the actual certificate inventory and expiry first. Static Pods must reload renewed files, and certificate renewal is a maintenance operation that can affect control-plane availability.
 
 ---
 
-## Solution 11: Pod Disruption Budgets
+## Solution 11: Pod Disruption Budget
 
-Create PodDisruptionBudget:
+Create a PDB selecting the Deployment's Pods:
+
 ```yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: app-pdb
+  name: web-pdb
+  namespace: apps
 spec:
   minAvailable: 8
   selector:
     matchLabels:
-      app: my-app
+      app: web
 ```
 
-This means: at least 8 pods must stay available during disruption. With 10 replicas, only 2 can be disrupted simultaneously.
+Apply and inspect its status:
 
-Apply:
 ```bash
-k apply -f pdb.yaml
+kubectl apply -f web-pdb.yaml
+kubectl get pdb web-pdb -n apps
+kubectl describe pdb web-pdb -n apps
+kubectl get pods -n apps -l app=web -o wide
 ```
 
-Verify:
+In the designated lab, attempt to drain a node containing multiple matching Pods:
+
 ```bash
-k get pdb
-k describe pdb app-pdb
+kubectl drain <worker-node> --ignore-daemonsets --timeout=2m
 ```
 
-Test by draining a node with multiple app pods:
-```bash
-k drain worker-1 --ignore-daemonsets
-```
+The eviction API can evict Pods only while the PDB's disruption budget allows. If 8 Pods are already available, further voluntary eviction is blocked until a disrupted Pod is healthy again or the workload has enough additional healthy replicas. Do not bypass the PDB with a force option for the purpose of this exercise.
 
-Without the PDB, all app pods on this node would be evicted.
-With the PDB, Kubernetes respects minAvailable and evicts pods gradually, ensuring at least 8 are always running.
-
-Monitor drain progress:
-```bash
-k get pods
-k get nodes worker-1
-```
-
-**Key insight:** PDB is a soft constraint — it prevents voluntary disruptions (maintenance, scaling) but not hardware failures. Node failure immediately deletes pods and breaks PDB constraints.
+**Key insight:** A PDB constrains voluntary disruptions submitted through the eviction API. It does not prevent involuntary node failures, and a drain can remain blocked if the minimum availability cannot be maintained.
 
 ---
 
-## Solution 12: Custom Resource Definitions (CRD)
+## Solution 12: Work with a Custom Resource
 
-Check if CRD exists:
+Check whether the CRD exists and discover served versions:
+
 ```bash
-k get crd databases.example.com  # Specific CRD name
-k get crd | grep database
+kubectl get crd databases.example.com
+kubectl get crd databases.example.com \
+  -o jsonpath='{range .spec.versions[?(@.served==true)]}{.name}{"\n"}{end}'
+kubectl api-resources --api-group=example.com
 ```
 
-Create custom resource instance:
-```yaml
-apiVersion: example.com/v1
-kind: Database
-metadata:
-  name: prod-db
-spec:
-  engine: postgres
-  version: "15"
-  storage: 100Gi
-```
+Use the lab-provided sample manifest, including the exact `apiVersion` and fields accepted by the installed CRD:
 
-Apply:
 ```bash
-k apply -f database-instance.yaml
+kubectl apply -f database-sample.yaml
+kubectl get databases.example.com
+kubectl get databases.example.com <resource-name> -o yaml
 ```
 
-Verify in etcd and API server:
+Delete the test resource when finished:
+
 ```bash
-k get databases
-k describe database prod-db
-k get database prod-db -o yaml
+kubectl delete -f database-sample.yaml
 ```
 
-Delete the resource:
-```bash
-k delete database prod-db
-```
-
-Or by name:
-```bash
-k delete database --all
-```
-
-**Key insight:** CRDs extend the Kubernetes API with custom resources. Commands work the same as built-in resources. Data is stored in etcd like any other resource.
+**Key insight:** A custom resource is managed through the Kubernetes API once its CRD is installed. Confirm the served API version and schema from the CRD or the provided sample; do not assume that resource names or spec fields are universal. Direct etcd inspection is unnecessary for verifying the resource.
 
 ---
 
-## Solution 13: Enforce Pod Security Standards
+## Solution 13: Pod Security Admission
 
-Create the namespace and configure both enforcement and warning at the restricted level:
+Create and label the namespace:
+
 ```bash
-k create namespace restricted
-k label namespace restricted \
+kubectl create namespace restricted
+kubectl label namespace restricted \
   pod-security.kubernetes.io/enforce=restricted \
   pod-security.kubernetes.io/warn=restricted
 ```
 
-Create a compliant Pod:
+A compliant Pod can use a non-root user, the RuntimeDefault seccomp profile, no privilege escalation, and no added capabilities:
+
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -624,114 +496,96 @@ spec:
     seccompProfile:
       type: RuntimeDefault
   containers:
-  - name: pause
-    image: registry.k8s.io/pause:3.10
-    securityContext:
-      allowPrivilegeEscalation: false
-      readOnlyRootFilesystem: true
-      capabilities:
-        drop:
-        - ALL
-```
-```bash
-k apply -f restricted-pod.yaml
-k get pod restricted-pod -n restricted
+    - name: pause
+      image: registry.k8s.io/pause:3.9
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
 ```
 
-Attempt to create a privileged Pod:
+Apply it, then attempt the privileged Pod:
+
 ```bash
-k run blocked-pod --image=nginx --restart=Never --privileged -n restricted
+kubectl apply -f restricted-pod.yaml
+kubectl run blocked-pod -n restricted --image=nginx:1.25 \
+  --restart=Never --overrides='{"spec":{"containers":[{"name":"blocked-pod","image":"nginx:1.25","securityContext":{"privileged":true}}]}}'
 ```
 
-The API server rejects this Pod because it violates the enforced standard. The request also returns a warning because the namespace has the matching `warn` label. Verify the namespace labels with:
-```bash
-k get namespace restricted --show-labels
-```
+The second request should be rejected by enforcement. The admission response should also contain a warning because the namespace has the matching `warn` label.
 
-**Key point:** Pod Security Admission policies are selected with namespace labels. Exemptions, when needed, are configured in the API server's admission configuration; there is no per-Pod `pod-security.kubernetes.io/exempt` label.
+**Key insight:** `enforce` rejects violating Pods. `warn` reports the violation to the requesting client; it does not override or weaken enforcement.
 
 ---
 
-## Solution 14: Storage Class and Dynamic Provisioning
+## Solution 14: Dynamic Volume Provisioning
 
-Create StorageClass:
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: ssd-provisioner
-provisioner: pd.csi.storage.gke.io  # GKE example; varies by cluster
-parameters:
-  type: pd-ssd
-allowVolumeExpansion: true
-reclaimPolicy: Delete
-```
+Create a PVC that uses the lab-provided StorageClass:
 
-Apply:
-```bash
-k apply -f storageclass.yaml
-```
-
-Create PVC:
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: my-ssd-claim
+  name: fast-ssd-claim
+  namespace: default
 spec:
   accessModes:
-  - ReadWriteOnce
-  storageClassName: ssd-provisioner
+    - ReadWriteOnce
+  storageClassName: fast-ssd
   resources:
     requests:
       storage: 20Gi
 ```
 
-Apply:
-```bash
-k apply -f pvc.yaml
-```
+Create a Pod that mounts the claim:
 
-Verify PV is created automatically:
-```bash
-k get pvc my-ssd-claim
-k get pv  # Should see a new PV bound to the PVC
-```
-
-Deploy a pod using the PVC:
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: app-using-ssd
+  name: storage-check
+  namespace: default
 spec:
   containers:
-  - name: app
-    image: nginx
-    volumeMounts:
-    - name: ssd-volume
-      mountPath: /data
+    - name: web
+      image: nginx:1.25
+      volumeMounts:
+        - name: data
+          mountPath: /data
   volumes:
-  - name: ssd-volume
-    persistentVolumeClaim:
-      claimName: my-ssd-claim
+    - name: data
+      persistentVolumeClaim:
+        claimName: fast-ssd-claim
 ```
 
-Apply and verify:
+Apply both manifests and verify provisioning and mount:
+
 ```bash
-k apply -f pod.yaml
-k get pods
-k exec app-using-ssd -- df -h /data  # Should show 20Gi mount
+kubectl apply -f fast-ssd-claim.yaml
+kubectl apply -f storage-check-pod.yaml
+kubectl get pvc fast-ssd-claim
+kubectl get pv
+kubectl wait --for=condition=Ready pod/storage-check --timeout=120s
+kubectl exec storage-check -- df -h /data
 ```
 
-**Key insight:** StorageClass enables dynamic provisioning. When PVC is created, the provisioner automatically creates a matching PV. Pod binds to the PVC, which is bound to the PV.
+With `WaitForFirstConsumer`, the claim may remain Pending until the Pod is scheduled. If it does not bind, inspect the PVC events and the provisioner rather than modifying the provided StorageClass.
+
+**Key insight:** A PVC triggers dynamic provisioning only when the StorageClass provisioner is functional and supports the requested capacity/access mode. Provisioner implementation and storage parameters are environment-specific.
 
 ---
 
-## Solution 15: Namespace Quota and Resource Management
+## Solution 15: Namespace Quota and LimitRange
 
-Create ResourceQuota:
+Create the namespace and apply a quota for aggregate requested resources plus a per-container LimitRange:
+
 ```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: batch-jobs
+---
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -741,12 +595,7 @@ spec:
   hard:
     requests.cpu: "10"
     requests.memory: 20Gi
-    limits.cpu: "10"
-    limits.memory: 20Gi
-```
-
-Create LimitRange:
-```yaml
+---
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -754,64 +603,60 @@ metadata:
   namespace: batch-jobs
 spec:
   limits:
-  - type: Container
-    min:
-      cpu: 500m
-      memory: 256Mi
-    max:
-      cpu: 4
-      memory: 8Gi
+    - type: Container
+      min:
+        cpu: 500m
+        memory: 256Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
 ```
 
-Apply both:
+Apply the policy and inspect it:
+
 ```bash
-k apply -f quota.yaml -f limitrange.yaml -n batch-jobs
+kubectl apply -f batch-jobs-policy.yaml
+kubectl describe resourcequota batch-jobs-quota -n batch-jobs
+kubectl describe limitrange batch-jobs-limits -n batch-jobs
 ```
 
-Verify:
+Use a Pod manifest with requests and limits above the per-container maximum but below the aggregate quota, to isolate the LimitRange rejection:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oversized-pod
+  namespace: batch-jobs
+spec:
+  restartPolicy: Never
+  containers:
+    - name: app
+      image: nginx:1.25
+      resources:
+        requests:
+          cpu: "5"
+          memory: 9Gi
+        limits:
+          cpu: "5"
+          memory: 9Gi
+```
+
+Apply it and confirm admission rejects it because its container exceeds the LimitRange maximum:
+
 ```bash
-k describe quota -n batch-jobs
-k describe limits -n batch-jobs
+kubectl apply -f oversized-pod.yaml
 ```
 
-Test by deploying a pod that exceeds limits:
-```bash
-k run oversized-pod \
-  -n batch-jobs \
-  --image=nginx \
-  --requests='cpu=8,memory=16Gi' \
-  --overrides='{"spec":{"containers":[{"resources":{"limits":{"cpu":"8","memory":"16Gi"}}}]}}'
-```
-
-Should be rejected:
-```
-Error: the container cannot be created because the request exceeds the allocation set by the LimitRange
-```
-
-Or:
-```
-Error: the deployment violates the ResourceQuota: requests.cpu and memory exceeded
-```
-
-Try again with acceptable values:
-```bash
-k run compliant-pod \
-  -n batch-jobs \
-  --image=nginx \
-  --requests='cpu=2,memory=4Gi'
-```
-
-Should succeed.
-
-**Key insight:** LimitRange applies to individual containers. ResourceQuota applies to the whole namespace. Together they prevent resource exhaustion at both pod and namespace levels.
+**Key insight:** ResourceQuota limits aggregate namespace usage; LimitRange constrains individual containers. The test requests 5 CPU and 9Gi, which is below the empty namespace's total quota but above the per-container maximum.
 
 ---
 
 ## Overall Scoring
 
-Each question is worth ~6.7 points (15 questions = 100 points).
+Each question is worth approximately 6.7 points (15 questions = 100 points).
 - 10+ correct = Pass (66%)
 - 12+ correct = Strong performance
 - 15/15 = Excellent mastery
 
-If you scored lower, identify weak areas and reference the corresponding exercises. If you scored high on both exams, you're ready for the real CKA exam.
+Review missed solutions and complete the corresponding exercises in the repository for deeper practice.
