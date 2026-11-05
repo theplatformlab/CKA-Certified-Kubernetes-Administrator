@@ -241,8 +241,11 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
-    - Ingress
----
+  - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -253,14 +256,15 @@ spec:
     matchLabels:
       app: frontend
   policyTypes:
-    - Ingress
+  - Ingress
   ingress:
     - from:
-        - podSelector: {}
+        - podSelector:
+            matchLabels:
+              tier: frontend
       ports:
         - protocol: TCP
-          port: 80
----
+          port: 3000
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -271,15 +275,15 @@ spec:
     matchLabels:
       app: backend
   policyTypes:
-    - Ingress
+  - Ingress
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              app: frontend
+              tier: backend
       ports:
         - protocol: TCP
-          port: 8080
+          port: 5432
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
