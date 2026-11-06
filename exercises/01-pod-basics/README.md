@@ -4,6 +4,13 @@
 
 Create a pod with specific resource requests, labels, and verify it's running.
 
+## Lab Requirements
+
+- Cluster: single-node kind or Minikube
+- Components: none
+- Access: permission to create namespaces and Pods
+- Test record: Not tested
+
 ## Tasks
 
 1. Create a namespace called `exercise-01`

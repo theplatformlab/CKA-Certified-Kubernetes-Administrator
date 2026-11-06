@@ -4,6 +4,13 @@
 
 Create NetworkPolicies to control pod-to-pod traffic. Watch out for the DNS gotcha.
 
+## Lab Requirements
+
+- Cluster: single-node kind or Minikube
+- Components: a CNI that enforces Kubernetes NetworkPolicy; the default CNI may not enforce policies
+- Access: permission to create namespaces, Pods, and NetworkPolicies
+- Test record: Not tested
+
 ## Tasks
 
 1. Create a namespace called `exercise-05`

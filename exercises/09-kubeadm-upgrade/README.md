@@ -4,6 +4,15 @@
 
 Upgrade a cluster from one minor version to the next using kubeadm. The CKA frequently asks this — you need to know the exact sequence.
 
+## Lab Requirements
+
+- Cluster: disposable multi-node kubeadm cluster with at least one control-plane node and one worker
+- Components: matching OS package repositories for the current and target Kubernetes versions
+- Access: SSH and sudo on every node; cluster-admin access from the control plane
+- Test record: Not tested
+
+Do not run this exercise on kind, Minikube's default single-node profile, or a shared cluster. The upgrade is intentionally disruptive and is not cleaned up by the exercise.
+
 ## Tasks
 
 1. Check the current cluster version (`k get nodes`, `kubeadm version`)

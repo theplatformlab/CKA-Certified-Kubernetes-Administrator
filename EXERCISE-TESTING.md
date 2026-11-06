@@ -11,6 +11,19 @@ YAML validation catches malformed manifests. It does not show that an exercise c
 - [ ] Cleanup removes resources created by the exercise and does not remove shared or pre-existing resources.
 - [ ] Any step requiring multiple nodes, a special CNI, a storage provisioner, host access, or control-plane changes is called out.
 
+Use the same short block near the top of an exercise so students can decide whether their lab is suitable:
+
+```markdown
+## Lab Requirements
+
+- Cluster: single-node kind or Minikube / multi-node kubeadm VMs
+- Components: list required CNI, storage provisioner, or other add-ons; write `None` if there are none
+- Access: kubectl namespace permissions / node SSH and sudo
+- Test record: date, Kubernetes version, cluster type, and result; write `Not tested` until it has actually been run
+```
+
+Keep only the applicable choices in each exercise. Do not copy the example alternatives as if all are required.
+
 ## 2. Use a Disposable Cluster
 
 Never test node, networking, storage, or control-plane changes against a production or shared cluster. Both the kind bootstrap script and Minikube switch the current kubectl context. Use a new, unused cluster/profile name, and do not pass `--recreate` unless you have confirmed the named kind cluster is disposable.
