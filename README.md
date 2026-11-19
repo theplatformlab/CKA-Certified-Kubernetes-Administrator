@@ -919,7 +919,7 @@ ETCDCTL_API=3 etcdctl snapshot save /tmp/etcd-backup.db \
   --key=/etc/kubernetes/pki/etcd/server.key
 
 # Verify snapshot
-ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db --write-table
+ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db --write-out=table
 
 # Restore
 ETCDCTL_API=3 etcdctl snapshot restore /tmp/etcd-backup.db \
@@ -1690,7 +1690,7 @@ Where to find the cert paths: `cat /etc/kubernetes/manifests/etcd.yaml` and look
 
 **Verify:**
 ```bash
-ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db --write-table
+ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db --write-out=table
 ```
 
 **Restore:**
@@ -2201,7 +2201,7 @@ ETCDCTL_API=3 etcdctl snapshot save /opt/etcd-backup.db \
   --key=/etc/kubernetes/pki/etcd/server.key
 
 # Verify
-ETCDCTL_API=3 etcdctl snapshot status /opt/etcd-backup.db --write-table
+ETCDCTL_API=3 etcdctl snapshot status /opt/etcd-backup.db --write-out=table
 
 # Restore
 ETCDCTL_API=3 etcdctl snapshot restore /opt/etcd-backup.db \
@@ -2547,7 +2547,7 @@ ETCDCTL_API=3 etcdctl snapshot save /opt/etcd-snapshot.db \
   --key=/etc/kubernetes/pki/etcd/server.key
 
 # Verify
-ETCDCTL_API=3 etcdctl snapshot status /opt/etcd-snapshot.db --write-table
+ETCDCTL_API=3 etcdctl snapshot status /opt/etcd-snapshot.db --write-out=table
 ```
 
 </details>

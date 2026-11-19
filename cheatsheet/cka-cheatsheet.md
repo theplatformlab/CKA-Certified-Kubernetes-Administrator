@@ -104,7 +104,7 @@ ETCDCTL_API=3 etcdctl snapshot save /tmp/backup.db \
   --key=/etc/kubernetes/pki/etcd/server.key
 
 # Verify
-ETCDCTL_API=3 etcdctl snapshot status /tmp/backup.db --write-table
+ETCDCTL_API=3 etcdctl snapshot status /tmp/backup.db --write-out=table
 
 # Restore
 ETCDCTL_API=3 etcdctl snapshot restore /tmp/backup.db \

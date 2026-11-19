@@ -6,33 +6,60 @@ Create NetworkPolicies to control pod-to-pod traffic. Watch out for the DNS gotc
 
 ## Lab Requirements
 
-- Cluster: single-node kind or Minikube
-- Components: a CNI that enforces Kubernetes NetworkPolicy; the default CNI may not enforce policies
+- Cluster: single-node Minikube started with Calico, or another disposable cluster with a NetworkPolicy-enforcing CNI
+- Components: Calico for the Minikube path; Minikube's default CNI does not enforce NetworkPolicy
 - Access: permission to create namespaces, Pods, and NetworkPolicies
 - Test record: Not tested
 
+For Minikube, use the VM driver for your OS and add `--cni=calico`. For example, on Windows Home:
+
+```powershell
+minikube start -p cka-netpol --driver=virtualbox --cni=calico --kubernetes-version=v1.35.1
+kubectl config current-context
+kubectl get nodes
+```
+
+On Linux or macOS, use the Minikube VM driver from the [setup guide](../../README.md#no-docker-use-minikube-with-a-vm-driver) with the same `--cni=calico` option. Don't use Minikube's default CNI for this exercise.
+
+## Setup
+
+Create the test namespace and Pods. BusyBox provides the HTTP client; Nginx serves the backend on port 80.
+
+```bash
+k create namespace exercise-05
+k run frontend -n exercise-05 --image=busybox:1.36 --labels=role=frontend \
+  --command -- sleep 3600
+k run backend -n exercise-05 --image=nginx:1.27 --labels=role=backend
+k run attacker -n exercise-05 --image=busybox:1.36 --labels=role=attacker \
+  --command -- sleep 3600
+k wait -n exercise-05 --for=condition=Ready pod --all --timeout=120s
+```
+
+Before applying a policy, confirm that the frontend can reach the backend:
+
+```bash
+BACKEND_IP=$(k get pod backend -n exercise-05 -o jsonpath='{.status.podIP}')
+k exec frontend -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP"
+```
+
 ## Tasks
 
-1. Create a namespace called `exercise-05`
-2. Deploy two pods:
-   - `frontend` with image `nginx:1.27` and label `role=frontend`
-   - `backend` with image `nginx:1.27` and label `role=backend`
-3. Verify that `frontend` can reach `backend` on port 80 (should work before any policy)
-4. Create a NetworkPolicy named `backend-policy` that:
-   - Applies to pods with label `role=backend`
-   - Allows ingress only from pods with label `role=frontend` on port 80
-   - Allows egress to DNS (UDP port 53) — if you skip this, DNS breaks
-5. Verify that `frontend` can still reach `backend`
-6. Create a third pod `attacker` with label `role=attacker` and verify it cannot reach `backend`
+1. Inspect the Pods and confirm the frontend can reach the backend before a policy exists.
+2. Create a NetworkPolicy named `backend-policy` that:
+  - Applies to Pods with label `role=backend`
+  - Allows ingress only from Pods with label `role=frontend` on port 80
+  - Allows egress to CoreDNS on UDP and TCP port 53
+3. Verify that `frontend` can still reach `backend` by Pod IP.
+4. Verify that `attacker` cannot reach `backend`.
 
 ## Hints
 
 <details>
 <summary>Stuck? Click to reveal hints</summary>
 
-- Once you apply any NetworkPolicy to a pod, all traffic not explicitly allowed is denied
-- You almost always need to allow DNS egress (UDP port 53), or the pod can't resolve service names
-- Test connectivity with `k exec <pod> -- curl -m2 http://<target-ip>`
+- A policy selecting a Pod isolates both ingress and egress if both policy types are listed.
+- CoreDNS commonly uses `k8s-app=kube-dns` in namespace `kube-system`; check the actual labels first.
+- BusyBox includes `wget`, so the test doesn't depend on `curl` being installed in the image.
 
 </details>
 
@@ -49,10 +76,15 @@ Create NetworkPolicies to control pod-to-pod traffic. Watch out for the DNS gotc
 BACKEND_IP=$(k get pod backend -n exercise-05 -o jsonpath='{.status.podIP}')
 
 # Frontend -> Backend: should work
-k exec frontend -n exercise-05 -- curl -m2 http://$BACKEND_IP
+k exec frontend -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP"
 
-# Attacker -> Backend: should time out
-k exec attacker -n exercise-05 -- curl -m2 http://$BACKEND_IP
+# Attacker -> Backend: should fail
+if k exec attacker -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP"; then
+  echo "Unexpected: attacker reached backend"
+  exit 1
+else
+  echo "Expected: policy blocked attacker"
+fi
 ```
 
 ## CNI Troubleshooting
@@ -124,7 +156,7 @@ ssh <node> sudo iptables -L -n
 ssh <node> sudo iptables -L -n -t nat
 
 # Step 5: Verify service connectivity
-k exec frontend -n exercise-05 -- curl -m2 http://kubernetes.default.svc.cluster.local
+k exec frontend -n exercise-05 -- wget -qO- -T 3 http://kubernetes.default.svc.cluster.local
 k exec frontend -n exercise-05 -- nslookup kubernetes.default
 ```
 
@@ -148,12 +180,14 @@ k delete ns exercise-05
 k create ns exercise-05
 
 # Create pods
-k run frontend -n exercise-05 --image=nginx:1.27 --labels=role=frontend
+k run frontend -n exercise-05 --image=busybox:1.36 --labels=role=frontend \
+  --command -- sleep 3600
 k run backend -n exercise-05 --image=nginx:1.27 --labels=role=backend
-k run attacker -n exercise-05 --image=nginx:1.27 --labels=role=attacker
+k run attacker -n exercise-05 --image=busybox:1.36 --labels=role=attacker \
+  --command -- sleep 3600
 
 # Wait for all pods
-k get pods -n exercise-05 -w
+k wait -n exercise-05 --for=condition=Ready pod --all --timeout=120s
 ```
 
 ```yaml
@@ -178,9 +212,17 @@ spec:
     - protocol: TCP
       port: 80
   egress:
-  - to: []
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
     ports:
     - protocol: UDP
+      port: 53
+    - protocol: TCP
       port: 53
 ```
 
@@ -189,8 +231,13 @@ k apply -f netpol.yaml
 
 # Test
 BACKEND_IP=$(k get pod backend -n exercise-05 -o jsonpath='{.status.podIP}')
-k exec frontend -n exercise-05 -- curl -m2 http://$BACKEND_IP
-k exec attacker -n exercise-05 -- curl -m2 http://$BACKEND_IP
+k exec frontend -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP"
+if k exec attacker -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP"; then
+  echo "Unexpected: attacker reached backend"
+  exit 1
+else
+  echo "Expected: policy blocked attacker"
+fi
 ```
 
 </details>
