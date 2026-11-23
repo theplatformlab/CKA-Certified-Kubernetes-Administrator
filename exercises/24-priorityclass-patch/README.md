@@ -9,7 +9,7 @@ Create a high-priority pod that gets scheduled before lower-priority pods. Pract
 1. Create a namespace called `exercise-24`
 2. Create a PriorityClass with:
    - Name: `high-priority`
-   - Value: `999999` (one less than 1000000 — max priority)
+   - Value: `999999999` (one less than 1000000000 — max priority)
    - Description: "Critical workload"
 3. Create a Deployment named `critical-app`:
    - 1 replica initially
@@ -43,7 +43,7 @@ Create a high-priority pod that gets scheduled before lower-priority pods. Pract
 
 > I created the PriorityClass but forgot you need to set it on the Pod template spec, not the Deployment spec. The patch syntax is tricky. I also initially tried to edit the YAML file instead of using patch, which wastes time on the exam. The correct approach: create PriorityClass first, then patch the Deployment's pod template to add it.
 >
-> Also: I used a lower value (100) when the exam said "high priority." The scale is: system-cluster-critical (2000000000), system-node-critical (2000001000), user values usually 0-1000000. Going close to max (999999) ensures your pod gets scheduled first even under resource pressure.
+> Also: I used a lower value (100) when the exam said "high priority." The scale is: system-cluster-critical (2000000000), system-node-critical (2000001000), user values usually 0-1000000000. Going close to max (999999999) ensures your pod gets scheduled first even under resource pressure.
 
 ## Verify
 
@@ -76,7 +76,7 @@ k create ns exercise-24
 kn exercise-24
 
 # Create PriorityClass
-k create priorityclass high-priority --value=999999 --description="Critical workload"
+k create priorityclass high-priority --value=999999999 --description="Critical workload"
 
 # Verify it was created
 k get priorityclass high-priority
@@ -104,7 +104,7 @@ k get pod -n exercise-24 -o jsonpath='{.items[0].spec.priorityClassName}'
 
 # Check priority value
 k get priorityclass high-priority -o jsonpath='{.value}'
-# Output: 999999
+# Output: 999999999
 
 # Cleanup
 k delete ns exercise-24
