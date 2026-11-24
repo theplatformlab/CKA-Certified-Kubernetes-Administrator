@@ -62,7 +62,7 @@ k get pods -l app=mysql -o wide
 k get pvc
 
 # Persistent DNS names work
-k run debug --image=busybox:1.37 --rm -it -- nslookup mysql-0.mysql.default.svc.cluster.local
+k run debug --image=busybox:1.37 --rm -it --restart=Never -- nslookup mysql-0.mysql.default.svc.cluster.local
 
 # Pod names are stable after deletion
 k delete pod mysql-1
