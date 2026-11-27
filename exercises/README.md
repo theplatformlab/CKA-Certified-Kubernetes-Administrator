@@ -51,6 +51,25 @@ I ordered these roughly by difficulty. If you're short on time, prioritize 09 (k
 | Workloads & Scheduling | 15% | 01, 02, 03, 06, 07, 10, 16, 20, 21, 22, 23, 24 |
 | Storage | 10% | 12, 25 |
 
+## Lab Status
+
+Each exercise should declare the environment it needs and whether it has been tested:
+
+- `Test record: Not tested` — no live cluster verification is claimed
+- `Test record: Tested` — include Kubernetes version, cluster type, date, and tester
+- `Test record: Partially tested` — state exactly what was and was not tested
+
+The common lab contract is:
+
+```markdown
+## Lab Requirements
+
+- Cluster: kind / Minikube / kubeadm multi-node
+- Components: required CNI, storage, controller, or `None`
+- Access: kubectl namespace permissions / node SSH / sudo
+- Test record: Not tested
+```
+
 ## How to Use
 
 1. Read the exercise description
