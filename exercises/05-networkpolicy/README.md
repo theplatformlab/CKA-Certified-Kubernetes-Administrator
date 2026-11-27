@@ -78,12 +78,15 @@ BACKEND_IP=$(k get pod backend -n exercise-05 -o jsonpath='{.status.podIP}')
 # Frontend -> Backend: should work
 k exec frontend -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP"
 
+# Frontend should still resolve Kubernetes service names
+k exec frontend -n exercise-05 -- nslookup kubernetes.default.svc.cluster.local
+
 # Attacker -> Backend: should fail
-if k exec attacker -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP"; then
-  echo "Unexpected: attacker reached backend"
+if k exec attacker -n exercise-05 -- wget -qO- -T 3 "http://$BACKEND_IP" >/dev/null 2>&1; then
+  echo "FAIL: attacker reached backend"
   exit 1
 else
-  echo "Expected: policy blocked attacker"
+  echo "PASS: policy blocked attacker"
 fi
 ```
 
