@@ -1,10 +1,10 @@
 # CKA Exercises
 
-33 hands-on labs covering the five official CKA exam domains, plus a small number of clearly marked supplemental labs. Each one has a task list, hints, verification commands, and a full solution behind a spoiler tag. The current [CNCF CKA curriculum](https://github.com/cncf/curriculum/blob/master/CKA_Curriculum_v1.37.pdf) is the source for exam scope; supplemental labs are useful practice, not a claim that the named product or implementation will appear on the exam.
+34 hands-on labs covering the five official CKA exam domains, plus a small number of clearly marked supplemental labs. Each one has a task list, hints, verification commands, and a full solution behind a spoiler tag. The current [CNCF CKA curriculum](https://github.com/cncf/curriculum/blob/master/CKA_Curriculum_v1.37.pdf) is the source for exam scope; supplemental labs are useful practice, not a claim that the named product or implementation will appear on the exam.
 
 I ordered these roughly by difficulty. If you're short on time, prioritize 09 (kubeadm), 11 (troubleshooting), 29 (etcd fix), and 28 (NetworkPolicy) — those cover the highest-weight domains and represent real exam patterns.
 
-**New in v2.0:** Exercises 23-33 add advanced scenarios and troubleshooting practice.
+**New in v2.0:** Exercises 23-34 add advanced scenarios and troubleshooting practice.
 
 | # | Exercise | Domain | Difficulty | Time |
 |---|---|---|---|---|
@@ -41,11 +41,12 @@ I ordered these roughly by difficulty. If you're short on time, prioritize 09 (k
 | 31 | [Argo CD GitOps Setup (supplemental product practice)](31-argocd-gitops-setup/) | Cluster Architecture | Hard | 25 min |
 | 32 | [Service Endpoints Troubleshooting](32-service-endpoints-troubleshooting/) | Services & Networking | Medium | 15 min |
 | 33 | [Named Ports and NodePort](33-named-port-nodeport/) | Services & Networking | Medium | 15 min |
+| 34 | [CRD Discovery and kubectl explain](34-crd-discovery/) | Cluster Architecture | Medium | 15 min |
 
 | Domain | Weight | Exercises |
 |---|---|---|
 | Troubleshooting | 30% | 11, 17, 29 |
-| Cluster Architecture | 25% | 04, 08, 09, 13, 14, 27 |
+| Cluster Architecture | 25% | 04, 08, 09, 13, 14, 27, 34 |
 | Services & Networking | 20% | 05, 15, 19, 28, 32, 33 |
 | Workloads & Scheduling | 15% | 01, 02, 03, 06, 07, 10, 16, 20, 21, 22, 23, 24 |
 | Storage | 10% | 12, 25 |
