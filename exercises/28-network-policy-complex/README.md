@@ -4,6 +4,13 @@
 
 Create multi-namespace NetworkPolicies with ingress/egress rules with careful label matching and debugging. Understand that NetworkPolicy enforcement depends on the CNI (Container Network Interface) plugin your cluster uses — not all CNIs enforce all policy rules equally.
 
+## Lab Requirements
+
+- Cluster: disposable cluster with Calico or another NetworkPolicy-enforcing CNI
+- Components: CoreDNS, DNS egress, frontend/backend/database test workloads
+- Access: permission to create namespaces, Pods, Services, and NetworkPolicies
+- Test record: Not tested
+
 ## Conventions
 
 NetworkPolicy troubleshooting involves multiple trap levels:

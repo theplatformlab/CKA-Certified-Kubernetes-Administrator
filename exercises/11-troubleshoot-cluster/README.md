@@ -4,6 +4,13 @@
 
 Fix a broken cluster. This exercise simulates common failures you'll see on the CKA: kubelet down, kube-proxy misconfigured, CoreDNS not resolving.
 
+## Lab Requirements
+
+- Cluster: disposable kubeadm cluster with control-plane and worker nodes
+- Components: kubelet, kube-proxy, CoreDNS, and API server manifest access
+- Access: SSH or direct shell access to nodes; sudo on the control plane and worker
+- Test record: Not tested
+
 ## Conventions
 
 Before working through these scenarios, understand the trap architecture:

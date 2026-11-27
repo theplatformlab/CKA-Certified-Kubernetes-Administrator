@@ -4,6 +4,13 @@
 
 Install a full CNI plugin using the Tigera Operator for Calico, including networking and security policies. Essential for multi-node clusters.
 
+## Lab Requirements
+
+- Cluster: disposable multi-node kubeadm cluster
+- Components: Internet access or preloaded Tigera manifests; Calico operator and system pods
+- Access: node SSH or direct shell access; sudo and cluster-admin access
+- Test record: Not tested
+
 ## Tasks
 
 1. Verify cluster CIDR from kube-controller-manager

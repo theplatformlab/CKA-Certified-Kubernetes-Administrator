@@ -4,6 +4,13 @@
 
 Debug and fix a broken control plane where API server points to wrong etcd endpoint. Tests troubleshooting methodology and static pod modification.
 
+## Lab Requirements
+
+- Cluster: disposable kubeadm control-plane node with local etcd
+- Components: kube-apiserver static pod, kubelet, etcd manifest and certificates
+- Access: SSH or direct shell access to the control-plane node; sudo required
+- Test record: Not tested
+
 ## Conventions
 
 Trap architecture for this exercise:
