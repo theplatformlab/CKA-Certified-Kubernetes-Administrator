@@ -123,6 +123,65 @@ Create PersistentVolumes, PersistentVolumeClaims, and mount them into pods. This
 >
 > Always validate with `k get pv`, `k get pvc`, `k get pod`, and `k get events` before concluding the storage setup is healthy.
 
+## Recover a Released PV
+
+A PV with `Retain` stays on the node with its data after the old PVC is deleted. To reuse it, remove the old claim reference and recreate the PVC bound to the same PV.
+
+```bash
+k get pv my-pv -o yaml
+k patch pv my-pv --type=merge -p '{"spec":{"claimRef":null}}'
+k get pv my-pv
+```
+
+The PV should return to `Available`. Recreate the same PVC, adding an explicit `volumeName` to prevent another PV from winning the bind:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc-recovered
+  namespace: exercise-12
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: manual
+  volumeName: my-pv
+  resources:
+    requests:
+      storage: 500Mi
+```
+
+Apply the recovered claim and mount it in a new Pod:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-recovery
+  namespace: exercise-12
+spec:
+  restartPolicy: Never
+  containers:
+  - name: recovery
+    image: busybox:1.36
+    command: ["sh", "-c", "cat /data/test.txt; sleep 3600"]
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: my-pvc-recovered
+```
+
+```bash
+k apply -f pvc-recovered.yaml
+k apply -f storage-recovery.yaml
+k get pv my-pv
+k get pvc my-pvc-recovered -n exercise-12
+k logs storage-recovery -n exercise-12
+```
+
 ## Verify + Cleanup
 
 ```bash
